@@ -3,6 +3,7 @@
 import { compare } from "bcryptjs";
 import { redirect } from "next/navigation";
 import { signInSchema } from "@/lib/auth-schema";
+import { getAppBaseUrl } from "@/lib/app-url";
 import { createDatabaseSession, persistCredentialsAccount } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 
@@ -21,7 +22,8 @@ function normalizeCallbackUrl(value: FormDataEntryValue | null) {
 
   try {
     const callbackUrl = new URL(value);
-    const appUrl = process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL) : null;
+    const appBaseUrl = getAppBaseUrl();
+    const appUrl = appBaseUrl ? new URL(appBaseUrl) : null;
 
     if (appUrl && callbackUrl.origin === appUrl.origin) {
       return `${callbackUrl.pathname}${callbackUrl.search}`;

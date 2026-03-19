@@ -443,9 +443,10 @@
 依赖：`T103`、`T110`。
 备注：已补充根目录 `docker-compose.yml`、前后端 Dockerfile 与部署说明文档；Compose 默认使用 `mock` 抓取器，真实 X 交互式绑定仍建议在宿主机 API 环境运行。
 
-- [ ] `T1006` `P1` 配置 Vercel 前端部署。
+- [x] `T1006` `P1` 配置 Vercel 前端部署。
 完成标准：前端可连接生产或测试 API。
 依赖：`T102`、`T003`。
+备注：已新增 `apps/web/vercel.json`、`.vercelignore`，并补充 Vercel 域名兜底逻辑与部署说明，可按 Preview / Production 环境分别连接测试或正式 API。
 
 - [ ] `T1007` `P1` 配置生产数据库迁移流程。
 完成标准：生产环境可安全执行 Prisma 迁移。
