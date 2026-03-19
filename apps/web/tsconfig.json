@@ -1,6 +1,7 @@
 {
   "extends": "../../packages/config/typescript/nextjs.json",
   "compilerOptions": {
+    "types": ["jest", "@testing-library/jest-dom"],
     "plugins": [
       {
         "name": "next"

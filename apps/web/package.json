@@ -6,7 +6,8 @@
     "dev": "dotenv -e ../../.env -- next dev -p 3000",
     "build": "dotenv -e ../../.env -- next build",
     "start": "dotenv -e ../../.env -- next start -p 3000",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "jest --runInBand"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -27,12 +28,17 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.7",
+    "jest": "^30.3.0",
+    "jest-environment-jsdom": "^30.3.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
