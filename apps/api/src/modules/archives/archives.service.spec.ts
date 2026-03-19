@@ -134,6 +134,7 @@ describe('ArchivesService', () => {
 
   it('lists archived posts by binding and supports lookup by binding plus xPostId', async () => {
     const binding = await createBinding('archive_reader');
+    const otherBinding = await createBinding('archive_reader_other');
 
     await archivesService.createArchivedPost({
       bindingId: binding.id,
@@ -162,6 +163,19 @@ describe('ArchivesService', () => {
       rawPayloadJson: { id: 'post-newer' },
       sourceCreatedAt: '2026-03-19T09:00:00.000Z',
     });
+    await archivesService.createArchivedPost({
+      bindingId: otherBinding.id,
+      xPostId: 'post-newer',
+      postUrl: 'https://x.com/archive_reader_other/status/post-newer',
+      postType: PostType.POST,
+      author: {
+        username: 'archive_reader_other',
+      },
+      rawText: 'same xPostId in another binding',
+      richTextJson: { version: 1, blocks: [] },
+      rawPayloadJson: { id: 'post-newer-other-binding' },
+      sourceCreatedAt: '2026-03-19T09:30:00.000Z',
+    });
 
     const page = await archivesService.listArchivedPostsByBinding(binding.id, {
       page: 1,
@@ -181,6 +195,17 @@ describe('ArchivesService', () => {
 
     expect(found?.id).toBe(newerPost.id);
     expect(found?.postType).toBe(PostType.QUOTE);
+    await expect(
+      archivesService.hasArchivedPost(binding.id, 'post-newer'),
+    ).resolves.toBe(true);
+    await expect(
+      archivesService.hasArchivedPost(binding.id, 'post-missing'),
+    ).resolves.toBe(false);
+    await expect(
+      archivesService.findByBindingAndXPostId(otherBinding.id, 'post-newer'),
+    ).resolves.toMatchObject({
+      bindingId: otherBinding.id,
+    });
   });
 
   async function createBinding(username: string) {

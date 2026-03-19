@@ -151,6 +151,22 @@ export class ArchivesService {
     });
   }
 
+  async hasArchivedPost(bindingId: string, xPostId: string) {
+    const archivedPost = await this.prisma.archivedPost.findUnique({
+      where: {
+        bindingId_xPostId: {
+          bindingId,
+          xPostId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return archivedPost !== null;
+  }
+
   getArchivedPostById(id: string): Promise<ArchivedPostDetail | null> {
     return this.prisma.archivedPost.findUnique({
       where: { id },
