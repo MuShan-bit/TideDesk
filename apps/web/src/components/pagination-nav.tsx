@@ -5,14 +5,30 @@ type PaginationNavProps = {
   basePath: string;
   page: number;
   pageSize: number;
+  query?: Record<string, string | undefined>;
   total: number;
 };
 
-function buildPageHref(basePath: string, page: number, pageSize: number) {
-  const searchParams = new URLSearchParams({
-    page: String(page),
-    pageSize: String(pageSize),
-  });
+function buildPageHref(
+  basePath: string,
+  page: number,
+  pageSize: number,
+  query?: Record<string, string | undefined>,
+) {
+  const searchParams = new URLSearchParams();
+
+  searchParams.set("page", String(page));
+  searchParams.set("pageSize", String(pageSize));
+
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      if (!value) {
+        continue;
+      }
+
+      searchParams.set(key, value);
+    }
+  }
 
   return `${basePath}?${searchParams.toString()}`;
 }
@@ -21,6 +37,7 @@ export function PaginationNav({
   basePath,
   page,
   pageSize,
+  query,
   total,
 }: PaginationNavProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -39,7 +56,7 @@ export function PaginationNav({
         <div className="flex flex-wrap gap-3">
           {hasPreviousPage ? (
             <Link
-              href={buildPageHref(basePath, page - 1, pageSize)}
+              href={buildPageHref(basePath, page - 1, pageSize, query)}
               className="inline-flex h-9 items-center justify-center rounded-full border border-border bg-white px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
             >
               上一页
@@ -51,7 +68,7 @@ export function PaginationNav({
           )}
           {hasNextPage ? (
             <Link
-              href={buildPageHref(basePath, page + 1, pageSize)}
+              href={buildPageHref(basePath, page + 1, pageSize, query)}
               className="inline-flex h-9 items-center justify-center rounded-full bg-[#2d4d3f] px-4 text-sm font-medium text-white transition-colors hover:bg-[#20372d]"
             >
               下一页

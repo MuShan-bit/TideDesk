@@ -5,13 +5,22 @@ import { ErrorState } from "@/components/error-state";
 import { PageHeader } from "@/components/page-header";
 import { PaginationNav } from "@/components/pagination-nav";
 import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { apiRequest, getApiErrorMessage } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
+
+const archivePostTypes = ["POST", "REPOST", "QUOTE", "REPLY"] as const;
 
 type ArchivesPageProps = {
   searchParams?: Promise<{
+    dateFrom?: string;
+    dateTo?: string;
+    keyword?: string;
     page?: string;
     pageSize?: string;
+    postType?: string;
   }>;
 };
 
@@ -40,6 +49,15 @@ type ArchivesListResponse = {
   page: number;
   pageSize: number;
   total: number;
+};
+
+type ArchiveFilters = {
+  dateFrom?: string;
+  dateTo?: string;
+  keyword?: string;
+  page?: string;
+  pageSize?: string;
+  postType?: (typeof archivePostTypes)[number];
 };
 
 function formatDateTime(value: string) {
@@ -71,6 +89,40 @@ function parsePositiveInt(value: string | undefined, fallback: number) {
   return parsed;
 }
 
+function getSingleQueryValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+
+  return value;
+}
+
+function normalizePostType(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  return archivePostTypes.includes(value as (typeof archivePostTypes)[number])
+    ? (value as (typeof archivePostTypes)[number])
+    : undefined;
+}
+
+function buildArchivesQueryString(filters: ArchiveFilters) {
+  const searchParams = new URLSearchParams();
+
+  const entries = Object.entries(filters);
+
+  for (const [key, value] of entries) {
+    if (!value) {
+      continue;
+    }
+
+    searchParams.set(key, value);
+  }
+
+  return searchParams.toString();
+}
+
 function getMediaSummary(mediaItems: ArchiveListItem["mediaItems"]) {
   if (mediaItems.length === 0) {
     return "无媒体";
@@ -87,10 +139,18 @@ function getMediaSummary(mediaItems: ArchiveListItem["mediaItems"]) {
     .join(" / ");
 }
 
-async function getArchivesList(page: number, pageSize: number) {
+async function getArchivesList(page: number, pageSize: number, filters: ArchiveFilters) {
   try {
+    const queryString = buildArchivesQueryString({
+      page: String(page),
+      pageSize: String(pageSize),
+      keyword: filters.keyword,
+      postType: filters.postType,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+    });
     const payload = await apiRequest<ArchivesListResponse>({
-      path: `/archives?page=${page}&pageSize=${pageSize}`,
+      path: `/archives?${queryString}`,
       method: "GET",
     });
 
@@ -108,9 +168,21 @@ async function getArchivesList(page: number, pageSize: number) {
 
 export default async function ArchivesPage({ searchParams }: ArchivesPageProps) {
   const resolvedSearchParams = (await searchParams) ?? {};
-  const page = parsePositiveInt(resolvedSearchParams.page, 1);
-  const pageSize = parsePositiveInt(resolvedSearchParams.pageSize, 6);
-  const { error, payload } = await getArchivesList(page, pageSize);
+  const keyword = getSingleQueryValue(resolvedSearchParams.keyword)?.trim() || undefined;
+  const postType = normalizePostType(getSingleQueryValue(resolvedSearchParams.postType));
+  const dateFrom = getSingleQueryValue(resolvedSearchParams.dateFrom) || undefined;
+  const dateTo = getSingleQueryValue(resolvedSearchParams.dateTo) || undefined;
+  const page = parsePositiveInt(getSingleQueryValue(resolvedSearchParams.page), 1);
+  const pageSize = parsePositiveInt(getSingleQueryValue(resolvedSearchParams.pageSize), 6);
+  const activeFilters = {
+    keyword,
+    postType,
+    dateFrom,
+    dateTo,
+  } satisfies ArchiveFilters;
+  const hasActiveFilters = Boolean(keyword || postType || dateFrom || dateTo);
+  const resetHref = buildArchivesQueryString({ pageSize: String(pageSize) });
+  const { error, payload } = await getArchivesList(page, pageSize, activeFilters);
 
   return (
     <div className="space-y-8">
@@ -120,6 +192,76 @@ export default async function ArchivesPage({ searchParams }: ArchivesPageProps) 
         description="这里按卡片展示已经归档的推荐帖子，支持分页浏览、查看原文来源和进入详情页。"
         badge={payload ? `${payload.total} Posts` : undefined}
       />
+
+      <Card className="rounded-[2rem] border-border/70 bg-white/90 shadow-[0_24px_80px_-40px_rgba(45,77,63,0.22)]">
+        <CardHeader className="gap-3">
+          <CardTitle className="text-xl">筛选归档</CardTitle>
+          <CardDescription>
+            按关键词、帖子类型和时间范围快速收窄结果。筛选提交后会自动从第一页开始展示。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="grid gap-4 lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.8fr_auto]" method="GET">
+            <input type="hidden" name="pageSize" value={String(pageSize)} />
+            <Input
+              name="keyword"
+              defaultValue={keyword}
+              placeholder="搜索正文、作者、绑定账号或帖子 ID"
+              className="h-11 rounded-2xl border-border/70 bg-[#fcfaf5] px-4"
+            />
+            <select
+              name="postType"
+              defaultValue={postType ?? ""}
+              className="h-11 rounded-2xl border border-border/70 bg-[#fcfaf5] px-4 text-sm text-foreground outline-none transition-colors focus:border-[#2d4d3f]"
+            >
+              <option value="">全部类型</option>
+              {archivePostTypes.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+            <Input
+              name="dateFrom"
+              type="date"
+              defaultValue={dateFrom}
+              className="h-11 rounded-2xl border-border/70 bg-[#fcfaf5] px-4"
+            />
+            <Input
+              name="dateTo"
+              type="date"
+              defaultValue={dateTo}
+              className="h-11 rounded-2xl border-border/70 bg-[#fcfaf5] px-4"
+            />
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" className="rounded-full bg-[#2d4d3f] px-5 hover:bg-[#20372d]">
+                应用筛选
+              </Button>
+              <Link
+                href={resetHref ? `/archives?${resetHref}` : "/archives"}
+                className={cn(buttonVariants({ variant: "outline" }), "rounded-full px-5")}
+              >
+                清空
+              </Link>
+            </div>
+          </form>
+          {hasActiveFilters ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {keyword ? (
+                <Badge className="rounded-full bg-[#f5efe4] text-[#7f5a26]">关键词：{keyword}</Badge>
+              ) : null}
+              {postType ? (
+                <Badge className="rounded-full bg-[#eef4f0] text-[#2d4d3f]">类型：{postType}</Badge>
+              ) : null}
+              {dateFrom || dateTo ? (
+                <Badge className="rounded-full bg-slate-100 text-slate-700">
+                  时间：{dateFrom ?? "起始"} - {dateTo ?? "至今"}
+                </Badge>
+              ) : null}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {error ? (
         <ErrorState
@@ -138,14 +280,18 @@ export default async function ArchivesPage({ searchParams }: ArchivesPageProps) 
 
       {payload && payload.items.length === 0 ? (
         <EmptyState
-          title="还没有归档内容"
-          description="先在绑定页完成账号配置并手动抓取一次，系统就会把推荐帖子存档到这里。"
+          title={hasActiveFilters ? "没有匹配当前筛选条件的归档" : "还没有归档内容"}
+          description={
+            hasActiveFilters
+              ? "试着放宽关键词、调整类型或修改时间范围，然后重新查询。"
+              : "先在绑定页完成账号配置并手动抓取一次，系统就会把推荐帖子存档到这里。"
+          }
           action={
             <Link
-              href="/bindings"
+              href={hasActiveFilters ? (resetHref ? `/archives?${resetHref}` : "/archives") : "/bindings"}
               className="inline-flex h-9 items-center justify-center rounded-full bg-[#2d4d3f] px-4 text-sm font-medium text-white transition-colors hover:bg-[#20372d]"
             >
-              去触发抓取
+              {hasActiveFilters ? "清空筛选" : "去触发抓取"}
             </Link>
           }
         />
@@ -242,6 +388,7 @@ export default async function ArchivesPage({ searchParams }: ArchivesPageProps) 
             basePath="/archives"
             page={payload.page}
             pageSize={payload.pageSize}
+            query={activeFilters}
             total={payload.total}
           />
         </>
