@@ -1,4 +1,11 @@
-import { BindingStatus, CredentialSource, UserRole } from '@prisma/client';
+import {
+  BindingStatus,
+  CrawlRunStatus,
+  CrawlTriggerType,
+  CredentialSource,
+  PostType,
+  UserRole,
+} from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../../app.module';
 import { CredentialCryptoService } from '../crypto/credential-crypto.service';
@@ -110,6 +117,96 @@ describe('BindingsService', () => {
     expect(rebound.crawlJob?.intervalMinutes).toBe(45);
     expect(rebound.username).toBe('rebound_owner');
     expect(rebound.displayName).toBe('Rebound Owner');
+  });
+
+  it('unbinds a binding and clears related archives and crawl runs', async () => {
+    const binding = await createBinding({
+      xUserId: 'x-unbind',
+      username: 'unbind_owner',
+      displayName: 'Unbind Owner',
+      status: BindingStatus.ACTIVE,
+      crawlEnabled: true,
+      crawlIntervalMinutes: 30,
+    });
+    const run = await prisma.crawlRun.create({
+      data: {
+        bindingId: binding.id,
+        crawlJobId: binding.crawlJob!.id,
+        triggerType: CrawlTriggerType.MANUAL,
+        status: CrawlRunStatus.SUCCESS,
+      },
+    });
+
+    await prisma.archivedPost.create({
+      data: {
+        bindingId: binding.id,
+        firstCrawlRunId: run.id,
+        xPostId: 'unbind-post-001',
+        postUrl: 'https://x.com/unbind_owner/status/unbind-post-001',
+        postType: PostType.POST,
+        authorUsername: 'unbind_owner',
+        rawText: 'unbind post',
+        richTextJson: { version: 1, blocks: [] },
+        renderedHtml: '<p>unbind post</p>',
+        rawPayloadJson: { id: 'unbind-post-001' },
+        sourceCreatedAt: new Date('2026-03-19T08:00:00.000Z'),
+      },
+    });
+
+    const result = await bindingsService.unbind('binding_owner', binding.id);
+
+    expect(result).toEqual({
+      deletedArchiveCount: 1,
+      deletedBindingId: binding.id,
+      deletedRunCount: 1,
+    });
+    await expect(
+      prisma.xAccountBinding.findUniqueOrThrow({
+        where: {
+          id: binding.id,
+        },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      prisma.archivedPost.count({
+        where: {
+          bindingId: binding.id,
+        },
+      }),
+    ).resolves.toBe(0);
+    await expect(
+      prisma.crawlRun.count({
+        where: {
+          bindingId: binding.id,
+        },
+      }),
+    ).resolves.toBe(0);
+  });
+
+  it('rejects unbinding when crawl runs are still queued or running', async () => {
+    const binding = await createBinding({
+      xUserId: 'x-active-run',
+      username: 'active_run_owner',
+      displayName: 'Active Run Owner',
+      status: BindingStatus.ACTIVE,
+      crawlEnabled: true,
+      crawlIntervalMinutes: 30,
+    });
+
+    await prisma.crawlRun.create({
+      data: {
+        bindingId: binding.id,
+        crawlJobId: binding.crawlJob!.id,
+        triggerType: CrawlTriggerType.SCHEDULED,
+        status: CrawlRunStatus.RUNNING,
+      },
+    });
+
+    await expect(
+      bindingsService.unbind('binding_owner', binding.id),
+    ).rejects.toThrow(
+      'Current binding has queued or running crawl runs and cannot be unbound yet',
+    );
   });
 
   async function createBinding(input: {

@@ -17,6 +17,12 @@ type ManualCrawlRunResponse = {
   triggerType: string;
 };
 
+type UnbindBindingResponse = {
+  deletedArchiveCount: number;
+  deletedBindingId: string;
+  deletedRunCount: number;
+};
+
 const credentialSourceSchema = z.enum(["WEB_LOGIN", "COOKIE_IMPORT", "EXTENSION"]);
 
 const bindingSchema = z.object({
@@ -193,6 +199,42 @@ export async function disableBindingAction(
 
     return {
       success: "绑定已停用。",
+    } satisfies BindingActionState;
+  } catch (error) {
+    return {
+      error: getApiErrorMessage(error),
+    } satisfies BindingActionState;
+  }
+}
+
+export async function unbindBindingAction(
+  _previousState: BindingActionState,
+  formData: FormData,
+): Promise<BindingActionState> {
+  const parsed = bindingOperationSchema.safeParse({
+    bindingId: getOptionalTextValue(formData, "bindingId"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "缺少绑定 ID。",
+    } satisfies BindingActionState;
+  }
+
+  try {
+    const result = await apiRequest<UnbindBindingResponse>({
+      path: `/bindings/${parsed.data.bindingId}/unbind`,
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+
+    revalidatePath("/bindings");
+    revalidatePath("/dashboard");
+    revalidatePath("/archives");
+    revalidatePath("/runs");
+
+    return {
+      success: `绑定已解除，并删除 ${result.deletedArchiveCount} 条归档、${result.deletedRunCount} 条抓取记录。`,
     } satisfies BindingActionState;
   } catch (error) {
     return {

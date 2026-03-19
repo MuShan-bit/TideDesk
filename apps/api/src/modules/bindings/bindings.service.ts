@@ -1,4 +1,9 @@
-import { BindingStatus, CredentialSource, type Prisma } from '@prisma/client';
+import {
+  BindingStatus,
+  CrawlRunStatus,
+  CredentialSource,
+  type Prisma,
+} from '@prisma/client';
 import {
   ConflictException,
   Inject,
@@ -163,6 +168,52 @@ export class BindingsService {
       },
       include: { crawlJob: true },
     });
+  }
+
+  async unbind(userId: string, bindingId: string) {
+    const binding = await this.assertOwnership(userId, bindingId);
+    const activeRunCount = await this.prisma.crawlRun.count({
+      where: {
+        bindingId: binding.id,
+        status: {
+          in: [CrawlRunStatus.QUEUED, CrawlRunStatus.RUNNING],
+        },
+      },
+    });
+
+    if (activeRunCount > 0) {
+      throw new ConflictException(
+        'Current binding has queued or running crawl runs and cannot be unbound yet',
+      );
+    }
+
+    const [deletedArchiveCount, deletedRunCount] =
+      await this.prisma.$transaction(async (tx) => {
+        const archivedPostCount = await tx.archivedPost.count({
+          where: {
+            bindingId: binding.id,
+          },
+        });
+        const crawlRunCount = await tx.crawlRun.count({
+          where: {
+            bindingId: binding.id,
+          },
+        });
+
+        await tx.xAccountBinding.delete({
+          where: {
+            id: binding.id,
+          },
+        });
+
+        return [archivedPostCount, crawlRunCount];
+      });
+
+    return {
+      deletedArchiveCount,
+      deletedBindingId: binding.id,
+      deletedRunCount,
+    };
   }
 
   async revalidate(userId: string, bindingId: string) {

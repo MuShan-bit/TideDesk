@@ -8,6 +8,7 @@ import {
   revalidateBindingAction,
   type BindingActionState,
   triggerManualCrawlAction,
+  unbindBindingAction,
   updateCrawlConfigAction,
   upsertBindingAction,
 } from "./actions";
@@ -208,6 +209,10 @@ export function BindingConsole({ currentBinding }: BindingConsoleProps) {
     disableBindingAction,
     initialActionState,
   );
+  const [unbindState, unbindAction, isUnbindPending] = useActionState(
+    unbindBindingAction,
+    initialActionState,
+  );
   const [browserSession, setBrowserSession] = useState<BindingBrowserSessionRecord | null>(null);
   const [browserSessionError, setBrowserSessionError] = useState<string | null>(null);
   const [isBrowserSessionPending, startBrowserSessionTransition] = useTransition();
@@ -365,6 +370,16 @@ export function BindingConsole({ currentBinding }: BindingConsoleProps) {
         }
       })();
     });
+  }
+
+  function handleUnbindSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const confirmed = window.confirm(
+      "解除绑定会删除当前账号下的归档帖子和抓取记录，且不可恢复。确定继续吗？",
+    );
+
+    if (!confirmed) {
+      event.preventDefault();
+    }
   }
 
   return (
@@ -541,6 +556,25 @@ export function BindingConsole({ currentBinding }: BindingConsoleProps) {
                     {isDisablePending ? "停用中..." : "停用绑定"}
                   </Button>
                   <FormFeedback state={disableState} />
+                </form>
+                <form
+                  action={unbindAction}
+                  className="space-y-3"
+                  onSubmit={handleUnbindSubmit}
+                >
+                  <input type="hidden" name="bindingId" value={currentBinding.id} />
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    解除绑定会删除当前绑定下的归档帖子和抓取记录。为避免数据损失，请仅在确认不再需要这些数据时执行。
+                  </div>
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    className="rounded-full px-5"
+                    disabled={isUnbindPending}
+                  >
+                    {isUnbindPending ? "解绑中..." : "解除绑定并删除记录"}
+                  </Button>
+                  <FormFeedback state={unbindState} />
                 </form>
               </CardContent>
             </Card>

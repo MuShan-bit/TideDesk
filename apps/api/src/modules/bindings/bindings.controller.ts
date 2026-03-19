@@ -48,6 +48,11 @@ export class BindingsController {
     return this.bindingsService.disable(user.id, bindingId);
   }
 
+  @Post(':id/unbind')
+  unbind(@CurrentUser() user: RequestUser, @Param('id') bindingId: string) {
+    return this.bindingsService.unbind(user.id, bindingId);
+  }
+
   @Post(':id/crawl-now')
   triggerManualCrawl(
     @CurrentUser() user: RequestUser,
