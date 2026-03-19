@@ -161,6 +161,44 @@ describe('CrawlJobsService and CrawlRunsService', () => {
     expect(storedRun?.binding.username).toBe('runner');
   });
 
+  it('claims due jobs transactionally and prevents duplicate active runs', async () => {
+    const now = new Date('2026-03-19T06:00:00.000Z');
+    const binding = await createBinding({
+      crawlEnabled: true,
+      nextRunAt: new Date('2026-03-19T05:59:00.000Z'),
+      status: BindingStatus.ACTIVE,
+      username: 'claim_once',
+    });
+
+    const [firstClaim, secondClaim] = await Promise.all([
+      crawlJobsService.claimDueJobs({ now, limit: 1 }),
+      crawlJobsService.claimDueJobs({ now, limit: 1 }),
+    ]);
+    const claimedRuns = [...firstClaim, ...secondClaim].filter(
+      (run) => run.bindingId === binding.id,
+    );
+
+    expect(claimedRuns).toHaveLength(1);
+    expect(claimedRuns[0]?.bindingId).toBe(binding.id);
+    expect(claimedRuns[0]?.crawlJobId).toBe(binding.crawlJob!.id);
+    expect(claimedRuns[0]?.status).toBe(CrawlRunStatus.QUEUED);
+
+    const laterClaim = await crawlJobsService.claimDueJobs({ now, limit: 1 });
+
+    expect(laterClaim.some((run) => run.bindingId === binding.id)).toBe(false);
+
+    const storedRuns = await prisma.crawlRun.findMany({
+      where: {
+        bindingId: binding.id,
+        status: {
+          in: [CrawlRunStatus.QUEUED, CrawlRunStatus.RUNNING],
+        },
+      },
+    });
+
+    expect(storedRuns).toHaveLength(1);
+  });
+
   async function createBinding(input: {
     crawlEnabled: boolean;
     nextRunAt: Date;

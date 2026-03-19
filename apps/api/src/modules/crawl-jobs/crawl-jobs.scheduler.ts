@@ -1,3 +1,4 @@
+import { CrawlRunStatus, CrawlTriggerType } from '@prisma/client';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { CrawlJobsService } from './crawl-jobs.service';
@@ -7,6 +8,9 @@ type DueCrawlJobSnapshot = {
   bindingUserId: string;
   jobId: string;
   nextRunAt: string | null;
+  runId: string;
+  status: CrawlRunStatus;
+  triggerType: CrawlTriggerType;
   username: string;
 };
 
@@ -22,20 +26,23 @@ export class CrawlJobsScheduler {
   }
 
   async scanDueJobs(now = new Date()) {
-    const dueJobs = await this.crawlJobsService.findDueJobs({
+    const dueRuns = await this.crawlJobsService.claimDueJobs({
       now,
       limit: 100,
     });
-    const jobs: DueCrawlJobSnapshot[] = dueJobs.map((job) => ({
-      jobId: job.id,
-      bindingId: job.bindingId,
-      bindingUserId: job.binding.userId,
-      username: job.binding.username,
-      nextRunAt: job.nextRunAt?.toISOString() ?? null,
+    const jobs: DueCrawlJobSnapshot[] = dueRuns.map((run) => ({
+      runId: run.id,
+      jobId: run.crawlJobId ?? '',
+      bindingId: run.bindingId,
+      bindingUserId: run.binding.userId,
+      username: run.binding.username,
+      nextRunAt: run.crawlJob?.nextRunAt?.toISOString() ?? null,
+      triggerType: run.triggerType,
+      status: run.status,
     }));
 
     if (jobs.length > 0) {
-      this.logger.log(`Discovered ${jobs.length} due crawl jobs`);
+      this.logger.log(`Claimed ${jobs.length} due crawl jobs`);
     } else {
       this.logger.debug('No due crawl jobs found in this scan window');
     }

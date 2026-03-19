@@ -1,4 +1,10 @@
-import { BindingStatus, CredentialSource, UserRole } from '@prisma/client';
+import {
+  BindingStatus,
+  CrawlRunStatus,
+  CrawlTriggerType,
+  CredentialSource,
+  UserRole,
+} from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../../app.module';
 import { PrismaService } from '../prisma/prisma.service';
@@ -41,7 +47,7 @@ describe('CrawlJobsScheduler', () => {
     await moduleRef.close();
   });
 
-  it('scans due crawl jobs every minute using the shared crawl job query', async () => {
+  it('scans and claims due crawl jobs every minute', async () => {
     const now = new Date('2026-03-19T05:00:00.000Z');
     const dueBinding = await createBinding({
       crawlEnabled: true,
@@ -67,17 +73,29 @@ describe('CrawlJobsScheduler', () => {
     const ownJobs = result.jobs.filter(
       (job) => job.bindingUserId === 'scheduler_owner',
     );
+    const secondResult = await crawlJobsScheduler.scanDueJobs(now);
 
     expect(result.scannedAt).toBe(now.toISOString());
-    expect(ownJobs).toEqual([
-      {
-        jobId: dueBinding.crawlJob!.id,
+    expect(ownJobs).toHaveLength(1);
+    expect(ownJobs[0]).toMatchObject({
+      jobId: dueBinding.crawlJob!.id,
+      bindingId: dueBinding.id,
+      bindingUserId: 'scheduler_owner',
+      username: 'scheduler_due',
+      nextRunAt: '2026-03-19T04:59:00.000Z',
+      triggerType: CrawlTriggerType.SCHEDULED,
+      status: CrawlRunStatus.QUEUED,
+    });
+    expect(typeof ownJobs[0]?.runId).toBe('string');
+    expect(secondResult.jobs).toEqual([]);
+
+    const storedRuns = await prisma.crawlRun.findMany({
+      where: {
         bindingId: dueBinding.id,
-        bindingUserId: 'scheduler_owner',
-        username: 'scheduler_due',
-        nextRunAt: '2026-03-19T04:59:00.000Z',
       },
-    ]);
+    });
+
+    expect(storedRuns).toHaveLength(1);
   });
 
   async function createBinding(input: {
