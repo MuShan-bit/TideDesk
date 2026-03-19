@@ -209,6 +209,9 @@ describe('AppController (e2e)', () => {
         const payload = body as {
           bindingId: string;
           crawlJobId: string;
+          fetchedCount: number;
+          newCount: number;
+          skippedCount: number;
           status: string;
           triggerType: string;
         };
@@ -217,6 +220,9 @@ describe('AppController (e2e)', () => {
         expect(payload.status).toBe('SUCCESS');
         expect(payload.triggerType).toBe(CrawlTriggerType.MANUAL);
         expect(payload.crawlJobId).toBeTruthy();
+        expect(payload.fetchedCount).toBe(2);
+        expect(payload.newCount).toBe(2);
+        expect(payload.skippedCount).toBe(0);
       });
 
     await request(app.getHttpServer())
@@ -225,12 +231,18 @@ describe('AppController (e2e)', () => {
       .expect(201)
       .expect(({ body }) => {
         const payload = body as {
+          fetchedCount: number;
+          newCount: number;
+          skippedCount: number;
           status: string;
           triggerType: string;
         };
 
         expect(payload.status).toBe('SUCCESS');
         expect(payload.triggerType).toBe(CrawlTriggerType.MANUAL);
+        expect(payload.fetchedCount).toBe(2);
+        expect(payload.newCount).toBe(0);
+        expect(payload.skippedCount).toBe(2);
       });
 
     const storedRuns = await prisma.crawlRun.findMany({
@@ -246,6 +258,8 @@ describe('AppController (e2e)', () => {
 
     expect(storedRuns).toHaveLength(2);
     expect(storedRuns.every((run) => run.status === 'SUCCESS')).toBe(true);
+    expect(storedRuns.reduce((sum, run) => sum + run.newCount, 0)).toBe(2);
+    expect(storedRuns.reduce((sum, run) => sum + run.skippedCount, 0)).toBe(2);
     expect(archivedPosts).toHaveLength(2);
   });
 

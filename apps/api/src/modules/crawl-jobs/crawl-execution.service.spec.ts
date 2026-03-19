@@ -91,6 +91,10 @@ describe('CrawlExecutionService', () => {
     const processedRun = await crawlExecutionService.processRun(run.id);
 
     expect(processedRun.status).toBe(CrawlRunStatus.SUCCESS);
+    expect(processedRun.fetchedCount).toBe(2);
+    expect(processedRun.newCount).toBe(2);
+    expect(processedRun.skippedCount).toBe(0);
+    expect(processedRun.failedCount).toBe(0);
 
     const archivedPosts = await prisma.archivedPost.findMany({
       where: {
