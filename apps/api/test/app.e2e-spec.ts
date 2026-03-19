@@ -71,6 +71,14 @@ describe('AppController (e2e)', () => {
       },
     });
 
+    await prisma.bindingBrowserSession.deleteMany({
+      where: {
+        userId: {
+          in: ['user_demo', 'user_other'],
+        },
+      },
+    });
+
     await prisma.xAccountBinding.deleteMany({
       where: {
         userId: {
@@ -162,6 +170,127 @@ describe('AppController (e2e)', () => {
         expect(payload.latestRun?.newCount).toBe(2);
         expect(payload.archiveCount).toBe(2);
         expect(payload.nextRunAt).not.toBeNull();
+      });
+  });
+
+  it('redacts sensitive credential fields from public API responses', async () => {
+    const createResponse = await request(app.getHttpServer())
+      .post('/bindings')
+      .set(internalHeaders)
+      .send({
+        xUserId: 'x-user-sensitive',
+        username: 'sensitive_owner',
+        displayName: 'Sensitive Owner',
+        credentialSource: 'COOKIE_IMPORT',
+        credentialPayload:
+          '{"username":"sensitive_owner","xUserId":"x-user-sensitive"}',
+        crawlEnabled: true,
+        crawlIntervalMinutes: 30,
+      })
+      .expect(201);
+
+    const binding = createResponse.body as { id: string };
+    const persistedBinding = await prisma.xAccountBinding.findUniqueOrThrow({
+      where: {
+        id: binding.id,
+      },
+    });
+
+    expect(persistedBinding.authPayloadEncrypted).toBeTruthy();
+    expect(createResponse.body.authPayloadEncrypted).toBeUndefined();
+
+    const browserSession = await prisma.bindingBrowserSession.create({
+      data: {
+        userId: 'user_demo',
+        bindingId: binding.id,
+        status: 'SUCCESS',
+        loginUrl: 'https://x.com/i/flow/login',
+        capturedPayloadEncrypted: 'encrypted-browser-session-payload',
+        expiresAt: new Date('2026-03-20T00:00:00.000Z'),
+        completedAt: new Date('2026-03-19T00:30:00.000Z'),
+        xUserId: 'x-user-sensitive',
+        username: 'sensitive_owner',
+      },
+    });
+
+    await request(app.getHttpServer())
+      .post(`/bindings/${binding.id}/crawl-now`)
+      .set(internalHeaders)
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .get('/bindings/current')
+      .set(internalHeaders)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.authPayloadEncrypted).toBeUndefined();
+      });
+
+    await request(app.getHttpServer())
+      .get('/dashboard/summary')
+      .set(internalHeaders)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.binding?.authPayloadEncrypted).toBeUndefined();
+      });
+
+    const archivesListResponse = await request(app.getHttpServer())
+      .get('/archives?page=1&pageSize=1')
+      .set(internalHeaders)
+      .expect(200);
+    const archiveListPayload = archivesListResponse.body as {
+      items: Array<{
+        id: string;
+        binding?: {
+          authPayloadEncrypted?: string;
+        };
+      }>;
+    };
+    const archivedPostId = archiveListPayload.items[0]?.id;
+
+    expect(archiveListPayload.items[0]?.binding?.authPayloadEncrypted).toBeUndefined();
+    expect(archivedPostId).toBeTruthy();
+
+    await request(app.getHttpServer())
+      .get(`/archives/${archivedPostId}`)
+      .set(internalHeaders)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.binding?.authPayloadEncrypted).toBeUndefined();
+      });
+
+    const runsListResponse = await request(app.getHttpServer())
+      .get('/runs?page=1&pageSize=1')
+      .set(internalHeaders)
+      .expect(200);
+    const runsListPayload = runsListResponse.body as {
+      items: Array<{
+        id: string;
+        binding?: {
+          authPayloadEncrypted?: string;
+        };
+      }>;
+    };
+    const runId = runsListPayload.items[0]?.id;
+
+    expect(runsListPayload.items[0]?.binding?.authPayloadEncrypted).toBeUndefined();
+    expect(runId).toBeTruthy();
+
+    await request(app.getHttpServer())
+      .get(`/runs/${runId}`)
+      .set(internalHeaders)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.binding?.authPayloadEncrypted).toBeUndefined();
+      });
+
+    await request(app.getHttpServer())
+      .get(`/bindings/browser-sessions/${browserSession.id}`)
+      .set(internalHeaders)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.capturedPayloadEncrypted).toBeUndefined();
+        expect(body.binding?.authPayloadEncrypted).toBeUndefined();
       });
   });
 

@@ -16,10 +16,12 @@ export class CrawlRunsController {
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
-    return this.crawlRunsService.listByUser(user.id, {
-      page: page ? Number(page) : undefined,
-      pageSize: pageSize ? Number(pageSize) : undefined,
-    });
+    return this.crawlRunsService
+      .listByUser(user.id, {
+        page: page ? Number(page) : undefined,
+        pageSize: pageSize ? Number(pageSize) : undefined,
+      })
+      .then((payload) => serializeForJson(payload));
   }
 
   @Get(':id')
