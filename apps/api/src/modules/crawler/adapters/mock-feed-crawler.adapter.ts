@@ -1,18 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { MediaType, PostType } from '@prisma/client';
 import { normalizeRawFeedPosts } from '../crawler-normalizer';
+import { retryCrawlerOperation } from '../crawler-retry';
 import type {
   BindingProfile,
   FeedCrawlerAdapter,
   NormalizedPost,
   RawFeedResponse,
 } from '../crawler.types';
-import { CrawlerAuthError } from '../errors/crawler-adapter.error';
+import {
+  CrawlerAuthError,
+  CrawlerNetworkError,
+  CrawlerRateLimitError,
+  CrawlerStructureChangedError,
+} from '../errors/crawler-adapter.error';
+
+type MockFailureMode = 'AUTH' | 'NETWORK' | 'RATE_LIMIT' | 'STRUCTURE_CHANGED';
 
 type MockCredentialPayload = {
   avatarUrl?: string;
   cookie?: string;
   displayName?: string;
+  failTimes?: number;
+  failureMode?: MockFailureMode;
   username?: string;
   xUserId?: string;
 };
@@ -24,6 +34,12 @@ export class MockFeedCrawlerAdapter implements FeedCrawlerAdapter {
   validateCredential(payload: string): Promise<BindingProfile> {
     const parsed = this.parseCredential(payload);
 
+    if (parsed.failureMode === 'AUTH') {
+      return Promise.reject(
+        new CrawlerAuthError('Mock crawler rejected the credential'),
+      );
+    }
+
     return Promise.resolve({
       xUserId: parsed.xUserId,
       username: parsed.username,
@@ -34,12 +50,69 @@ export class MockFeedCrawlerAdapter implements FeedCrawlerAdapter {
 
   async fetchRecommendedFeed(payload: string): Promise<RawFeedResponse> {
     const profile = await this.validateCredential(payload);
+    const parsed = this.parseCredential(payload);
+    let attempt = 0;
+
+    return retryCrawlerOperation(
+      () => {
+        attempt += 1;
+        this.throwMockFailure(parsed, attempt);
+
+        return this.buildMockResponse(profile, attempt);
+      },
+      {
+        baseDelayMs: 0,
+      },
+    );
+  }
+
+  normalizePosts(raw: RawFeedResponse): Promise<NormalizedPost[]> {
+    return Promise.resolve(normalizeRawFeedPosts(raw));
+  }
+
+  private parseCredential(payload: string): MockCredentialPayload {
+    if (!payload.trim()) {
+      throw new CrawlerAuthError('Credential payload cannot be empty');
+    }
+
+    try {
+      const parsed = JSON.parse(payload) as MockCredentialPayload;
+
+      if (typeof parsed !== 'object' || parsed === null) {
+        throw new CrawlerAuthError('Credential payload must be a JSON object');
+      }
+
+      if (
+        typeof parsed.cookie !== 'string' &&
+        typeof parsed.username !== 'string' &&
+        typeof parsed.xUserId !== 'string'
+      ) {
+        throw new CrawlerAuthError(
+          'Mock credential requires at least cookie, username or xUserId',
+        );
+      }
+
+      return parsed;
+    } catch (error) {
+      if (error instanceof CrawlerAuthError) {
+        throw error;
+      }
+
+      throw new CrawlerAuthError('Credential payload must be valid JSON');
+    }
+  }
+
+  private buildMockResponse(
+    profile: BindingProfile,
+    attempt: number,
+  ): RawFeedResponse {
     const now = new Date().toISOString();
 
     return {
       adapter: this.name,
       fetchedAt: now,
       metadata: {
+        attempts: attempt,
         source: 'mock',
         username: profile.username ?? 'mock_user',
       },
@@ -128,39 +201,29 @@ export class MockFeedCrawlerAdapter implements FeedCrawlerAdapter {
     };
   }
 
-  normalizePosts(raw: RawFeedResponse): Promise<NormalizedPost[]> {
-    return Promise.resolve(normalizeRawFeedPosts(raw));
-  }
+  private throwMockFailure(payload: MockCredentialPayload, attempt: number) {
+    const maxFailures = payload.failTimes ?? Number.POSITIVE_INFINITY;
 
-  private parseCredential(payload: string): MockCredentialPayload {
-    if (!payload.trim()) {
-      throw new CrawlerAuthError('Credential payload cannot be empty');
+    if (!payload.failureMode || attempt > maxFailures) {
+      return;
     }
 
-    try {
-      const parsed = JSON.parse(payload) as MockCredentialPayload;
-
-      if (typeof parsed !== 'object' || parsed === null) {
-        throw new CrawlerAuthError('Credential payload must be a JSON object');
-      }
-
-      if (
-        typeof parsed.cookie !== 'string' &&
-        typeof parsed.username !== 'string' &&
-        typeof parsed.xUserId !== 'string'
-      ) {
-        throw new CrawlerAuthError(
-          'Mock credential requires at least cookie, username or xUserId',
+    switch (payload.failureMode) {
+      case 'AUTH':
+        return;
+      case 'NETWORK':
+        throw new CrawlerNetworkError(
+          `Mock crawler network failure on attempt ${attempt}`,
         );
-      }
-
-      return parsed;
-    } catch (error) {
-      if (error instanceof CrawlerAuthError) {
-        throw error;
-      }
-
-      throw new CrawlerAuthError('Credential payload must be valid JSON');
+      case 'RATE_LIMIT':
+        throw new CrawlerRateLimitError(
+          `Mock crawler rate limited on attempt ${attempt}`,
+          0,
+        );
+      case 'STRUCTURE_CHANGED':
+        throw new CrawlerStructureChangedError(
+          'Mock crawler detected an unsupported upstream response shape',
+        );
     }
   }
 }
