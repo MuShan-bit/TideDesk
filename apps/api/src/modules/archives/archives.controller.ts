@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { InternalAuthGuard } from '../../common/auth/internal-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { RequestUser } from '../../common/auth/request-user.type';
@@ -21,6 +21,16 @@ export class ArchivesController {
         page: page ? Number(page) : undefined,
         pageSize: pageSize ? Number(pageSize) : undefined,
       })
+      .then((payload) => serializeForJson(payload));
+  }
+
+  @Get(':id')
+  getArchiveDetail(
+    @CurrentUser() user: RequestUser,
+    @Param('id') archivedPostId: string,
+  ) {
+    return this.archivesService
+      .getArchivedPostDetailForUser(user.id, archivedPostId)
       .then((payload) => serializeForJson(payload));
   }
 }

@@ -231,6 +231,65 @@ describe('AppController (e2e)', () => {
       });
   });
 
+  it('/archives/:id returns archive detail with user isolation', async () => {
+    const ownBindingResponse = await request(app.getHttpServer())
+      .post('/bindings')
+      .set(internalHeaders)
+      .send({
+        xUserId: 'x-user-archive-detail',
+        username: 'archive_detail_owner',
+        displayName: 'Archive Detail Owner',
+        credentialSource: 'WEB_LOGIN',
+        credentialPayload: '{"cookie":"archive-detail"}',
+        crawlEnabled: true,
+        crawlIntervalMinutes: 30,
+      })
+      .expect(201);
+
+    const ownBinding = ownBindingResponse.body as { id: string };
+
+    await request(app.getHttpServer())
+      .post(`/bindings/${ownBinding.id}/crawl-now`)
+      .set(internalHeaders)
+      .expect(201);
+
+    const archivedPost = await prisma.archivedPost.findFirstOrThrow({
+      where: {
+        bindingId: ownBinding.id,
+      },
+      orderBy: {
+        archivedAt: 'desc',
+      },
+    });
+
+    await request(app.getHttpServer())
+      .get(`/archives/${archivedPost.id}`)
+      .set(internalHeaders)
+      .expect(200)
+      .expect(({ body }) => {
+        const payload = body as {
+          id: string;
+          authorUsername: string;
+          mediaItems: unknown[];
+          rawText: string;
+          renderedHtml: string | null;
+          richTextJson: { version: number };
+        };
+
+        expect(payload.id).toBe(archivedPost.id);
+        expect(payload.authorUsername).toBeTruthy();
+        expect(payload.rawText).toBeTruthy();
+        expect(payload.richTextJson.version).toBe(1);
+        expect(payload.renderedHtml).toContain('<p>');
+        expect(payload.mediaItems.length).toBeGreaterThanOrEqual(0);
+      });
+
+    await request(app.getHttpServer())
+      .get(`/archives/${archivedPost.id}`)
+      .set(otherInternalHeaders)
+      .expect(404);
+  });
+
   it('/bindings current/create/disable flow works', async () => {
     const createResponse = await request(app.getHttpServer())
       .post('/bindings')

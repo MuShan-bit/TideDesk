@@ -5,7 +5,7 @@ import {
   type PostType,
   type RelationType,
 } from '@prisma/client';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 type CreateArchivedPostMediaInput = {
@@ -209,6 +209,24 @@ export class ArchivesService {
       where: { id },
       ...archivedPostDetailArgs,
     });
+  }
+
+  async getArchivedPostDetailForUser(userId: string, archivedPostId: string) {
+    const archivedPost = await this.prisma.archivedPost.findFirst({
+      where: {
+        id: archivedPostId,
+        binding: {
+          userId,
+        },
+      },
+      ...archivedPostDetailArgs,
+    });
+
+    if (!archivedPost) {
+      throw new NotFoundException('Archived post not found');
+    }
+
+    return archivedPost;
   }
 
   async listArchivedPostsByBinding(
