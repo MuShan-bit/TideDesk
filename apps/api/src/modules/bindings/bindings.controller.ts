@@ -47,4 +47,12 @@ export class BindingsController {
   disable(@CurrentUser() user: RequestUser, @Param('id') bindingId: string) {
     return this.bindingsService.disable(user.id, bindingId);
   }
+
+  @Post(':id/crawl-now')
+  triggerManualCrawl(
+    @CurrentUser() user: RequestUser,
+    @Param('id') bindingId: string,
+  ) {
+    return this.bindingsService.triggerManualCrawl(user.id, bindingId);
+  }
 }

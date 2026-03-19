@@ -32,7 +32,26 @@ export async function apiRequest<T>({ path, ...init }: ApiRequestInit): Promise<
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`);
+    const errorPayload = await response.text();
+    let message = `API request failed with status ${response.status}`;
+
+    if (errorPayload) {
+      try {
+        const parsed = JSON.parse(errorPayload) as {
+          message?: string | string[];
+        };
+
+        if (typeof parsed.message === "string" && parsed.message.length > 0) {
+          message = parsed.message;
+        } else if (Array.isArray(parsed.message) && parsed.message.length > 0) {
+          message = parsed.message.join("；");
+        }
+      } catch {
+        message = errorPayload;
+      }
+    }
+
+    throw new Error(message);
   }
 
   const payload = await response.text();

@@ -5,6 +5,7 @@ import {
   disableBindingAction,
   revalidateBindingAction,
   type BindingActionState,
+  triggerManualCrawlAction,
   updateCrawlConfigAction,
   upsertBindingAction,
 } from "./actions";
@@ -126,6 +127,10 @@ export function BindingConsole({ currentBinding }: BindingConsoleProps) {
   );
   const [validateState, validateAction, isValidatePending] = useActionState(
     revalidateBindingAction,
+    initialActionState,
+  );
+  const [manualCrawlState, manualCrawlAction, isManualCrawlPending] = useActionState(
+    triggerManualCrawlAction,
     initialActionState,
   );
   const [disableState, disableAction, isDisablePending] = useActionState(
@@ -270,9 +275,20 @@ export function BindingConsole({ currentBinding }: BindingConsoleProps) {
             <Card className="rounded-[2rem] border-border/70 bg-white/90 shadow-[0_24px_80px_-40px_rgba(87,62,22,0.2)]">
               <CardHeader>
                 <CardTitle className="text-xl">绑定操作</CardTitle>
-                <CardDescription>先重新校验，确认凭证仍有效；如需停用自动抓取，可以直接在这里完成。</CardDescription>
+                <CardDescription>这里可以立即触发一次抓取、重新校验凭证，或停用当前绑定。</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <form action={manualCrawlAction} className="space-y-3">
+                  <input type="hidden" name="bindingId" value={currentBinding.id} />
+                  <Button
+                    type="submit"
+                    className="rounded-full bg-[#7f5a26] px-5 hover:bg-[#65471f]"
+                    disabled={isManualCrawlPending}
+                  >
+                    {isManualCrawlPending ? "入队中..." : "立即抓取"}
+                  </Button>
+                  <FormFeedback state={manualCrawlState} />
+                </form>
                 <form action={validateAction} className="space-y-3">
                   <input type="hidden" name="bindingId" value={currentBinding.id} />
                   <Button

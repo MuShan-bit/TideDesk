@@ -1,5 +1,11 @@
 import { BindingStatus, CredentialSource, type Prisma } from '@prisma/client';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { CrawlJobsService } from '../crawl-jobs/crawl-jobs.service';
 import { CredentialCryptoService } from '../crypto/credential-crypto.service';
 import { FEED_CRAWLER_ADAPTER } from '../crawler/crawler.constants';
 import type { FeedCrawlerAdapter } from '../crawler/crawler.types';
@@ -12,6 +18,7 @@ import { UpdateCrawlConfigDto } from './dto/update-crawl-config.dto';
 export class BindingsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly crawlJobsService: CrawlJobsService,
     private readonly credentialCryptoService: CredentialCryptoService,
     @Inject(FEED_CRAWLER_ADAPTER)
     private readonly feedCrawlerAdapter: FeedCrawlerAdapter,
@@ -196,6 +203,44 @@ export class BindingsService {
         include: { crawlJob: true },
       });
     }
+  }
+
+  async triggerManualCrawl(userId: string, bindingId: string) {
+    const binding = await this.prisma.xAccountBinding.findFirst({
+      where: {
+        id: bindingId,
+        userId,
+      },
+      include: {
+        crawlJob: true,
+      },
+    });
+
+    if (!binding) {
+      throw new NotFoundException('Binding not found');
+    }
+
+    if (binding.status !== BindingStatus.ACTIVE) {
+      throw new ConflictException(
+        'Only active bindings can trigger a manual crawl run',
+      );
+    }
+
+    if (!binding.crawlJob) {
+      throw new ConflictException(
+        'Binding is missing crawl job configuration and cannot be triggered',
+      );
+    }
+
+    const [run] = await this.crawlJobsService.claimJobForBinding(binding.id);
+
+    if (!run) {
+      throw new ConflictException(
+        'A crawl run is already queued or running for this binding',
+      );
+    }
+
+    return run;
   }
 
   private async assertOwnership(userId: string, bindingId: string) {

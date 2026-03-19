@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { CrawlTriggerType, UserRole } from '@prisma/client';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { PrismaService } from './../src/modules/prisma/prisma.service';
@@ -182,6 +182,57 @@ describe('AppController (e2e)', () => {
       });
   });
 
+  it('/bindings/:id/crawl-now queues a manual crawl run once per binding', async () => {
+    const createResponse = await request(app.getHttpServer())
+      .post('/bindings')
+      .set(internalHeaders)
+      .send({
+        xUserId: 'x-user-manual',
+        username: 'manual_owner',
+        displayName: 'Manual Owner',
+        credentialSource: 'WEB_LOGIN',
+        credentialPayload: '{"cookie":"manual"}',
+        crawlEnabled: false,
+        crawlIntervalMinutes: 30,
+      })
+      .expect(201);
+
+    const binding = createResponse.body as {
+      id: string;
+    };
+
+    await request(app.getHttpServer())
+      .post(`/bindings/${binding.id}/crawl-now`)
+      .set(internalHeaders)
+      .expect(201)
+      .expect(({ body }) => {
+        const payload = body as {
+          bindingId: string;
+          crawlJobId: string;
+          status: string;
+          triggerType: string;
+        };
+
+        expect(payload.bindingId).toBe(binding.id);
+        expect(payload.status).toBe('QUEUED');
+        expect(payload.triggerType).toBe(CrawlTriggerType.MANUAL);
+        expect(payload.crawlJobId).toBeTruthy();
+      });
+
+    await request(app.getHttpServer())
+      .post(`/bindings/${binding.id}/crawl-now`)
+      .set(internalHeaders)
+      .expect(409);
+
+    const storedRuns = await prisma.crawlRun.findMany({
+      where: {
+        bindingId: binding.id,
+      },
+    });
+
+    expect(storedRuns).toHaveLength(1);
+  });
+
   it('/bindings enforces per-user isolation across read and write operations', async () => {
     const ownBindingResponse = await request(app.getHttpServer())
       .post('/bindings')
@@ -272,6 +323,11 @@ describe('AppController (e2e)', () => {
 
     await request(app.getHttpServer())
       .post(`/bindings/${ownBinding.id}/disable`)
+      .set(otherInternalHeaders)
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .post(`/bindings/${ownBinding.id}/crawl-now`)
       .set(otherInternalHeaders)
       .expect(404);
 

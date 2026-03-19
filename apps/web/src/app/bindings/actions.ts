@@ -9,6 +9,12 @@ export type BindingActionState = {
   success?: string;
 };
 
+type ManualCrawlRunResponse = {
+  id: string;
+  status: string;
+  triggerType: string;
+};
+
 const credentialSourceSchema = z.enum(["WEB_LOGIN", "COOKIE_IMPORT", "EXTENSION"]);
 
 const bindingSchema = z.object({
@@ -193,6 +199,40 @@ export async function disableBindingAction(
 
     return {
       success: "绑定已停用。",
+    } satisfies BindingActionState;
+  } catch (error) {
+    return {
+      error: getActionErrorMessage(error),
+    } satisfies BindingActionState;
+  }
+}
+
+export async function triggerManualCrawlAction(
+  _previousState: BindingActionState,
+  formData: FormData,
+) {
+  const parsed = bindingOperationSchema.safeParse({
+    bindingId: getOptionalTextValue(formData, "bindingId"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "缺少绑定 ID。",
+    } satisfies BindingActionState;
+  }
+
+  try {
+    const run = await apiRequest<ManualCrawlRunResponse>({
+      path: `/bindings/${parsed.data.bindingId}/crawl-now`,
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+
+    revalidatePath("/bindings");
+    revalidatePath("/runs");
+
+    return {
+      success: `手动抓取任务已入队，当前状态：${run.status}（${run.triggerType}）。`,
     } satisfies BindingActionState;
   } catch (error) {
     return {

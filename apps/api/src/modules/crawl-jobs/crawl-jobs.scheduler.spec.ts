@@ -74,6 +74,9 @@ describe('CrawlJobsScheduler', () => {
       (job) => job.bindingUserId === 'scheduler_owner',
     );
     const secondResult = await crawlJobsScheduler.scanDueJobs(now);
+    const secondOwnJobs = secondResult.jobs.filter(
+      (job) => job.bindingUserId === 'scheduler_owner',
+    );
 
     expect(result.scannedAt).toBe(now.toISOString());
     expect(ownJobs).toHaveLength(1);
@@ -87,7 +90,7 @@ describe('CrawlJobsScheduler', () => {
       status: CrawlRunStatus.QUEUED,
     });
     expect(typeof ownJobs[0]?.runId).toBe('string');
-    expect(secondResult.jobs).toEqual([]);
+    expect(secondOwnJobs).toEqual([]);
 
     const storedRuns = await prisma.crawlRun.findMany({
       where: {

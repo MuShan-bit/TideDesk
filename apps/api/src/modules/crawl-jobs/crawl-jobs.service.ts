@@ -2,6 +2,7 @@ import {
   BindingStatus,
   CrawlRunStatus,
   CrawlTriggerType,
+  type Prisma,
 } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -91,42 +92,35 @@ export class CrawlJobsService {
         FOR UPDATE OF cj SKIP LOCKED
       `;
 
-      if (claimableJobs.length === 0) {
-        return [];
-      }
+      return this.createClaimedRuns(tx, claimableJobs, triggerType);
+    });
+  }
 
-      const runIds: string[] = [];
+  claimJobForBinding(
+    bindingId: string,
+    triggerType: CrawlTriggerType = CrawlTriggerType.MANUAL,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const claimableJobs = await tx.$queryRaw<ClaimableCrawlJobRow[]>`
+        SELECT
+          cj.id AS "jobId",
+          cj.binding_id AS "bindingId"
+        FROM crawl_jobs cj
+        INNER JOIN x_account_bindings xab ON xab.id = cj.binding_id
+        WHERE
+          cj.binding_id = ${bindingId}
+          AND xab.status = 'ACTIVE'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM crawl_runs cr
+            WHERE
+              cr.binding_id = cj.binding_id
+              AND cr.status IN ('QUEUED', 'RUNNING')
+          )
+        FOR UPDATE OF cj SKIP LOCKED
+      `;
 
-      for (const job of claimableJobs) {
-        const createdRun = await tx.crawlRun.create({
-          data: {
-            bindingId: job.bindingId,
-            crawlJobId: job.jobId,
-            triggerType,
-            status: CrawlRunStatus.QUEUED,
-          },
-          select: {
-            id: true,
-          },
-        });
-
-        runIds.push(createdRun.id);
-      }
-
-      return tx.crawlRun.findMany({
-        where: {
-          id: {
-            in: runIds,
-          },
-        },
-        include: {
-          binding: true,
-          crawlJob: true,
-        },
-        orderBy: {
-          createdAt: 'asc',
-        },
-      });
+      return this.createClaimedRuns(tx, claimableJobs, triggerType);
     });
   }
 
@@ -139,6 +133,49 @@ export class CrawlJobsService {
         nextRunAt: input.nextRunAt,
       },
       include: { binding: true },
+    });
+  }
+
+  private async createClaimedRuns(
+    tx: Prisma.TransactionClient,
+    claimableJobs: ClaimableCrawlJobRow[],
+    triggerType: CrawlTriggerType,
+  ) {
+    if (claimableJobs.length === 0) {
+      return [];
+    }
+
+    const runIds: string[] = [];
+
+    for (const job of claimableJobs) {
+      const createdRun = await tx.crawlRun.create({
+        data: {
+          bindingId: job.bindingId,
+          crawlJobId: job.jobId,
+          triggerType,
+          status: CrawlRunStatus.QUEUED,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      runIds.push(createdRun.id);
+    }
+
+    return tx.crawlRun.findMany({
+      where: {
+        id: {
+          in: runIds,
+        },
+      },
+      include: {
+        binding: true,
+        crawlJob: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
     });
   }
 }
