@@ -208,6 +208,43 @@ describe('ArchivesService', () => {
     });
   });
 
+  it('falls back to the existing archive when concurrent writes hit the unique constraint', async () => {
+    const binding = await createBinding('archive_conflict');
+    const input = {
+      bindingId: binding.id,
+      xPostId: 'post-conflict',
+      postUrl: 'https://x.com/archive_conflict/status/post-conflict',
+      postType: PostType.POST,
+      author: {
+        username: 'archive_conflict',
+      },
+      rawText: 'conflict post',
+      richTextJson: { version: 1, blocks: [] },
+      rawPayloadJson: { id: 'post-conflict' },
+      sourceCreatedAt: '2026-03-19T10:00:00.000Z',
+    } as const;
+
+    const [firstWrite, secondWrite] = await Promise.all([
+      archivesService.createArchivedPostWithConflictFallback(input),
+      archivesService.createArchivedPostWithConflictFallback(input),
+    ]);
+
+    expect(firstWrite.archivedPost.id).toBe(secondWrite.archivedPost.id);
+    expect([firstWrite.created, secondWrite.created].sort()).toEqual([
+      false,
+      true,
+    ]);
+
+    const storedPosts = await prisma.archivedPost.findMany({
+      where: {
+        bindingId: binding.id,
+        xPostId: input.xPostId,
+      },
+    });
+
+    expect(storedPosts).toHaveLength(1);
+  });
+
   async function createBinding(username: string) {
     return prisma.xAccountBinding.create({
       data: {

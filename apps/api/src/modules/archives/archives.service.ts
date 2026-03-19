@@ -1,8 +1,8 @@
 import {
+  Prisma,
   type ArchiveStatus,
   type MediaType,
   type PostType,
-  type Prisma,
   type RelationType,
 } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
@@ -75,6 +75,11 @@ export type ArchivedPostDetail = Prisma.ArchivedPostGetPayload<
   typeof archivedPostDetailArgs
 >;
 
+export type CreateArchivedPostResult = {
+  archivedPost: ArchivedPostDetail;
+  created: boolean;
+};
+
 @Injectable()
 export class ArchivesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -134,6 +139,38 @@ export class ArchivesService {
       },
       ...archivedPostDetailArgs,
     });
+  }
+
+  async createArchivedPostWithConflictFallback(
+    input: CreateArchivedPostInput,
+  ): Promise<CreateArchivedPostResult> {
+    try {
+      const archivedPost = await this.createArchivedPost(input);
+
+      return {
+        archivedPost,
+        created: true,
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const archivedPost = await this.findByBindingAndXPostId(
+          input.bindingId,
+          input.xPostId,
+        );
+
+        if (archivedPost) {
+          return {
+            archivedPost,
+            created: false,
+          };
+        }
+      }
+
+      throw error;
+    }
   }
 
   findByBindingAndXPostId(

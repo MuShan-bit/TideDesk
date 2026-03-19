@@ -80,6 +80,7 @@ export class CrawlJobsService {
           AND cj.next_run_at <= ${now}
           AND xab.crawl_enabled = TRUE
           AND xab.status = 'ACTIVE'
+          AND pg_try_advisory_xact_lock(hashtext(cj.binding_id))
           AND NOT EXISTS (
             SELECT 1
             FROM crawl_runs cr
@@ -110,6 +111,7 @@ export class CrawlJobsService {
         WHERE
           cj.binding_id = ${bindingId}
           AND xab.status = 'ACTIVE'
+          AND pg_try_advisory_xact_lock(hashtext(cj.binding_id))
           AND NOT EXISTS (
             SELECT 1
             FROM crawl_runs cr
