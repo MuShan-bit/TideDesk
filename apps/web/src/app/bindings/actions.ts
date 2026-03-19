@@ -5,6 +5,8 @@ import { z } from "zod";
 import { apiRequest, getApiErrorMessage } from "@/lib/api-client";
 
 export type BindingActionState = {
+  actionHref?: string;
+  actionLabel?: string;
   error?: string;
   success?: string;
 };
@@ -58,7 +60,7 @@ function getOptionalTextValue(formData: FormData, key: string) {
 export async function upsertBindingAction(
   _previousState: BindingActionState,
   formData: FormData,
-) {
+): Promise<BindingActionState> {
   const parsed = bindingSchema.safeParse({
     xUserId: getOptionalTextValue(formData, "xUserId"),
     username: getOptionalTextValue(formData, "username"),
@@ -98,7 +100,7 @@ export async function upsertBindingAction(
 export async function updateCrawlConfigAction(
   _previousState: BindingActionState,
   formData: FormData,
-) {
+): Promise<BindingActionState> {
   const parsed = crawlConfigSchema.safeParse({
     bindingId: getOptionalTextValue(formData, "bindingId"),
     crawlEnabled: formData.get("crawlEnabled") === "on",
@@ -136,7 +138,7 @@ export async function updateCrawlConfigAction(
 export async function revalidateBindingAction(
   _previousState: BindingActionState,
   formData: FormData,
-) {
+): Promise<BindingActionState> {
   const parsed = bindingOperationSchema.safeParse({
     bindingId: getOptionalTextValue(formData, "bindingId"),
   });
@@ -169,7 +171,7 @@ export async function revalidateBindingAction(
 export async function disableBindingAction(
   _previousState: BindingActionState,
   formData: FormData,
-) {
+): Promise<BindingActionState> {
   const parsed = bindingOperationSchema.safeParse({
     bindingId: getOptionalTextValue(formData, "bindingId"),
   });
@@ -202,7 +204,7 @@ export async function disableBindingAction(
 export async function triggerManualCrawlAction(
   _previousState: BindingActionState,
   formData: FormData,
-) {
+): Promise<BindingActionState> {
   const parsed = bindingOperationSchema.safeParse({
     bindingId: getOptionalTextValue(formData, "bindingId"),
   });
@@ -226,6 +228,8 @@ export async function triggerManualCrawlAction(
     revalidatePath("/runs");
 
     return {
+      actionHref: `/runs/${run.id}`,
+      actionLabel: "查看本次抓取记录",
       success: `手动抓取已执行，当前状态：${run.status}（${run.triggerType}）。`,
     } satisfies BindingActionState;
   } catch (error) {

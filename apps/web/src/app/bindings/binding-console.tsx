@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import {
   disableBindingAction,
@@ -93,9 +94,17 @@ function FormFeedback({
 
   if (state.success) {
     return (
-      <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-        {state.success}
-      </p>
+      <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        <p>{state.success}</p>
+        {state.actionHref && state.actionLabel ? (
+          <Link
+            href={state.actionHref}
+            className="mt-3 inline-flex h-8 items-center justify-center rounded-full bg-white px-3 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+          >
+            {state.actionLabel}
+          </Link>
+        ) : null}
+      </div>
     );
   }
 
@@ -283,9 +292,9 @@ export function BindingConsole({ currentBinding }: BindingConsoleProps) {
                   <Button
                     type="submit"
                     className="rounded-full bg-[#7f5a26] px-5 hover:bg-[#65471f]"
-                    disabled={isManualCrawlPending}
+                    disabled={isManualCrawlPending || currentBinding.status !== "ACTIVE"}
                   >
-                    {isManualCrawlPending ? "入队中..." : "立即抓取"}
+                    {isManualCrawlPending ? "抓取中..." : "立即抓取"}
                   </Button>
                   <FormFeedback state={manualCrawlState} />
                 </form>
@@ -307,7 +316,7 @@ export function BindingConsole({ currentBinding }: BindingConsoleProps) {
                     type="submit"
                     variant="destructive"
                     className="rounded-full px-5"
-                    disabled={isDisablePending}
+                    disabled={isDisablePending || currentBinding.status === "DISABLED"}
                   >
                     {isDisablePending ? "停用中..." : "停用绑定"}
                   </Button>

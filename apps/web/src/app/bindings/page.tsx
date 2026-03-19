@@ -13,7 +13,7 @@ export default async function BindingsPage() {
       <PageHeader
         eyebrow="Account"
         title="Bindings"
-        description="这里已经接入绑定读取、凭证提交、重新校验、停用和抓取配置编辑。下一步会继续补手动抓取与任务记录联动。"
+        description="这里已经接入绑定读取、凭证提交、重新校验、停用、抓取配置编辑和手动抓取联动。"
         badge={currentBinding?.status ?? "UNBOUND"}
       />
       <BindingConsole currentBinding={currentBinding} />
