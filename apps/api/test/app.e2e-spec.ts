@@ -214,7 +214,7 @@ describe('AppController (e2e)', () => {
         };
 
         expect(payload.bindingId).toBe(binding.id);
-        expect(payload.status).toBe('QUEUED');
+        expect(payload.status).toBe('SUCCESS');
         expect(payload.triggerType).toBe(CrawlTriggerType.MANUAL);
         expect(payload.crawlJobId).toBeTruthy();
       });
@@ -222,15 +222,31 @@ describe('AppController (e2e)', () => {
     await request(app.getHttpServer())
       .post(`/bindings/${binding.id}/crawl-now`)
       .set(internalHeaders)
-      .expect(409);
+      .expect(201)
+      .expect(({ body }) => {
+        const payload = body as {
+          status: string;
+          triggerType: string;
+        };
+
+        expect(payload.status).toBe('SUCCESS');
+        expect(payload.triggerType).toBe(CrawlTriggerType.MANUAL);
+      });
 
     const storedRuns = await prisma.crawlRun.findMany({
       where: {
         bindingId: binding.id,
       },
     });
+    const archivedPosts = await prisma.archivedPost.findMany({
+      where: {
+        bindingId: binding.id,
+      },
+    });
 
-    expect(storedRuns).toHaveLength(1);
+    expect(storedRuns).toHaveLength(2);
+    expect(storedRuns.every((run) => run.status === 'SUCCESS')).toBe(true);
+    expect(archivedPosts).toHaveLength(2);
   });
 
   it('/bindings enforces per-user isolation across read and write operations', async () => {

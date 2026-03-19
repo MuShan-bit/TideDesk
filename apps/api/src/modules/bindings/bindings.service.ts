@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { CrawlExecutionService } from '../crawl-jobs/crawl-execution.service';
 import { CrawlJobsService } from '../crawl-jobs/crawl-jobs.service';
 import { CredentialCryptoService } from '../crypto/credential-crypto.service';
 import { FEED_CRAWLER_ADAPTER } from '../crawler/crawler.constants';
@@ -19,6 +20,7 @@ export class BindingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crawlJobsService: CrawlJobsService,
+    private readonly crawlExecutionService: CrawlExecutionService,
     private readonly credentialCryptoService: CredentialCryptoService,
     @Inject(FEED_CRAWLER_ADAPTER)
     private readonly feedCrawlerAdapter: FeedCrawlerAdapter,
@@ -240,7 +242,7 @@ export class BindingsService {
       );
     }
 
-    return run;
+    return this.crawlExecutionService.processClaimedRun(run);
   }
 
   private async assertOwnership(userId: string, bindingId: string) {

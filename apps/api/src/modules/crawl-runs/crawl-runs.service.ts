@@ -18,6 +18,17 @@ type CompleteCrawlRunInput = {
   status: CrawlRunStatus;
 };
 
+export const crawlRunExecutionArgs = {
+  include: {
+    binding: true,
+    crawlJob: true,
+  },
+} satisfies Prisma.CrawlRunDefaultArgs;
+
+export type CrawlExecutionRun = Prisma.CrawlRunGetPayload<
+  typeof crawlRunExecutionArgs
+>;
+
 @Injectable()
 export class CrawlRunsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -48,6 +59,13 @@ export class CrawlRunsService {
     });
   }
 
+  getExecutionRunById(id: string): Promise<CrawlExecutionRun | null> {
+    return this.prisma.crawlRun.findUnique({
+      where: { id },
+      ...crawlRunExecutionArgs,
+    });
+  }
+
   markRunning(id: string, startedAt = new Date()) {
     return this.prisma.crawlRun.update({
       where: { id },
@@ -55,10 +73,7 @@ export class CrawlRunsService {
         status: CrawlRunStatus.RUNNING,
         startedAt,
       },
-      include: {
-        binding: true,
-        crawlJob: true,
-      },
+      ...crawlRunExecutionArgs,
     });
   }
 

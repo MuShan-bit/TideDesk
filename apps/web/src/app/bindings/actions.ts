@@ -229,10 +229,12 @@ export async function triggerManualCrawlAction(
     });
 
     revalidatePath("/bindings");
+    revalidatePath("/dashboard");
+    revalidatePath("/archives");
     revalidatePath("/runs");
 
     return {
-      success: `手动抓取任务已入队，当前状态：${run.status}（${run.triggerType}）。`,
+      success: `手动抓取已执行，当前状态：${run.status}（${run.triggerType}）。`,
     } satisfies BindingActionState;
   } catch (error) {
     return {

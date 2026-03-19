@@ -2,135 +2,126 @@ import {
   BindingStatus,
   CrawlRunStatus,
   CrawlTriggerType,
-  CredentialSource,
-  UserRole,
 } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppModule } from '../../app.module';
-import { PrismaService } from '../prisma/prisma.service';
+import { CrawlExecutionService } from './crawl-execution.service';
 import { CrawlJobsScheduler } from './crawl-jobs.scheduler';
+import { CrawlJobsService } from './crawl-jobs.service';
 
 describe('CrawlJobsScheduler', () => {
   let moduleRef: TestingModule;
-  let prisma: PrismaService;
   let crawlJobsScheduler: CrawlJobsScheduler;
+  let crawlJobsService: {
+    claimDueJobs: jest.Mock;
+  };
+  let crawlExecutionService: {
+    processClaimedRun: jest.Mock;
+  };
 
   beforeEach(async () => {
+    crawlJobsService = {
+      claimDueJobs: jest.fn(),
+    };
+    crawlExecutionService = {
+      processClaimedRun: jest.fn(),
+    };
+
     moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
+      providers: [
+        CrawlJobsScheduler,
+        {
+          provide: CrawlJobsService,
+          useValue: crawlJobsService,
+        },
+        {
+          provide: CrawlExecutionService,
+          useValue: crawlExecutionService,
+        },
+      ],
     }).compile();
 
-    prisma = moduleRef.get(PrismaService);
     crawlJobsScheduler = moduleRef.get(CrawlJobsScheduler);
-
-    await prisma.user.upsert({
-      where: { id: 'scheduler_owner' },
-      update: {
-        email: 'scheduler_owner@example.com',
-        name: 'Scheduler Owner',
-        role: UserRole.USER,
-      },
-      create: {
-        id: 'scheduler_owner',
-        email: 'scheduler_owner@example.com',
-        name: 'Scheduler Owner',
-        role: UserRole.USER,
-      },
-    });
-
-    await prisma.xAccountBinding.deleteMany({
-      where: { userId: 'scheduler_owner' },
-    });
   });
 
   afterEach(async () => {
     await moduleRef.close();
   });
 
-  it('scans and claims due crawl jobs every minute', async () => {
+  it('claims due jobs every minute and hands them to the crawl worker', async () => {
     const now = new Date('2026-03-19T05:00:00.000Z');
-    const dueBinding = await createBinding({
-      crawlEnabled: true,
-      nextRunAt: new Date('2026-03-19T04:59:00.000Z'),
-      status: BindingStatus.ACTIVE,
-      username: 'scheduler_due',
-    });
-
-    await createBinding({
-      crawlEnabled: true,
-      nextRunAt: new Date('2026-03-19T05:30:00.000Z'),
-      status: BindingStatus.ACTIVE,
-      username: 'scheduler_future',
-    });
-    await createBinding({
-      crawlEnabled: false,
-      nextRunAt: new Date('2026-03-19T04:30:00.000Z'),
-      status: BindingStatus.ACTIVE,
-      username: 'scheduler_disabled',
-    });
-
-    const result = await crawlJobsScheduler.scanDueJobs(now);
-    const ownJobs = result.jobs.filter(
-      (job) => job.bindingUserId === 'scheduler_owner',
-    );
-    const secondResult = await crawlJobsScheduler.scanDueJobs(now);
-    const secondOwnJobs = secondResult.jobs.filter(
-      (job) => job.bindingUserId === 'scheduler_owner',
-    );
-
-    expect(result.scannedAt).toBe(now.toISOString());
-    expect(ownJobs).toHaveLength(1);
-    expect(ownJobs[0]).toMatchObject({
-      jobId: dueBinding.crawlJob!.id,
-      bindingId: dueBinding.id,
-      bindingUserId: 'scheduler_owner',
-      username: 'scheduler_due',
-      nextRunAt: '2026-03-19T04:59:00.000Z',
+    const claimedRun = {
+      id: 'run_1',
+      bindingId: 'binding_1',
+      crawlJobId: 'job_1',
       triggerType: CrawlTriggerType.SCHEDULED,
       status: CrawlRunStatus.QUEUED,
-    });
-    expect(typeof ownJobs[0]?.runId).toBe('string');
-    expect(secondOwnJobs).toEqual([]);
-
-    const storedRuns = await prisma.crawlRun.findMany({
-      where: {
-        bindingId: dueBinding.id,
-      },
-    });
-
-    expect(storedRuns).toHaveLength(1);
-  });
-
-  async function createBinding(input: {
-    crawlEnabled: boolean;
-    nextRunAt: Date;
-    status: BindingStatus;
-    username: string;
-  }) {
-    return prisma.xAccountBinding.create({
-      data: {
-        userId: 'scheduler_owner',
-        xUserId: `x-${input.username}`,
-        username: input.username,
-        displayName: `${input.username} display`,
-        status: input.status,
-        credentialSource: CredentialSource.WEB_LOGIN,
-        authPayloadEncrypted: 'encrypted-payload',
-        lastValidatedAt: new Date('2026-03-19T00:00:00.000Z'),
-        crawlEnabled: input.crawlEnabled,
+      binding: {
+        id: 'binding_1',
+        userId: 'user_1',
+        xUserId: 'x_user_1',
+        username: 'scheduler_due',
+        displayName: 'Scheduler Due',
+        avatarUrl: null,
+        status: BindingStatus.ACTIVE,
+        credentialSource: 'WEB_LOGIN',
+        authPayloadEncrypted: 'encrypted',
+        lastValidatedAt: null,
+        crawlEnabled: true,
         crawlIntervalMinutes: 15,
-        nextCrawlAt: input.nextRunAt,
-        crawlJob: {
-          create: {
-            enabled: input.crawlEnabled,
-            intervalMinutes: 15,
-            nextRunAt: input.nextRunAt,
-          },
-        },
+        lastCrawledAt: null,
+        nextCrawlAt: now,
+        lastErrorMessage: null,
+        createdAt: now,
+        updatedAt: now,
       },
-      include: {
-        crawlJob: true,
+      crawlJob: {
+        id: 'job_1',
+        bindingId: 'binding_1',
+        enabled: true,
+        intervalMinutes: 15,
+        lastRunAt: null,
+        nextRunAt: new Date('2026-03-19T04:59:00.000Z'),
+        createdAt: now,
+        updatedAt: now,
       },
+    };
+    const processedRun = {
+      ...claimedRun,
+      status: CrawlRunStatus.SUCCESS,
+      crawlJob: {
+        ...claimedRun.crawlJob,
+        nextRunAt: new Date('2026-03-19T05:15:00.000Z'),
+      },
+    };
+
+    crawlJobsService.claimDueJobs.mockResolvedValue([claimedRun]);
+    crawlExecutionService.processClaimedRun.mockResolvedValue(processedRun);
+
+    const result = await crawlJobsScheduler.scanDueJobs(now);
+
+    expect(crawlJobsService.claimDueJobs).toHaveBeenCalledWith({
+      now,
+      limit: 100,
     });
-  }
+    expect(crawlExecutionService.processClaimedRun).toHaveBeenCalledWith(
+      claimedRun,
+      now,
+    );
+    expect(result).toEqual({
+      scannedAt: now.toISOString(),
+      total: 1,
+      jobs: [
+        {
+          runId: 'run_1',
+          jobId: 'job_1',
+          bindingId: 'binding_1',
+          bindingUserId: 'user_1',
+          username: 'scheduler_due',
+          nextRunAt: '2026-03-19T05:15:00.000Z',
+          triggerType: CrawlTriggerType.SCHEDULED,
+          status: CrawlRunStatus.SUCCESS,
+        },
+      ],
+    });
+  });
 });
