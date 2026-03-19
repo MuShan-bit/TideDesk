@@ -4,7 +4,7 @@ import {
   CrawlTriggerType,
 } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
-import { CrawlExecutionService } from './crawl-execution.service';
+import { CRAWL_RUN_DISPATCHER } from './crawl-run-dispatcher.constants';
 import { CrawlJobsScheduler } from './crawl-jobs.scheduler';
 import { CrawlJobsService } from './crawl-jobs.service';
 
@@ -14,16 +14,16 @@ describe('CrawlJobsScheduler', () => {
   let crawlJobsService: {
     claimDueJobs: jest.Mock;
   };
-  let crawlExecutionService: {
-    processClaimedRun: jest.Mock;
+  let crawlRunDispatcher: {
+    dispatchClaimedRun: jest.Mock;
   };
 
   beforeEach(async () => {
     crawlJobsService = {
       claimDueJobs: jest.fn(),
     };
-    crawlExecutionService = {
-      processClaimedRun: jest.fn(),
+    crawlRunDispatcher = {
+      dispatchClaimedRun: jest.fn(),
     };
 
     moduleRef = await Test.createTestingModule({
@@ -34,8 +34,8 @@ describe('CrawlJobsScheduler', () => {
           useValue: crawlJobsService,
         },
         {
-          provide: CrawlExecutionService,
-          useValue: crawlExecutionService,
+          provide: CRAWL_RUN_DISPATCHER,
+          useValue: crawlRunDispatcher,
         },
       ],
     }).compile();
@@ -95,7 +95,7 @@ describe('CrawlJobsScheduler', () => {
     };
 
     crawlJobsService.claimDueJobs.mockResolvedValue([claimedRun]);
-    crawlExecutionService.processClaimedRun.mockResolvedValue(processedRun);
+    crawlRunDispatcher.dispatchClaimedRun.mockResolvedValue(processedRun);
 
     const result = await crawlJobsScheduler.scanDueJobs(now);
 
@@ -103,7 +103,7 @@ describe('CrawlJobsScheduler', () => {
       now,
       limit: 100,
     });
-    expect(crawlExecutionService.processClaimedRun).toHaveBeenCalledWith(
+    expect(crawlRunDispatcher.dispatchClaimedRun).toHaveBeenCalledWith(
       claimedRun,
       now,
     );

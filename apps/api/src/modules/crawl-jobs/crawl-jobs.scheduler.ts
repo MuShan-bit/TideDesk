@@ -1,7 +1,8 @@
 import { CrawlRunStatus, CrawlTriggerType } from '@prisma/client';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { CrawlExecutionService } from './crawl-execution.service';
+import { CRAWL_RUN_DISPATCHER } from './crawl-run-dispatcher.constants';
+import type { CrawlRunDispatcher } from './crawl-run-dispatcher.types';
 import { CrawlJobsService } from './crawl-jobs.service';
 
 type DueCrawlJobSnapshot = {
@@ -21,7 +22,8 @@ export class CrawlJobsScheduler {
 
   constructor(
     private readonly crawlJobsService: CrawlJobsService,
-    private readonly crawlExecutionService: CrawlExecutionService,
+    @Inject(CRAWL_RUN_DISPATCHER)
+    private readonly crawlRunDispatcher: CrawlRunDispatcher,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -38,7 +40,7 @@ export class CrawlJobsScheduler {
 
     for (const run of dueRuns) {
       processedRuns.push(
-        await this.crawlExecutionService.processClaimedRun(run, now),
+        await this.crawlRunDispatcher.dispatchClaimedRun(run, now),
       );
     }
 

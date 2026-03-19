@@ -252,9 +252,10 @@
 完成标准：写回 `fetchedCount`、`newCount`、`skippedCount`、`failedCount`、`errorMessage`。
 依赖：`T505`。
 
-- [ ] `T507` `P2` 预留队列化改造接口。
+- [x] `T507` `P2` 预留队列化改造接口。
 完成标准：调度逻辑与执行逻辑解耦，后续可迁移到 BullMQ。
 依赖：`T505`。
+备注：已新增 `CrawlRunDispatcher` 分发接口与默认同步实现，调度器和手动抓取都改为通过分发器触发执行，后续可平滑替换为 BullMQ 适配器。
 
 ### 8.4 去重与归档模块
 

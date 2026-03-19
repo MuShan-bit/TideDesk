@@ -11,7 +11,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { CrawlExecutionService } from '../crawl-jobs/crawl-execution.service';
+import { CRAWL_RUN_DISPATCHER } from '../crawl-jobs/crawl-run-dispatcher.constants';
+import type { CrawlRunDispatcher } from '../crawl-jobs/crawl-run-dispatcher.types';
 import { CrawlJobsService } from '../crawl-jobs/crawl-jobs.service';
 import { CredentialCryptoService } from '../crypto/credential-crypto.service';
 import { FEED_CRAWLER_ADAPTER } from '../crawler/crawler.constants';
@@ -49,7 +50,8 @@ export class BindingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crawlJobsService: CrawlJobsService,
-    private readonly crawlExecutionService: CrawlExecutionService,
+    @Inject(CRAWL_RUN_DISPATCHER)
+    private readonly crawlRunDispatcher: CrawlRunDispatcher,
     private readonly credentialCryptoService: CredentialCryptoService,
     @Inject(FEED_CRAWLER_ADAPTER)
     private readonly feedCrawlerAdapter: FeedCrawlerAdapter,
@@ -299,7 +301,7 @@ export class BindingsService {
     const queuedRun = await this.findQueuedCrawlRun(binding.id);
 
     if (queuedRun) {
-      return this.crawlExecutionService.processRun(queuedRun.id);
+      return this.crawlRunDispatcher.dispatchRun(queuedRun.id);
     }
 
     const [run] = await this.crawlJobsService.claimJobForBinding(binding.id);
@@ -310,7 +312,7 @@ export class BindingsService {
         (await this.findQueuedCrawlRun(binding.id));
 
       if (blockingRun?.status === CrawlRunStatus.QUEUED) {
-        return this.crawlExecutionService.processRun(blockingRun.id);
+        return this.crawlRunDispatcher.dispatchRun(blockingRun.id);
       }
 
       throw new ConflictException(
@@ -320,7 +322,7 @@ export class BindingsService {
       );
     }
 
-    return this.crawlExecutionService.processClaimedRun(run);
+    return this.crawlRunDispatcher.dispatchClaimedRun(run);
   }
 
   private findQueuedCrawlRun(bindingId: string) {
