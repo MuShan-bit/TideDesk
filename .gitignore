@@ -1,0 +1,28 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# build artifacts
+.next
+dist
+coverage
+out
+
+# environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# macOS
+.DS_Store
+
+# prisma
+apps/api/prisma/dev.db
+apps/api/prisma/dev.db-journal

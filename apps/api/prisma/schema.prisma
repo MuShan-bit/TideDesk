@@ -1,0 +1,299 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum BindingStatus {
+  PENDING
+  ACTIVE
+  INVALID
+  DISABLED
+}
+
+enum CredentialSource {
+  WEB_LOGIN
+  COOKIE_IMPORT
+  EXTENSION
+}
+
+enum CrawlTriggerType {
+  MANUAL
+  SCHEDULED
+  RETRY
+}
+
+enum CrawlRunStatus {
+  QUEUED
+  RUNNING
+  SUCCESS
+  PARTIAL_FAILED
+  FAILED
+  CANCELLED
+}
+
+enum CrawlActionType {
+  CREATED
+  SKIPPED
+  FAILED
+}
+
+enum PostType {
+  POST
+  REPOST
+  QUOTE
+  REPLY
+}
+
+enum ArchiveStatus {
+  ACTIVE
+  HIDDEN
+  DELETED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  GIF
+}
+
+enum RelationType {
+  QUOTE
+  REPOST
+  REPLY
+}
+
+model User {
+  id            String            @id @default(cuid())
+  name          String?
+  email         String?           @unique
+  emailVerified DateTime?         @map("email_verified")
+  image         String?
+  passwordHash  String?           @map("password_hash")
+  role          UserRole          @default(USER)
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  accounts      Account[]
+  sessions      Session[]
+  bindings      XAccountBinding[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model XAccountBinding {
+  id                   String            @id @default(cuid())
+  userId               String            @map("user_id")
+  xUserId              String            @map("x_user_id")
+  username             String
+  displayName          String?           @map("display_name")
+  avatarUrl            String?           @map("avatar_url")
+  status               BindingStatus     @default(PENDING)
+  credentialSource     CredentialSource  @map("credential_source")
+  authPayloadEncrypted String            @db.Text @map("auth_payload_encrypted")
+  lastValidatedAt      DateTime?         @map("last_validated_at")
+  crawlEnabled         Boolean           @default(true) @map("crawl_enabled")
+  crawlIntervalMinutes Int               @default(60) @map("crawl_interval_minutes")
+  lastCrawledAt        DateTime?         @map("last_crawled_at")
+  nextCrawlAt          DateTime?         @map("next_crawl_at")
+  lastErrorMessage     String?           @db.Text @map("last_error_message")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  crawlJob             CrawlJob?
+  crawlRuns            CrawlRun[]
+  archivedPosts        ArchivedPost[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([nextCrawlAt])
+  @@map("x_account_bindings")
+}
+
+model CrawlJob {
+  id              String          @id @default(cuid())
+  bindingId       String          @unique @map("binding_id")
+  enabled         Boolean         @default(true)
+  intervalMinutes Int             @map("interval_minutes")
+  lastRunAt       DateTime?       @map("last_run_at")
+  nextRunAt       DateTime?       @map("next_run_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  binding         XAccountBinding @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  crawlRuns       CrawlRun[]
+
+  @@map("crawl_jobs")
+}
+
+model CrawlRun {
+  id           String           @id @default(cuid())
+  bindingId    String           @map("binding_id")
+  crawlJobId   String?          @map("crawl_job_id")
+  triggerType  CrawlTriggerType @map("trigger_type")
+  status       CrawlRunStatus   @default(QUEUED)
+  startedAt    DateTime?        @map("started_at")
+  finishedAt   DateTime?        @map("finished_at")
+  fetchedCount Int              @default(0) @map("fetched_count")
+  newCount     Int              @default(0) @map("new_count")
+  skippedCount Int              @default(0) @map("skipped_count")
+  failedCount  Int              @default(0) @map("failed_count")
+  errorMessage String?          @db.Text @map("error_message")
+  errorDetail  Json?            @map("error_detail")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  binding      XAccountBinding  @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  crawlJob     CrawlJob?        @relation(fields: [crawlJobId], references: [id], onDelete: SetNull)
+  runPosts     CrawlRunPost[]
+  archivedPosts ArchivedPost[]
+
+  @@index([bindingId, createdAt])
+  @@index([status])
+  @@map("crawl_runs")
+}
+
+model CrawlRunPost {
+  id             String          @id @default(cuid())
+  crawlRunId     String          @map("crawl_run_id")
+  xPostId        String          @map("x_post_id")
+  archivedPostId String?         @map("archived_post_id")
+  actionType     CrawlActionType @map("action_type")
+  reason         String?         @db.Text
+  rawPayloadJson Json?           @map("raw_payload_json")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  crawlRun       CrawlRun        @relation(fields: [crawlRunId], references: [id], onDelete: Cascade)
+  archivedPost   ArchivedPost?   @relation(fields: [archivedPostId], references: [id], onDelete: SetNull)
+
+  @@unique([crawlRunId, xPostId])
+  @@map("crawl_run_posts")
+}
+
+model ArchivedPost {
+  id                String                 @id @default(cuid())
+  bindingId         String                 @map("binding_id")
+  firstCrawlRunId   String?                @map("first_crawl_run_id")
+  xPostId           String                 @map("x_post_id")
+  postUrl           String                 @map("post_url")
+  postType          PostType               @map("post_type")
+  archiveStatus     ArchiveStatus          @default(ACTIVE) @map("archive_status")
+  authorXUserId     String?                @map("author_x_user_id")
+  authorUsername    String                 @map("author_username")
+  authorDisplayName String?                @map("author_display_name")
+  authorAvatarUrl   String?                @map("author_avatar_url")
+  language          String?
+  rawText           String                 @db.Text @map("raw_text")
+  richTextJson      Json                   @map("rich_text_json")
+  renderedHtml      String?                @db.Text @map("rendered_html")
+  rawPayloadJson    Json                   @map("raw_payload_json")
+  sourceCreatedAt   DateTime               @map("source_created_at")
+  archivedAt        DateTime               @default(now()) @map("archived_at")
+  replyCount        Int?                   @map("reply_count")
+  repostCount       Int?                   @map("repost_count")
+  quoteCount        Int?                   @map("quote_count")
+  favoriteCount     Int?                   @map("favorite_count")
+  viewCount         BigInt?                @map("view_count")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  binding           XAccountBinding        @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  firstCrawlRun     CrawlRun?              @relation(fields: [firstCrawlRunId], references: [id], onDelete: SetNull)
+  mediaItems        ArchivedPostMedia[]
+  relations         ArchivedPostRelation[]
+  runPosts          CrawlRunPost[]
+
+  @@unique([bindingId, xPostId])
+  @@index([bindingId, archivedAt])
+  @@index([bindingId, sourceCreatedAt])
+  @@index([authorUsername])
+  @@index([postType])
+  @@map("archived_posts")
+}
+
+model ArchivedPostMedia {
+  id             String       @id @default(cuid())
+  archivedPostId String       @map("archived_post_id")
+  mediaType      MediaType    @map("media_type")
+  sourceUrl      String       @map("source_url")
+  previewUrl     String?      @map("preview_url")
+  width          Int?
+  height         Int?
+  durationMs     Int?         @map("duration_ms")
+  sortOrder      Int          @default(0) @map("sort_order")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  archivedPost   ArchivedPost @relation(fields: [archivedPostId], references: [id], onDelete: Cascade)
+
+  @@index([archivedPostId, sortOrder])
+  @@map("archived_post_media")
+}
+
+model ArchivedPostRelation {
+  id                   String       @id @default(cuid())
+  archivedPostId       String       @map("archived_post_id")
+  relationType         RelationType @map("relation_type")
+  targetXPostId        String?      @map("target_x_post_id")
+  targetUrl            String?      @map("target_url")
+  targetAuthorUsername String?      @map("target_author_username")
+  snapshotJson         Json?        @map("snapshot_json")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  archivedPost         ArchivedPost @relation(fields: [archivedPostId], references: [id], onDelete: Cascade)
+
+  @@index([archivedPostId])
+  @@map("archived_post_relations")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
