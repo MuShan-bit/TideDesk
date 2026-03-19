@@ -257,7 +257,7 @@
 完成标准：能生成安全可展示的 `renderedHtml`。
 依赖：`T604`。
 
-- [ ] `T606` `P1` 实现 `crawl_run_posts` 处理记录写入。
+- [x] `T606` `P1` 实现 `crawl_run_posts` 处理记录写入。
 完成标准：每条帖子都能留下 `CREATED`、`SKIPPED` 或 `FAILED` 记录。
 依赖：`T505`、`T602`。
 

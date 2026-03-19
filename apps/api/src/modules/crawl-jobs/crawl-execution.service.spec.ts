@@ -101,8 +101,18 @@ describe('CrawlExecutionService', () => {
         bindingId: binding.id,
       },
     });
+    const runPosts = await prisma.crawlRunPost.findMany({
+      where: {
+        crawlRunId: run.id,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
 
     expect(archivedPosts).toHaveLength(2);
+    expect(runPosts).toHaveLength(2);
+    expect(runPosts.every((item) => item.actionType === 'CREATED')).toBe(true);
 
     const storedBinding = await prisma.xAccountBinding.findUnique({
       where: { id: binding.id },

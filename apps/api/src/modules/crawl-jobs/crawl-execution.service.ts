@@ -8,6 +8,7 @@ import { FEED_CRAWLER_ADAPTER } from '../crawler/crawler.constants';
 import type { FeedCrawlerAdapter } from '../crawler/crawler.types';
 import { CrawlerAuthError } from '../crawler/errors/crawler-adapter.error';
 import { PrismaService } from '../prisma/prisma.service';
+import { CrawlRunPostsService } from '../crawl-runs/crawl-run-posts.service';
 import {
   type CrawlExecutionRun,
   CrawlRunsService,
@@ -21,6 +22,7 @@ export class CrawlExecutionService {
     private readonly prisma: PrismaService,
     private readonly archivesService: ArchivesService,
     private readonly credentialCryptoService: CredentialCryptoService,
+    private readonly crawlRunPostsService: CrawlRunPostsService,
     private readonly crawlRunsService: CrawlRunsService,
     @Inject(FEED_CRAWLER_ADAPTER)
     private readonly feedCrawlerAdapter: FeedCrawlerAdapter,
@@ -104,6 +106,15 @@ export class CrawlExecutionService {
               })),
             });
 
+          await this.crawlRunPostsService.createRecord({
+            crawlRunId: runningRun.id,
+            xPostId: post.xPostId,
+            archivedPostId: result.archivedPost.id,
+            actionType: result.created ? 'CREATED' : 'SKIPPED',
+            reason: result.created ? 'archived' : 'already_archived',
+            rawPayloadJson: this.toInputJsonValue(post.rawPayloadJson),
+          });
+
           if (result.created) {
             newCount += 1;
           } else {
@@ -111,11 +122,19 @@ export class CrawlExecutionService {
           }
         } catch (error) {
           failedCount += 1;
-          errorMessage =
-            errorMessage ??
-            (error instanceof Error
+          const failureReason =
+            error instanceof Error
               ? error.message
-              : `Failed to archive post ${post.xPostId}`);
+              : `Failed to archive post ${post.xPostId}`;
+          errorMessage = errorMessage ?? failureReason;
+
+          await this.crawlRunPostsService.createRecord({
+            crawlRunId: runningRun.id,
+            xPostId: post.xPostId,
+            actionType: 'FAILED',
+            reason: failureReason,
+            rawPayloadJson: this.toInputJsonValue(post.rawPayloadJson),
+          });
         }
       }
 

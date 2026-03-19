@@ -255,12 +255,29 @@ describe('AppController (e2e)', () => {
         bindingId: binding.id,
       },
     });
+    const runPosts = await prisma.crawlRunPost.findMany({
+      where: {
+        crawlRun: {
+          bindingId: binding.id,
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
 
     expect(storedRuns).toHaveLength(2);
     expect(storedRuns.every((run) => run.status === 'SUCCESS')).toBe(true);
     expect(storedRuns.reduce((sum, run) => sum + run.newCount, 0)).toBe(2);
     expect(storedRuns.reduce((sum, run) => sum + run.skippedCount, 0)).toBe(2);
     expect(archivedPosts).toHaveLength(2);
+    expect(runPosts).toHaveLength(4);
+    expect(
+      runPosts.filter((item) => item.actionType === 'CREATED'),
+    ).toHaveLength(2);
+    expect(
+      runPosts.filter((item) => item.actionType === 'SKIPPED'),
+    ).toHaveLength(2);
   });
 
   it('/bindings enforces per-user isolation across read and write operations', async () => {
