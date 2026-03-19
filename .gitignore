@@ -7,6 +7,8 @@ node_modules
 dist
 coverage
 out
+playwright-report
+test-results
 
 # environment files
 .env

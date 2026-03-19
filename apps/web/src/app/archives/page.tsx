@@ -5,11 +5,10 @@ import { ErrorState } from "@/components/error-state";
 import { PageHeader } from "@/components/page-header";
 import { PaginationNav } from "@/components/pagination-nav";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiRequest, getApiErrorMessage } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
 
 const archivePostTypes = ["POST", "REPOST", "QUOTE", "REPLY"] as const;
 
@@ -239,7 +238,7 @@ export default async function ArchivesPage({ searchParams }: ArchivesPageProps) 
               </Button>
               <Link
                 href={resetHref ? `/archives?${resetHref}` : "/archives"}
-                className={cn(buttonVariants({ variant: "outline" }), "rounded-full px-5")}
+                className="inline-flex h-8 items-center justify-center rounded-full border border-border bg-background px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 清空
               </Link>
