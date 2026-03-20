@@ -802,6 +802,131 @@ describe('AppController (e2e)', () => {
       });
   });
 
+  it('/bindings lists multiple bindings and manages crawl profiles', async () => {
+    const firstBindingResponse = await request(app.getHttpServer())
+      .post('/bindings')
+      .set(internalHeaders)
+      .send({
+        xUserId: 'x-user-list-1',
+        username: 'list_owner_one',
+        displayName: 'List Owner One',
+        credentialSource: 'WEB_LOGIN',
+        credentialPayload: '{"cookie":"list-one"}',
+        crawlEnabled: true,
+        crawlIntervalMinutes: 30,
+      })
+      .expect(201);
+
+    const secondBindingResponse = await request(app.getHttpServer())
+      .post('/bindings')
+      .set(internalHeaders)
+      .send({
+        xUserId: 'x-user-list-2',
+        username: 'list_owner_two',
+        displayName: 'List Owner Two',
+        credentialSource: 'WEB_LOGIN',
+        credentialPayload: '{"cookie":"list-two"}',
+        crawlEnabled: false,
+        crawlIntervalMinutes: 60,
+      })
+      .expect(201);
+
+    const firstBinding = firstBindingResponse.body as { id: string };
+    const secondBinding = secondBindingResponse.body as { id: string };
+
+    await request(app.getHttpServer())
+      .get('/bindings')
+      .set(internalHeaders)
+      .expect(200)
+      .expect(({ body }) => {
+        const payload = body as Array<{
+          crawlProfiles: Array<{ mode: string }>;
+          id: string;
+          username: string;
+        }>;
+
+        expect(payload).toHaveLength(2);
+        expect(payload.map((item) => item.id)).toEqual(
+          expect.arrayContaining([firstBinding.id, secondBinding.id]),
+        );
+        expect(
+          payload.every((item) =>
+            item.crawlProfiles.some((profile) => profile.mode === 'RECOMMENDED'),
+          ),
+        ).toBe(true);
+      });
+
+    const createdProfileResponse = await request(app.getHttpServer())
+      .post(`/bindings/${secondBinding.id}/crawl-profiles`)
+      .set(internalHeaders)
+      .send({
+        mode: 'SEARCH',
+        enabled: true,
+        intervalMinutes: 120,
+        queryText: 'AI agent',
+        region: 'global',
+        language: 'en',
+        maxPosts: 40,
+      })
+      .expect(201);
+
+    const createdProfile = createdProfileResponse.body as {
+      id: string;
+      mode: string;
+    };
+
+    expect(createdProfile.mode).toBe('SEARCH');
+
+    await request(app.getHttpServer())
+      .patch(`/bindings/${secondBinding.id}/crawl-profiles/${createdProfile.id}`)
+      .set(internalHeaders)
+      .send({
+        enabled: false,
+        intervalMinutes: 180,
+        queryText: 'AI infra',
+        region: 'us',
+        language: 'zh',
+        maxPosts: 25,
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        const payload = body as {
+          enabled: boolean;
+          intervalMinutes: number;
+          queryText: string;
+        };
+
+        expect(payload.enabled).toBe(false);
+        expect(payload.intervalMinutes).toBe(180);
+        expect(payload.queryText).toBe('AI infra');
+      });
+
+    await request(app.getHttpServer())
+      .get(`/bindings/${secondBinding.id}/crawl-profiles`)
+      .set(internalHeaders)
+      .expect(200)
+      .expect(({ body }) => {
+        const payload = body as Array<{
+          id: string;
+          mode: string;
+          queryText: string | null;
+        }>;
+
+        expect(payload).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              mode: 'RECOMMENDED',
+            }),
+            expect.objectContaining({
+              id: createdProfile.id,
+              mode: 'SEARCH',
+              queryText: 'AI infra',
+            }),
+          ]),
+        );
+      });
+  });
+
   it('/bindings/:id/crawl-now queues a manual crawl run once per binding', async () => {
     const createResponse = await request(app.getHttpServer())
       .post('/bindings')

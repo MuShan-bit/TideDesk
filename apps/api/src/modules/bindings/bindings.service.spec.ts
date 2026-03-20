@@ -1,5 +1,6 @@
 import {
   BindingStatus,
+  CrawlMode,
   CrawlRunStatus,
   CrawlTriggerType,
   CredentialSource,
@@ -84,6 +85,13 @@ describe('BindingsService', () => {
     expect(binding.crawlIntervalMinutes).toBe(90);
     expect(binding.crawlJob?.enabled).toBe(true);
     expect(binding.crawlJob?.intervalMinutes).toBe(90);
+    expect(binding.crawlProfiles).toEqual([
+      expect.objectContaining({
+        mode: CrawlMode.RECOMMENDED,
+        enabled: true,
+        intervalMinutes: 90,
+      }),
+    ]);
     expect(
       credentialCryptoService.decrypt(binding.authPayloadEncrypted),
     ).toBe('{"cookie":"session=demo"}');
@@ -106,6 +114,13 @@ describe('BindingsService', () => {
     expect(binding.crawlIntervalMinutes).toBe(60);
     expect(binding.crawlJob?.enabled).toBe(true);
     expect(binding.crawlJob?.intervalMinutes).toBe(60);
+    expect(binding.crawlProfiles).toEqual([
+      expect.objectContaining({
+        mode: CrawlMode.RECOMMENDED,
+        enabled: true,
+        intervalMinutes: 60,
+      }),
+    ]);
 
     const storedPayload = JSON.parse(
       credentialCryptoService.decrypt(binding.authPayloadEncrypted),
@@ -120,7 +135,7 @@ describe('BindingsService', () => {
     expect(storedPayload.xUserId).toBe('x-browser-001');
   });
 
-  it('reactivates an existing disabled binding and preserves crawl interval', async () => {
+  it('reactivates the same existing disabled binding and preserves crawl interval', async () => {
     const existingBinding = await createBinding({
       xUserId: 'x-legacy',
       username: 'legacy_owner',
@@ -133,9 +148,9 @@ describe('BindingsService', () => {
     const rebound = await bindingsService.upsertFromBrowserLogin(
       'binding_owner',
       buildPayload({
-        xUserId: 'x-browser-002',
-        username: 'rebound_owner',
-        displayName: 'Rebound Owner',
+        xUserId: 'x-legacy',
+        username: 'legacy_owner',
+        displayName: 'Legacy Owner Rebound',
         avatarUrl: 'https://images.example.com/rebound-owner.png',
       }),
     );
@@ -146,8 +161,8 @@ describe('BindingsService', () => {
     expect(rebound.crawlIntervalMinutes).toBe(45);
     expect(rebound.crawlJob?.enabled).toBe(true);
     expect(rebound.crawlJob?.intervalMinutes).toBe(45);
-    expect(rebound.username).toBe('rebound_owner');
-    expect(rebound.displayName).toBe('Rebound Owner');
+    expect(rebound.username).toBe('legacy_owner');
+    expect(rebound.displayName).toBe('Legacy Owner Rebound');
   });
 
   it('updates an existing binding through upsertForUser', async () => {
@@ -161,8 +176,8 @@ describe('BindingsService', () => {
     });
 
     const updated = await bindingsService.upsertForUser('binding_owner', {
-      xUserId: 'x-existing-2',
-      username: 'updated_owner',
+      xUserId: 'x-existing',
+      username: 'existing_owner',
       displayName: 'Updated Owner',
       avatarUrl: 'https://images.example.com/updated-owner.png',
       credentialSource: CredentialSource.COOKIE_IMPORT,
@@ -173,7 +188,7 @@ describe('BindingsService', () => {
 
     expect(updated.id).toBe(existingBinding.id);
     expect(updated.status).toBe(BindingStatus.ACTIVE);
-    expect(updated.username).toBe('updated_owner');
+    expect(updated.username).toBe('existing_owner');
     expect(updated.displayName).toBe('Updated Owner');
     expect(updated.credentialSource).toBe(CredentialSource.COOKIE_IMPORT);
     expect(updated.crawlEnabled).toBe(false);
@@ -185,6 +200,37 @@ describe('BindingsService', () => {
     expect(
       credentialCryptoService.decrypt(updated.authPayloadEncrypted),
     ).toBe('{"cookie":"session=updated"}');
+  });
+
+  it('creates a second binding instead of overwriting a different x account', async () => {
+    const existingBinding = await createBinding({
+      xUserId: 'x-first',
+      username: 'first_owner',
+      displayName: 'First Owner',
+      status: BindingStatus.ACTIVE,
+      crawlEnabled: true,
+      crawlIntervalMinutes: 30,
+    });
+
+    const secondBinding = await bindingsService.upsertFromBrowserLogin(
+      'binding_owner',
+      buildPayload({
+        xUserId: 'x-second',
+        username: 'second_owner',
+        displayName: 'Second Owner',
+      }),
+    );
+
+    expect(secondBinding.id).not.toBe(existingBinding.id);
+    expect(secondBinding.xUserId).toBe('x-second');
+    expect(secondBinding.username).toBe('second_owner');
+    await expect(
+      prisma.xAccountBinding.count({
+        where: {
+          userId: 'binding_owner',
+        },
+      }),
+    ).resolves.toBe(2);
   });
 
   it('updates crawl configuration and syncs the crawl job', async () => {
@@ -212,6 +258,82 @@ describe('BindingsService', () => {
     expect(updated.crawlJob?.enabled).toBe(false);
     expect(updated.crawlJob?.intervalMinutes).toBe(180);
     expect(updated.crawlJob?.nextRunAt).toBeNull();
+    expect(updated.crawlProfiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          mode: CrawlMode.RECOMMENDED,
+          enabled: false,
+          intervalMinutes: 180,
+          nextRunAt: null,
+        }),
+      ]),
+    );
+  });
+
+  it('creates and updates custom crawl profiles for a binding', async () => {
+    const binding = await createBinding({
+      xUserId: 'x-profiles',
+      username: 'profiles_owner',
+      displayName: 'Profiles Owner',
+      status: BindingStatus.ACTIVE,
+      crawlEnabled: true,
+      crawlIntervalMinutes: 30,
+    });
+
+    const createdProfile = await bindingsService.createCrawlProfile(
+      'binding_owner',
+      binding.id,
+      {
+        mode: CrawlMode.SEARCH,
+        enabled: true,
+        intervalMinutes: 120,
+        queryText: 'AI agent',
+        region: 'global',
+        language: 'en',
+        maxPosts: 40,
+      },
+    );
+
+    expect(createdProfile.mode).toBe(CrawlMode.SEARCH);
+    expect(createdProfile.queryText).toBe('AI agent');
+    expect(createdProfile.maxPosts).toBe(40);
+
+    const updatedProfile = await bindingsService.updateCrawlProfile(
+      'binding_owner',
+      binding.id,
+      createdProfile.id,
+      {
+        enabled: false,
+        intervalMinutes: 180,
+        queryText: 'AI infra',
+        region: 'us',
+        language: 'zh',
+        maxPosts: 25,
+      },
+    );
+
+    expect(updatedProfile.enabled).toBe(false);
+    expect(updatedProfile.intervalMinutes).toBe(180);
+    expect(updatedProfile.nextRunAt).toBeNull();
+    expect(updatedProfile.queryText).toBe('AI infra');
+
+    const profiles = await bindingsService.listCrawlProfiles(
+      'binding_owner',
+      binding.id,
+    );
+
+    expect(profiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          mode: CrawlMode.RECOMMENDED,
+        }),
+        expect.objectContaining({
+          id: createdProfile.id,
+          mode: CrawlMode.SEARCH,
+          queryText: 'AI infra',
+        }),
+      ]),
+    );
   });
 
   it('revalidates a binding and refreshes stored profile fields', async () => {
@@ -412,9 +534,23 @@ describe('BindingsService', () => {
               : null,
           },
         },
+        crawlProfiles: {
+          create: [
+            {
+              mode: CrawlMode.RECOMMENDED,
+              enabled: input.crawlEnabled,
+              intervalMinutes: input.crawlIntervalMinutes,
+              maxPosts: 20,
+              nextRunAt: input.crawlEnabled
+                ? new Date('2026-03-19T12:45:00.000Z')
+                : null,
+            },
+          ],
+        },
       },
       include: {
         crawlJob: true,
+        crawlProfiles: true,
       },
     });
   }

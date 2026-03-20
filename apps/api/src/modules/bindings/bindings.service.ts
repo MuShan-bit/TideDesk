@@ -1,5 +1,6 @@
 import {
   BindingStatus,
+  CrawlMode,
   CrawlRunStatus,
   CredentialSource,
   type Prisma,
@@ -20,12 +21,15 @@ import type { FeedCrawlerAdapter } from '../crawler/crawler.types';
 import { CrawlerAuthError } from '../crawler/errors/crawler-adapter.error';
 import type { RealBrowserCredentialPayload } from '../crawler/x-browser.types';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateCrawlProfileDto } from './dto/create-crawl-profile.dto';
 import { UpsertBindingDto } from './dto/upsert-binding.dto';
+import { UpdateCrawlProfileDto } from './dto/update-crawl-profile.dto';
 import { UpdateCrawlConfigDto } from './dto/update-crawl-config.dto';
 
 type BindingRecordWithJob = Prisma.XAccountBindingGetPayload<{
   include: {
     crawlJob: true;
+    crawlProfiles: true;
   };
 }>;
 
@@ -45,6 +49,22 @@ type ActiveCrawlRunSummary = {
   status: CrawlRunStatus;
 };
 
+const bindingDetailArgs = {
+  include: {
+    crawlJob: true,
+    crawlProfiles: {
+      orderBy: [
+        {
+          mode: 'asc',
+        },
+        {
+          createdAt: 'asc',
+        },
+      ],
+    },
+  },
+} satisfies Prisma.XAccountBindingDefaultArgs;
+
 @Injectable()
 export class BindingsService {
   constructor(
@@ -57,12 +77,30 @@ export class BindingsService {
     private readonly feedCrawlerAdapter: FeedCrawlerAdapter,
   ) {}
 
+  async listForUser(userId: string) {
+    return this.prisma.xAccountBinding.findMany({
+      where: { userId },
+      ...bindingDetailArgs,
+      orderBy: [
+        {
+          updatedAt: 'desc',
+        },
+        {
+          createdAt: 'desc',
+        },
+      ],
+    });
+  }
+
   async getCurrent(userId: string) {
     return this.findLatestBinding(userId);
   }
 
   async upsertForUser(userId: string, dto: UpsertBindingDto) {
-    const existingBinding = await this.findLatestBinding(userId);
+    const existingBinding = await this.findBindingForUserAccount(userId, {
+      xUserId: dto.xUserId,
+      username: dto.username,
+    });
 
     return this.persistBinding(
       userId,
@@ -84,7 +122,10 @@ export class BindingsService {
     userId: string,
     payload: RealBrowserCredentialPayload,
   ) {
-    const existingBinding = await this.findLatestBinding(userId);
+    const existingBinding = await this.findBindingForUserAccount(userId, {
+      xUserId: payload.xUserId,
+      username: payload.username,
+    });
     const normalizedPayload = {
       ...payload,
       xUserId: payload.xUserId ?? existingBinding?.xUserId ?? payload.username,
@@ -132,7 +173,7 @@ export class BindingsService {
       ? this.buildNextRunAt(dto.crawlIntervalMinutes)
       : null;
 
-    return this.prisma.xAccountBinding.update({
+    const updated = await this.prisma.xAccountBinding.update({
       where: { id: binding.id },
       data: {
         crawlEnabled: dto.crawlEnabled,
@@ -153,14 +194,22 @@ export class BindingsService {
           },
         },
       },
-      include: { crawlJob: true },
+      ...bindingDetailArgs,
     });
+
+    await this.syncDefaultCrawlProfile(updated.id, {
+      enabled: dto.crawlEnabled,
+      intervalMinutes: dto.crawlIntervalMinutes,
+      nextRunAt,
+    });
+
+    return this.findBindingDetailOrThrow(updated.id);
   }
 
   async disable(userId: string, bindingId: string) {
     const binding = await this.assertOwnership(userId, bindingId);
 
-    return this.prisma.xAccountBinding.update({
+    const disabled = await this.prisma.xAccountBinding.update({
       where: { id: binding.id },
       data: {
         status: BindingStatus.DISABLED,
@@ -172,9 +221,20 @@ export class BindingsService {
             nextRunAt: null,
           },
         },
+        crawlProfiles: {
+          updateMany: {
+            where: {},
+            data: {
+              enabled: false,
+              nextRunAt: null,
+            },
+          },
+        },
       },
-      include: { crawlJob: true },
+      ...bindingDetailArgs,
     });
+
+    return disabled;
   }
 
   async unbind(userId: string, bindingId: string) {
@@ -325,6 +385,71 @@ export class BindingsService {
     return this.crawlRunDispatcher.dispatchClaimedRun(run);
   }
 
+  async listCrawlProfiles(userId: string, bindingId: string) {
+    await this.assertOwnership(userId, bindingId);
+
+    return this.prisma.crawlProfile.findMany({
+      where: {
+        bindingId,
+      },
+      orderBy: [
+        {
+          mode: 'asc',
+        },
+        {
+          createdAt: 'asc',
+        },
+      ],
+    });
+  }
+
+  async createCrawlProfile(
+    userId: string,
+    bindingId: string,
+    dto: CreateCrawlProfileDto,
+  ) {
+    await this.assertOwnership(userId, bindingId);
+
+    return this.prisma.crawlProfile.create({
+      data: {
+        bindingId,
+        mode: dto.mode,
+        enabled: dto.enabled,
+        intervalMinutes: dto.intervalMinutes,
+        queryText: dto.queryText?.trim() || null,
+        region: dto.region?.trim() || null,
+        language: dto.language?.trim() || null,
+        maxPosts: dto.maxPosts,
+        nextRunAt: dto.enabled ? this.buildNextRunAt(dto.intervalMinutes) : null,
+      },
+    });
+  }
+
+  async updateCrawlProfile(
+    userId: string,
+    bindingId: string,
+    profileId: string,
+    dto: UpdateCrawlProfileDto,
+  ) {
+    await this.assertOwnership(userId, bindingId);
+    await this.assertCrawlProfileOwnership(bindingId, profileId);
+
+    return this.prisma.crawlProfile.update({
+      where: {
+        id: profileId,
+      },
+      data: {
+        enabled: dto.enabled,
+        intervalMinutes: dto.intervalMinutes,
+        queryText: dto.queryText?.trim() || null,
+        region: dto.region?.trim() || null,
+        language: dto.language?.trim() || null,
+        maxPosts: dto.maxPosts,
+        nextRunAt: dto.enabled ? this.buildNextRunAt(dto.intervalMinutes) : null,
+      },
+    });
+  }
+
   private findQueuedCrawlRun(bindingId: string) {
     return this.prisma.crawlRun.findFirst({
       where: {
@@ -403,12 +528,23 @@ export class BindingsService {
               nextRunAt,
             },
           },
+          crawlProfiles: {
+            create: [
+              {
+                mode: CrawlMode.RECOMMENDED,
+                enabled: input.crawlEnabled,
+                intervalMinutes: input.crawlIntervalMinutes,
+                maxPosts: 20,
+                nextRunAt,
+              },
+            ],
+          },
         },
-        include: { crawlJob: true },
+        ...bindingDetailArgs,
       });
     }
 
-    return this.prisma.xAccountBinding.update({
+    const updated = await this.prisma.xAccountBinding.update({
       where: { id: existingBinding.id },
       data: {
         xUserId: data.xUserId,
@@ -438,8 +574,16 @@ export class BindingsService {
           },
         },
       },
-      include: { crawlJob: true },
+      ...bindingDetailArgs,
     });
+
+    await this.syncDefaultCrawlProfile(updated.id, {
+      enabled: input.crawlEnabled,
+      intervalMinutes: input.crawlIntervalMinutes,
+      nextRunAt,
+    });
+
+    return this.findBindingDetailOrThrow(updated.id);
   }
 
   private async assertOwnership(userId: string, bindingId: string) {
@@ -457,11 +601,123 @@ export class BindingsService {
     return binding;
   }
 
+  private async assertCrawlProfileOwnership(bindingId: string, profileId: string) {
+    const profile = await this.prisma.crawlProfile.findFirst({
+      where: {
+        id: profileId,
+        bindingId,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Crawl profile not found');
+    }
+
+    return profile;
+  }
+
+  private async findBindingForUserAccount(
+    userId: string,
+    account: {
+      xUserId?: string;
+      username?: string;
+    },
+  ) {
+    if (!account.xUserId && !account.username) {
+      return null;
+    }
+
+    return this.prisma.xAccountBinding.findFirst({
+      where: {
+        userId,
+        OR: [
+          account.xUserId
+            ? {
+                xUserId: account.xUserId,
+              }
+            : undefined,
+          account.username
+            ? {
+                username: account.username,
+              }
+            : undefined,
+        ].filter(Boolean) as Prisma.XAccountBindingWhereInput[],
+      },
+      ...bindingDetailArgs,
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+  }
+
   private findLatestBinding(userId: string) {
     return this.prisma.xAccountBinding.findFirst({
       where: { userId },
-      include: { crawlJob: true },
+      ...bindingDetailArgs,
       orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  private async findBindingDetailOrThrow(bindingId: string) {
+    const binding = await this.prisma.xAccountBinding.findUnique({
+      where: {
+        id: bindingId,
+      },
+      ...bindingDetailArgs,
+    });
+
+    if (!binding) {
+      throw new NotFoundException('Binding not found');
+    }
+
+    return binding;
+  }
+
+  private async syncDefaultCrawlProfile(
+    bindingId: string,
+    input: {
+      enabled: boolean;
+      intervalMinutes: number;
+      nextRunAt: Date | null;
+    },
+  ) {
+    const existingProfile = await this.prisma.crawlProfile.findFirst({
+      where: {
+        bindingId,
+        mode: CrawlMode.RECOMMENDED,
+        queryText: null,
+        region: null,
+        language: null,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    if (!existingProfile) {
+      await this.prisma.crawlProfile.create({
+        data: {
+          bindingId,
+          mode: CrawlMode.RECOMMENDED,
+          enabled: input.enabled,
+          intervalMinutes: input.intervalMinutes,
+          maxPosts: 20,
+          nextRunAt: input.nextRunAt,
+        },
+      });
+
+      return;
+    }
+
+    await this.prisma.crawlProfile.update({
+      where: {
+        id: existingProfile.id,
+      },
+      data: {
+        enabled: input.enabled,
+        intervalMinutes: input.intervalMinutes,
+        nextRunAt: input.nextRunAt,
+      },
     });
   }
 
