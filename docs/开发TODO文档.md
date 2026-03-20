@@ -583,9 +583,10 @@
 
 ### 15.3 分类与多标签
 
-- [ ] `T1401` `P1` 新增分类与标签数据库模型。
+- [x] `T1401` `P1` 新增分类与标签数据库模型。
       完成标准：包含 `categories`、`tags`、`archived_post_tags` 以及帖子主分类字段。
       依赖：`T1203`。
+      备注：已通过 `20260320061610_add_enhancement_foundation` 迁移落地 `categories`、`tags`、`archived_post_tags` 及 `archived_posts.primary_category_id`，并同步 Prisma schema 关系定义。
 
 - [ ] `T1402` `P1` 实现分类与标签管理后端接口。
       完成标准：支持创建、编辑、停用、查询分类与标签。
