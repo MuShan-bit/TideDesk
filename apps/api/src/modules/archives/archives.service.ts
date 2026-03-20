@@ -71,12 +71,14 @@ export type CreateArchivedPostInput = {
 };
 
 type ListArchivedPostsOptions = {
+  categoryId?: string;
   dateFrom?: string;
   dateTo?: string;
   keyword?: string;
   page?: number;
   pageSize?: number;
   postType?: PostType;
+  tagIds?: string[];
 };
 
 const archivedPostDetailArgs = {
@@ -88,7 +90,16 @@ const archivedPostDetailArgs = {
         sortOrder: 'asc',
       },
     },
+    primaryCategory: true,
     relations: true,
+    tagAssignments: {
+      include: {
+        tag: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    },
   },
 } satisfies Prisma.ArchivedPostDefaultArgs;
 
@@ -263,10 +274,12 @@ export class ArchivesService {
     const skip = (page - 1) * pageSize;
     const where = this.buildArchivedPostWhere({
       bindingId,
+      categoryId: options.categoryId,
       dateFrom: options.dateFrom,
       dateTo: options.dateTo,
       keyword: options.keyword,
       postType: options.postType,
+      tagIds: options.tagIds,
     });
     const [items, total] = await this.prisma.$transaction([
       this.prisma.archivedPost.findMany({
@@ -277,7 +290,16 @@ export class ArchivesService {
               sortOrder: 'asc',
             },
           },
+          primaryCategory: true,
           relations: true,
+          tagAssignments: {
+            include: {
+              tag: true,
+            },
+            orderBy: {
+              createdAt: 'asc',
+            },
+          },
         },
         orderBy: {
           archivedAt: 'desc',
@@ -307,10 +329,12 @@ export class ArchivesService {
     const skip = (page - 1) * pageSize;
     const where = this.buildArchivedPostWhere({
       userId,
+      categoryId: options.categoryId,
       dateFrom: options.dateFrom,
       dateTo: options.dateTo,
       keyword: options.keyword,
       postType: options.postType,
+      tagIds: options.tagIds,
     });
     const [items, total] = await this.prisma.$transaction([
       this.prisma.archivedPost.findMany({
@@ -320,6 +344,15 @@ export class ArchivesService {
           mediaItems: {
             orderBy: {
               sortOrder: 'asc',
+            },
+          },
+          primaryCategory: true,
+          tagAssignments: {
+            include: {
+              tag: true,
+            },
+            orderBy: {
+              createdAt: 'asc',
             },
           },
         },
@@ -534,10 +567,12 @@ export class ArchivesService {
 
   private buildArchivedPostWhere(input: {
     bindingId?: string;
+    categoryId?: string;
     dateFrom?: string;
     dateTo?: string;
     keyword?: string;
     postType?: PostType;
+    tagIds?: string[];
     userId?: string;
   }): Prisma.ArchivedPostWhereInput {
     const where: Prisma.ArchivedPostWhereInput = {};
@@ -554,6 +589,20 @@ export class ArchivesService {
 
     if (input.postType) {
       where.postType = input.postType;
+    }
+
+    if (input.categoryId) {
+      where.primaryCategoryId = input.categoryId;
+    }
+
+    if (input.tagIds && input.tagIds.length > 0) {
+      where.tagAssignments = {
+        some: {
+          tagId: {
+            in: input.tagIds,
+          },
+        },
+      };
     }
 
     const sourceCreatedAt = this.buildSourceCreatedAtFilter(

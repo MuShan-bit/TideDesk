@@ -32,8 +32,10 @@ export class ArchivesController {
       .listArchivedPostsByUser(user.id, {
         page: normalizeOptionalQueryNumber(query.page),
         pageSize: normalizeOptionalQueryNumber(query.pageSize),
+        categoryId: query.categoryId,
         keyword: query.keyword,
         postType: query.postType,
+        tagIds: query.tagIds,
         dateFrom: query.dateFrom,
         dateTo: query.dateTo,
       })

@@ -268,6 +268,125 @@ describe('ArchivesService', () => {
     expect(result.items[0]?.xPostId).toBe('post-filter-keep');
   });
 
+  it('filters archived posts by category and tags', async () => {
+    const binding = await createBinding('archive_taxonomy');
+    const aiCategory = await prisma.category.create({
+      data: {
+        userId: 'archive_owner',
+        name: 'AI',
+        slug: 'ai',
+        color: '#2563eb',
+      },
+    });
+    const infraCategory = await prisma.category.create({
+      data: {
+        userId: 'archive_owner',
+        name: 'Infra',
+        slug: 'infra',
+        color: '#0f766e',
+      },
+    });
+    const openAiTag = await prisma.tag.create({
+      data: {
+        userId: 'archive_owner',
+        name: 'OpenAI',
+        slug: 'openai',
+        color: '#10b981',
+      },
+    });
+    const anthropicTag = await prisma.tag.create({
+      data: {
+        userId: 'archive_owner',
+        name: 'Anthropic',
+        slug: 'anthropic',
+        color: '#f97316',
+      },
+    });
+
+    const aiPost = await archivesService.createArchivedPost({
+      bindingId: binding.id,
+      xPostId: 'post-taxonomy-ai',
+      postUrl: 'https://x.com/archive_taxonomy/status/post-taxonomy-ai',
+      postType: PostType.POST,
+      author: {
+        username: 'archive_taxonomy',
+      },
+      rawText: 'OpenAI shipped another model update',
+      richTextJson: { version: 1, blocks: [] },
+      rawPayloadJson: { id: 'post-taxonomy-ai' },
+      sourceCreatedAt: '2026-03-19T10:00:00.000Z',
+    });
+    const infraPost = await archivesService.createArchivedPost({
+      bindingId: binding.id,
+      xPostId: 'post-taxonomy-infra',
+      postUrl: 'https://x.com/archive_taxonomy/status/post-taxonomy-infra',
+      postType: PostType.POST,
+      author: {
+        username: 'archive_taxonomy',
+      },
+      rawText: 'Anthropic and GPU infra demand keep rising',
+      richTextJson: { version: 1, blocks: [] },
+      rawPayloadJson: { id: 'post-taxonomy-infra' },
+      sourceCreatedAt: '2026-03-19T11:00:00.000Z',
+    });
+
+    await prisma.archivedPost.update({
+      where: { id: aiPost.id },
+      data: {
+        primaryCategoryId: aiCategory.id,
+      },
+    });
+    await prisma.archivedPost.update({
+      where: { id: infraPost.id },
+      data: {
+        primaryCategoryId: infraCategory.id,
+      },
+    });
+    await prisma.archivedPostTag.createMany({
+      data: [
+        {
+          archivedPostId: aiPost.id,
+          tagId: openAiTag.id,
+          source: 'MANUAL',
+        },
+        {
+          archivedPostId: infraPost.id,
+          tagId: anthropicTag.id,
+          source: 'MANUAL',
+        },
+      ],
+    });
+
+    const byCategory = await archivesService.listArchivedPostsByUser(
+      'archive_owner',
+      {
+        categoryId: aiCategory.id,
+      },
+    );
+    const bySingleTag = await archivesService.listArchivedPostsByUser(
+      'archive_owner',
+      {
+        tagIds: [openAiTag.id],
+      },
+    );
+    const byAnyTag = await archivesService.listArchivedPostsByUser(
+      'archive_owner',
+      {
+        tagIds: [openAiTag.id, anthropicTag.id],
+      },
+    );
+
+    expect(byCategory.items).toHaveLength(1);
+    expect(byCategory.items[0]?.id).toBe(aiPost.id);
+    expect(byCategory.items[0]?.primaryCategory?.id).toBe(aiCategory.id);
+    expect(byCategory.items[0]?.tagAssignments[0]?.tag.id).toBe(openAiTag.id);
+
+    expect(bySingleTag.items).toHaveLength(1);
+    expect(bySingleTag.items[0]?.id).toBe(aiPost.id);
+
+    expect(byAnyTag.items).toHaveLength(2);
+  });
+
   it('falls back to the existing archive when concurrent writes hit the unique constraint', async () => {
     const binding = await createBinding('archive_conflict');
     const input = {
