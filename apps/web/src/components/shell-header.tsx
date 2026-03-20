@@ -29,6 +29,7 @@ export function ShellHeader({ locale, theme }: ShellHeaderProps) {
     { href: "/", label: messages.shell.nav.overview },
     { href: "/dashboard", label: messages.shell.nav.dashboard },
     { href: "/bindings", label: messages.shell.nav.bindings },
+    { href: "/strategies", label: messages.shell.nav.strategies },
     { href: "/archives", label: messages.shell.nav.archives },
     { href: "/runs", label: messages.shell.nav.runs },
   ];
@@ -42,7 +43,10 @@ export function ShellHeader({ locale, theme }: ShellHeaderProps) {
               XW
             </div>
             <div className="min-w-0">
-              <Link href="/" className="text-lg font-semibold tracking-tight text-foreground">
+              <Link
+                href="/"
+                className="text-lg font-semibold tracking-tight text-foreground"
+              >
                 auto-x-to-wechat
               </Link>
               <p className="truncate text-sm text-muted-foreground">
