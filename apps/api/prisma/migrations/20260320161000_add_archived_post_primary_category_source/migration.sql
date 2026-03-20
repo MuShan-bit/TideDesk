@@ -1,2 +1,2 @@
 ALTER TABLE "archived_posts"
-ADD COLUMN "primary_category_source" "TaxonomySource";
+ADD COLUMN IF NOT EXISTS "primary_category_source" "TaxonomySource";
