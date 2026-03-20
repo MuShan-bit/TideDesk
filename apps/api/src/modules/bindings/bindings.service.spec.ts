@@ -1,6 +1,7 @@
 import {
   BindingStatus,
   CrawlMode,
+  CrawlScheduleKind,
   CrawlRunStatus,
   CrawlTriggerType,
   CredentialSource,
@@ -286,7 +287,8 @@ describe('BindingsService', () => {
       {
         mode: CrawlMode.SEARCH,
         enabled: true,
-        intervalMinutes: 120,
+        scheduleKind: CrawlScheduleKind.CRON,
+        scheduleCron: '15 9 * * 1,3,5',
         queryText: 'AI agent',
         region: 'global',
         language: 'en',
@@ -304,6 +306,7 @@ describe('BindingsService', () => {
       createdProfile.id,
       {
         enabled: false,
+        scheduleKind: CrawlScheduleKind.INTERVAL,
         intervalMinutes: 180,
         queryText: 'AI infra',
         region: 'us',
@@ -313,6 +316,7 @@ describe('BindingsService', () => {
     );
 
     expect(updatedProfile.enabled).toBe(false);
+    expect(updatedProfile.scheduleKind).toBe(CrawlScheduleKind.INTERVAL);
     expect(updatedProfile.intervalMinutes).toBe(180);
     expect(updatedProfile.nextRunAt).toBeNull();
     expect(updatedProfile.queryText).toBe('AI infra');
@@ -350,6 +354,7 @@ describe('BindingsService', () => {
       bindingsService.createCrawlProfile('binding_owner', binding.id, {
         mode: CrawlMode.SEARCH,
         enabled: true,
+        scheduleKind: CrawlScheduleKind.INTERVAL,
         intervalMinutes: 120,
         maxPosts: 20,
       }),

@@ -1,6 +1,7 @@
 import {
   BindingStatus,
   CrawlMode,
+  CrawlScheduleKind,
   CrawlRunStatus,
   CredentialSource,
   type Prisma,
@@ -22,6 +23,13 @@ import type { FeedCrawlerAdapter } from '../crawler/crawler.types';
 import { CrawlerAuthError } from '../crawler/errors/crawler-adapter.error';
 import type { RealBrowserCredentialPayload } from '../crawler/x-browser.types';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  assertValidScheduleConfig,
+  buildIntervalScheduleConfig,
+  estimateIntervalMinutesFromCron,
+  getNextRunAtForSchedule,
+  type CrawlScheduleConfig,
+} from '../../common/utils/crawl-schedule';
 import { CreateCrawlProfileDto } from './dto/create-crawl-profile.dto';
 import { UpsertBindingDto } from './dto/upsert-binding.dto';
 import { UpdateCrawlProfileDto } from './dto/update-crawl-profile.dto';
@@ -43,6 +51,11 @@ type PersistBindingInput = {
   displayName?: string;
   xUserId: string;
   username: string;
+};
+
+type DefaultCrawlProfileScheduleInput = CrawlScheduleConfig & {
+  enabled: boolean;
+  nextRunAt: Date | null;
 };
 
 type ActiveCrawlRunSummary = {
@@ -170,8 +183,9 @@ export class BindingsService {
     dto: UpdateCrawlConfigDto,
   ) {
     const binding = await this.assertOwnership(userId, bindingId);
+    const scheduleConfig = buildIntervalScheduleConfig(dto.crawlIntervalMinutes);
     const nextRunAt = dto.crawlEnabled
-      ? this.buildNextRunAt(dto.crawlIntervalMinutes)
+      ? getNextRunAtForSchedule(scheduleConfig)
       : null;
 
     const updated = await this.prisma.xAccountBinding.update({
@@ -200,6 +214,8 @@ export class BindingsService {
 
     await this.syncDefaultCrawlProfile(updated.id, {
       enabled: dto.crawlEnabled,
+      scheduleKind: scheduleConfig.scheduleKind,
+      scheduleCron: scheduleConfig.scheduleCron,
       intervalMinutes: dto.crawlIntervalMinutes,
       nextRunAt,
     });
@@ -444,18 +460,23 @@ export class BindingsService {
   ) {
     await this.assertOwnership(userId, bindingId);
     this.assertSearchProfileQueryText(dto.mode, dto.queryText);
+    const scheduleConfig = this.resolveScheduleConfig(dto);
 
     return this.prisma.crawlProfile.create({
       data: {
         bindingId,
         mode: dto.mode,
         enabled: dto.enabled,
-        intervalMinutes: dto.intervalMinutes,
+        scheduleKind: scheduleConfig.scheduleKind,
+        scheduleCron: scheduleConfig.scheduleCron,
+        intervalMinutes: scheduleConfig.intervalMinutes,
         queryText: dto.queryText?.trim() || null,
         region: dto.region?.trim() || null,
         language: dto.language?.trim() || null,
         maxPosts: dto.maxPosts,
-        nextRunAt: dto.enabled ? this.buildNextRunAt(dto.intervalMinutes) : null,
+        nextRunAt: dto.enabled
+          ? getNextRunAtForSchedule(scheduleConfig)
+          : null,
       },
     });
   }
@@ -469,6 +490,7 @@ export class BindingsService {
     await this.assertOwnership(userId, bindingId);
     const profile = await this.assertCrawlProfileOwnership(bindingId, profileId);
     this.assertSearchProfileQueryText(profile.mode, dto.queryText);
+    const scheduleConfig = this.resolveScheduleConfig(dto);
 
     return this.prisma.crawlProfile.update({
       where: {
@@ -476,12 +498,16 @@ export class BindingsService {
       },
       data: {
         enabled: dto.enabled,
-        intervalMinutes: dto.intervalMinutes,
+        scheduleKind: scheduleConfig.scheduleKind,
+        scheduleCron: scheduleConfig.scheduleCron,
+        intervalMinutes: scheduleConfig.intervalMinutes,
         queryText: dto.queryText?.trim() || null,
         region: dto.region?.trim() || null,
         language: dto.language?.trim() || null,
         maxPosts: dto.maxPosts,
-        nextRunAt: dto.enabled ? this.buildNextRunAt(dto.intervalMinutes) : null,
+        nextRunAt: dto.enabled
+          ? getNextRunAtForSchedule(scheduleConfig)
+          : null,
       },
     });
   }
@@ -533,8 +559,14 @@ export class BindingsService {
     const encryptedPayload = this.credentialCryptoService.encrypt(
       input.credentialPayload,
     );
+    const defaultProfile = existingBinding
+      ? this.findDefaultRecommendedProfile(existingBinding.crawlProfiles)
+      : null;
+    const defaultSchedule = defaultProfile
+      ? this.buildScheduleConfigFromRecord(defaultProfile)
+      : buildIntervalScheduleConfig(input.crawlIntervalMinutes);
     const nextRunAt = input.crawlEnabled
-      ? this.buildNextRunAt(input.crawlIntervalMinutes)
+      ? getNextRunAtForSchedule(defaultSchedule)
       : null;
 
     const data: Prisma.XAccountBindingUncheckedCreateInput = {
@@ -548,7 +580,7 @@ export class BindingsService {
       authPayloadEncrypted: encryptedPayload,
       lastValidatedAt: new Date(),
       crawlEnabled: input.crawlEnabled,
-      crawlIntervalMinutes: input.crawlIntervalMinutes,
+      crawlIntervalMinutes: defaultSchedule.intervalMinutes,
       nextCrawlAt: nextRunAt,
       lastErrorMessage: null,
     };
@@ -560,7 +592,7 @@ export class BindingsService {
           crawlJob: {
             create: {
               enabled: input.crawlEnabled,
-              intervalMinutes: input.crawlIntervalMinutes,
+              intervalMinutes: defaultSchedule.intervalMinutes,
               nextRunAt,
             },
           },
@@ -569,7 +601,9 @@ export class BindingsService {
               {
                 mode: CrawlMode.RECOMMENDED,
                 enabled: input.crawlEnabled,
-                intervalMinutes: input.crawlIntervalMinutes,
+                scheduleKind: defaultSchedule.scheduleKind,
+                scheduleCron: defaultSchedule.scheduleCron,
+                intervalMinutes: defaultSchedule.intervalMinutes,
                 maxPosts: 20,
                 nextRunAt,
               },
@@ -592,19 +626,19 @@ export class BindingsService {
         authPayloadEncrypted: encryptedPayload,
         lastValidatedAt: new Date(),
         crawlEnabled: input.crawlEnabled,
-        crawlIntervalMinutes: input.crawlIntervalMinutes,
+        crawlIntervalMinutes: defaultSchedule.intervalMinutes,
         nextCrawlAt: nextRunAt,
         lastErrorMessage: null,
         crawlJob: {
           upsert: {
             create: {
               enabled: input.crawlEnabled,
-              intervalMinutes: input.crawlIntervalMinutes,
+              intervalMinutes: defaultSchedule.intervalMinutes,
               nextRunAt,
             },
             update: {
               enabled: input.crawlEnabled,
-              intervalMinutes: input.crawlIntervalMinutes,
+              intervalMinutes: defaultSchedule.intervalMinutes,
               nextRunAt,
             },
           },
@@ -615,7 +649,9 @@ export class BindingsService {
 
     await this.syncDefaultCrawlProfile(updated.id, {
       enabled: input.crawlEnabled,
-      intervalMinutes: input.crawlIntervalMinutes,
+      scheduleKind: defaultSchedule.scheduleKind,
+      scheduleCron: defaultSchedule.scheduleCron,
+      intervalMinutes: defaultSchedule.intervalMinutes,
       nextRunAt,
     });
 
@@ -711,11 +747,7 @@ export class BindingsService {
 
   private async syncDefaultCrawlProfile(
     bindingId: string,
-    input: {
-      enabled: boolean;
-      intervalMinutes: number;
-      nextRunAt: Date | null;
-    },
+    input: DefaultCrawlProfileScheduleInput,
   ) {
     const existingProfile = await this.prisma.crawlProfile.findFirst({
       where: {
@@ -736,6 +768,8 @@ export class BindingsService {
           bindingId,
           mode: CrawlMode.RECOMMENDED,
           enabled: input.enabled,
+          scheduleKind: input.scheduleKind,
+          scheduleCron: input.scheduleCron,
           intervalMinutes: input.intervalMinutes,
           maxPosts: 20,
           nextRunAt: input.nextRunAt,
@@ -751,10 +785,69 @@ export class BindingsService {
       },
       data: {
         enabled: input.enabled,
+        scheduleKind: input.scheduleKind,
+        scheduleCron: input.scheduleCron,
         intervalMinutes: input.intervalMinutes,
         nextRunAt: input.nextRunAt,
       },
     });
+  }
+
+  private resolveScheduleConfig(
+    dto: Pick<
+      CreateCrawlProfileDto | UpdateCrawlProfileDto,
+      'intervalMinutes' | 'scheduleCron' | 'scheduleKind'
+    >,
+  ) {
+    try {
+      const scheduleConfig =
+        dto.scheduleKind === CrawlScheduleKind.CRON
+          ? {
+              scheduleKind: CrawlScheduleKind.CRON,
+              scheduleCron: dto.scheduleCron?.trim() || null,
+              intervalMinutes: dto.scheduleCron
+                ? estimateIntervalMinutesFromCron(dto.scheduleCron.trim())
+                : 60,
+            }
+          : buildIntervalScheduleConfig(dto.intervalMinutes ?? 60);
+
+      assertValidScheduleConfig(scheduleConfig);
+
+      return scheduleConfig;
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Invalid crawl schedule',
+      );
+    }
+  }
+
+  private buildScheduleConfigFromRecord(
+    profile: Pick<
+      BindingRecordWithJob['crawlProfiles'][number],
+      'intervalMinutes' | 'scheduleCron' | 'scheduleKind'
+    >,
+  ) {
+    return profile.scheduleKind === CrawlScheduleKind.CRON &&
+      profile.scheduleCron?.trim()
+      ? {
+          scheduleKind: CrawlScheduleKind.CRON,
+          scheduleCron: profile.scheduleCron,
+          intervalMinutes:
+            estimateIntervalMinutesFromCron(profile.scheduleCron),
+        }
+      : buildIntervalScheduleConfig(profile.intervalMinutes);
+  }
+
+  private findDefaultRecommendedProfile(
+    profiles: BindingRecordWithJob['crawlProfiles'],
+  ) {
+    return profiles.find(
+      (profile) =>
+        profile.mode === CrawlMode.RECOMMENDED &&
+        profile.queryText === null &&
+        profile.region === null &&
+        profile.language === null,
+    );
   }
 
   private assertSearchProfileQueryText(
@@ -770,11 +863,5 @@ export class BindingsService {
         'Search crawl profile requires a query text',
       );
     }
-  }
-
-  private buildNextRunAt(intervalMinutes: number) {
-    const now = new Date();
-
-    return new Date(now.getTime() + intervalMinutes * 60 * 1000);
   }
 }

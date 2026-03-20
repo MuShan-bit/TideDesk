@@ -1,6 +1,7 @@
 import {
   BindingStatus,
   CrawlMode,
+  CrawlScheduleKind,
   CrawlRunStatus,
   type Prisma,
 } from '@prisma/client';
@@ -19,6 +20,10 @@ import {
   type CrawlExecutionRun,
   CrawlRunsService,
 } from '../crawl-runs/crawl-runs.service';
+import {
+  getNextRunAtForSchedule,
+  type CrawlScheduleConfig,
+} from '../../common/utils/crawl-schedule';
 
 @Injectable()
 export class CrawlExecutionService {
@@ -195,6 +200,8 @@ export class CrawlExecutionService {
       }
 
       const nextRunAt = this.buildNextRunAtForProfile(
+        crawlProfile?.scheduleKind ?? CrawlScheduleKind.INTERVAL,
+        crawlProfile?.scheduleCron ?? null,
         crawlProfile?.intervalMinutes ?? binding.crawlIntervalMinutes,
         binding.crawlEnabled && (crawlProfile?.enabled ?? true),
         now,
@@ -275,6 +282,8 @@ export class CrawlExecutionService {
         error instanceof Error ? error.message : 'Unknown crawl worker error';
       const isAuthError = error instanceof CrawlerAuthError;
       const nextRunAt = this.buildNextRunAtForProfile(
+        crawlProfile?.scheduleKind ?? CrawlScheduleKind.INTERVAL,
+        crawlProfile?.scheduleCron ?? null,
         crawlProfile?.intervalMinutes ?? binding.crawlIntervalMinutes,
         !isAuthError && binding.crawlEnabled && (crawlProfile?.enabled ?? true),
         now,
@@ -371,6 +380,8 @@ export class CrawlExecutionService {
   }
 
   private buildNextRunAtForProfile(
+    scheduleKind: CrawlScheduleKind,
+    scheduleCron: string | null,
     intervalMinutes: number,
     enabled: boolean,
     now: Date,
@@ -379,7 +390,20 @@ export class CrawlExecutionService {
       return null;
     }
 
-    return new Date(now.getTime() + intervalMinutes * 60 * 1000);
+    const scheduleConfig: CrawlScheduleConfig =
+      scheduleKind === CrawlScheduleKind.CRON
+        ? {
+            scheduleKind,
+            scheduleCron,
+            intervalMinutes,
+          }
+        : {
+            scheduleKind: CrawlScheduleKind.INTERVAL,
+            scheduleCron: null,
+            intervalMinutes,
+          };
+
+    return getNextRunAtForSchedule(scheduleConfig, now);
   }
 
   private shouldSyncLegacySchedule(mode: CrawlMode) {

@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { formatMessage } from "@/lib/i18n";
-import { ApiRequestError, apiRequest, getApiErrorMessage } from "@/lib/api-client";
+import {
+  ApiRequestError,
+  apiRequest,
+  getApiErrorMessage,
+} from "@/lib/api-client";
 import { getRequestMessages } from "@/lib/request-locale";
 
 export type BindingActionState = {
@@ -25,8 +29,13 @@ type UnbindBindingResponse = {
   deletedRunCount: number;
 };
 
-const credentialSourceSchema = z.enum(["WEB_LOGIN", "COOKIE_IMPORT", "EXTENSION"]);
+const credentialSourceSchema = z.enum([
+  "WEB_LOGIN",
+  "COOKIE_IMPORT",
+  "EXTENSION",
+]);
 const crawlModeSchema = z.enum(["RECOMMENDED", "HOT", "SEARCH"]);
+const crawlScheduleKindSchema = z.enum(["INTERVAL", "CRON"]);
 
 function getOptionalTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -39,10 +48,16 @@ function createBindingSchema(
 ) {
   return z.object({
     xUserId: z.string().trim().min(1, messages.actions.bindings.missingXUserId),
-    username: z.string().trim().min(1, messages.actions.bindings.missingUsername),
+    username: z
+      .string()
+      .trim()
+      .min(1, messages.actions.bindings.missingUsername),
     displayName: z.string().trim().optional(),
     avatarUrl: z
-      .union([z.string().trim().url(messages.actions.bindings.invalidAvatarUrl), z.literal("")])
+      .union([
+        z.string().trim().url(messages.actions.bindings.invalidAvatarUrl),
+        z.literal(""),
+      ])
       .optional()
       .transform((value) => value || undefined),
     credentialSource: credentialSourceSchema,
@@ -63,7 +78,10 @@ function createCrawlConfigSchema(
   messages: Awaited<ReturnType<typeof getRequestMessages>>["messages"],
 ) {
   return z.object({
-    bindingId: z.string().trim().min(1, messages.actions.bindings.missingBindingId),
+    bindingId: z
+      .string()
+      .trim()
+      .min(1, messages.actions.bindings.missingBindingId),
     crawlEnabled: z.boolean(),
     crawlIntervalMinutes: z.coerce
       .number({ error: messages.actions.bindings.missingCrawlInterval })
@@ -77,7 +95,10 @@ function createBindingOperationSchema(
   messages: Awaited<ReturnType<typeof getRequestMessages>>["messages"],
 ) {
   return z.object({
-    bindingId: z.string().trim().min(1, messages.actions.bindings.missingBindingId),
+    bindingId: z
+      .string()
+      .trim()
+      .min(1, messages.actions.bindings.missingBindingId),
   });
 }
 
@@ -86,14 +107,22 @@ function createCrawlProfileSchema(
 ) {
   return z
     .object({
-      bindingId: z.string().trim().min(1, messages.actions.bindings.missingBindingId),
+      bindingId: z
+        .string()
+        .trim()
+        .min(1, messages.actions.bindings.missingBindingId),
       mode: crawlModeSchema,
       enabled: z.boolean(),
+      scheduleKind: crawlScheduleKindSchema,
+      scheduleCron: z
+        .string()
+        .trim()
+        .optional()
+        .transform((value) => value || undefined),
       intervalMinutes: z.coerce
         .number({ error: messages.actions.bindings.missingCrawlInterval })
         .int(messages.actions.bindings.invalidCrawlIntervalInt)
-        .min(5, messages.actions.bindings.invalidCrawlIntervalMin)
-        .max(1440, messages.actions.bindings.invalidCrawlIntervalMax),
+        .min(5, messages.actions.bindings.invalidCrawlIntervalMin),
       queryText: z.string().trim().optional(),
       maxPosts: z.coerce
         .number({ error: messages.actions.bindings.missingMaxPosts })
@@ -109,6 +138,22 @@ function createCrawlProfileSchema(
           path: ["queryText"],
         });
       }
+
+      if (value.scheduleKind === "INTERVAL" && value.intervalMinutes > 1440) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: messages.actions.bindings.invalidCrawlIntervalMax,
+          path: ["intervalMinutes"],
+        });
+      }
+
+      if (value.scheduleKind === "CRON" && !value.scheduleCron) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: messages.actions.bindings.missingScheduleCron,
+          path: ["scheduleCron"],
+        });
+      }
     });
 }
 
@@ -116,8 +161,14 @@ function createCrawlProfileOperationSchema(
   messages: Awaited<ReturnType<typeof getRequestMessages>>["messages"],
 ) {
   return z.object({
-    bindingId: z.string().trim().min(1, messages.actions.bindings.missingBindingId),
-    profileId: z.string().trim().min(1, messages.actions.bindings.missingProfileId),
+    bindingId: z
+      .string()
+      .trim()
+      .min(1, messages.actions.bindings.missingBindingId),
+    profileId: z
+      .string()
+      .trim()
+      .min(1, messages.actions.bindings.missingProfileId),
   });
 }
 
@@ -128,11 +179,16 @@ function createUpdateCrawlProfileSchema(
     .object({
       mode: crawlModeSchema,
       enabled: z.boolean(),
+      scheduleKind: crawlScheduleKindSchema,
+      scheduleCron: z
+        .string()
+        .trim()
+        .optional()
+        .transform((value) => value || undefined),
       intervalMinutes: z.coerce
         .number({ error: messages.actions.bindings.missingCrawlInterval })
         .int(messages.actions.bindings.invalidCrawlIntervalInt)
-        .min(5, messages.actions.bindings.invalidCrawlIntervalMin)
-        .max(1440, messages.actions.bindings.invalidCrawlIntervalMax),
+        .min(5, messages.actions.bindings.invalidCrawlIntervalMin),
       queryText: z.string().trim().optional(),
       maxPosts: z.coerce
         .number({ error: messages.actions.bindings.missingMaxPosts })
@@ -146,6 +202,22 @@ function createUpdateCrawlProfileSchema(
           code: z.ZodIssueCode.custom,
           message: messages.actions.bindings.missingQueryText,
           path: ["queryText"],
+        });
+      }
+
+      if (value.scheduleKind === "INTERVAL" && value.intervalMinutes > 1440) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: messages.actions.bindings.invalidCrawlIntervalMax,
+          path: ["intervalMinutes"],
+        });
+      }
+
+      if (value.scheduleKind === "CRON" && !value.scheduleCron) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: messages.actions.bindings.missingScheduleCron,
+          path: ["scheduleCron"],
         });
       }
     });
@@ -192,13 +264,17 @@ export async function upsertBindingAction(
     credentialSource: getOptionalTextValue(formData, "credentialSource"),
     credentialPayload: getOptionalTextValue(formData, "credentialPayload"),
     crawlEnabled: formData.get("crawlEnabled") === "on",
-    crawlIntervalMinutes: getOptionalTextValue(formData, "crawlIntervalMinutes"),
+    crawlIntervalMinutes: getOptionalTextValue(
+      formData,
+      "crawlIntervalMinutes",
+    ),
   });
 
   if (!parsed.success) {
     return {
       error:
-        parsed.error.issues[0]?.message ?? messages.actions.bindings.bindingValidationFailed,
+        parsed.error.issues[0]?.message ??
+        messages.actions.bindings.bindingValidationFailed,
     } satisfies BindingActionState;
   }
 
@@ -230,13 +306,17 @@ export async function updateCrawlConfigAction(
   const parsed = crawlConfigSchema.safeParse({
     bindingId: getOptionalTextValue(formData, "bindingId"),
     crawlEnabled: formData.get("crawlEnabled") === "on",
-    crawlIntervalMinutes: getOptionalTextValue(formData, "crawlIntervalMinutes"),
+    crawlIntervalMinutes: getOptionalTextValue(
+      formData,
+      "crawlIntervalMinutes",
+    ),
   });
 
   if (!parsed.success) {
     return {
       error:
-        parsed.error.issues[0]?.message ?? messages.actions.bindings.configValidationFailed,
+        parsed.error.issues[0]?.message ??
+        messages.actions.bindings.configValidationFailed,
     } satisfies BindingActionState;
   }
 
@@ -274,7 +354,9 @@ export async function revalidateBindingAction(
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? messages.actions.bindings.missingBindingId,
+      error:
+        parsed.error.issues[0]?.message ??
+        messages.actions.bindings.missingBindingId,
     } satisfies BindingActionState;
   }
 
@@ -309,7 +391,9 @@ export async function disableBindingAction(
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? messages.actions.bindings.missingBindingId,
+      error:
+        parsed.error.issues[0]?.message ??
+        messages.actions.bindings.missingBindingId,
     } satisfies BindingActionState;
   }
 
@@ -344,7 +428,9 @@ export async function unbindBindingAction(
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? messages.actions.bindings.missingBindingId,
+      error:
+        parsed.error.issues[0]?.message ??
+        messages.actions.bindings.missingBindingId,
     } satisfies BindingActionState;
   }
 
@@ -385,7 +471,9 @@ export async function triggerManualCrawlAction(
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? messages.actions.bindings.missingBindingId,
+      error:
+        parsed.error.issues[0]?.message ??
+        messages.actions.bindings.missingBindingId,
     } satisfies BindingActionState;
   }
 
@@ -424,6 +512,8 @@ export async function createCrawlProfileAction(
     bindingId: getOptionalTextValue(formData, "bindingId"),
     mode: getOptionalTextValue(formData, "mode"),
     enabled: formData.get("enabled") === "on",
+    scheduleKind: getOptionalTextValue(formData, "scheduleKind"),
+    scheduleCron: getOptionalTextValue(formData, "scheduleCron"),
     intervalMinutes: getOptionalTextValue(formData, "intervalMinutes"),
     queryText: getOptionalTextValue(formData, "queryText"),
     maxPosts: getOptionalTextValue(formData, "maxPosts"),
@@ -432,7 +522,8 @@ export async function createCrawlProfileAction(
   if (!parsed.success) {
     return {
       error:
-        parsed.error.issues[0]?.message ?? messages.actions.bindings.profileValidationFailed,
+        parsed.error.issues[0]?.message ??
+        messages.actions.bindings.profileValidationFailed,
     } satisfies BindingActionState;
   }
 
@@ -443,6 +534,8 @@ export async function createCrawlProfileAction(
       body: JSON.stringify({
         mode: parsed.data.mode,
         enabled: parsed.data.enabled,
+        scheduleKind: parsed.data.scheduleKind,
+        scheduleCron: parsed.data.scheduleCron,
         intervalMinutes: parsed.data.intervalMinutes,
         queryText: parsed.data.queryText,
         maxPosts: parsed.data.maxPosts,
@@ -450,6 +543,7 @@ export async function createCrawlProfileAction(
     });
 
     revalidatePath("/bindings");
+    revalidatePath("/strategies");
 
     return {
       success: messages.actions.bindings.profileCreated,
@@ -475,7 +569,8 @@ export async function updateCrawlProfileAction(
   if (!parsedOperation.success) {
     return {
       error:
-        parsedOperation.error.issues[0]?.message ?? messages.actions.bindings.missingProfileId,
+        parsedOperation.error.issues[0]?.message ??
+        messages.actions.bindings.missingProfileId,
     } satisfies BindingActionState;
   }
 
@@ -483,6 +578,8 @@ export async function updateCrawlProfileAction(
   const parsed = crawlProfileSchema.safeParse({
     mode: getOptionalTextValue(formData, "mode"),
     enabled: formData.get("enabled") === "on",
+    scheduleKind: getOptionalTextValue(formData, "scheduleKind"),
+    scheduleCron: getOptionalTextValue(formData, "scheduleCron"),
     intervalMinutes: getOptionalTextValue(formData, "intervalMinutes"),
     queryText: getOptionalTextValue(formData, "queryText"),
     maxPosts: getOptionalTextValue(formData, "maxPosts"),
@@ -491,7 +588,8 @@ export async function updateCrawlProfileAction(
   if (!parsed.success) {
     return {
       error:
-        parsed.error.issues[0]?.message ?? messages.actions.bindings.profileValidationFailed,
+        parsed.error.issues[0]?.message ??
+        messages.actions.bindings.profileValidationFailed,
     } satisfies BindingActionState;
   }
 
@@ -499,10 +597,18 @@ export async function updateCrawlProfileAction(
     await apiRequest({
       path: `/bindings/${parsedOperation.data.bindingId}/crawl-profiles/${parsedOperation.data.profileId}`,
       method: "PATCH",
-      body: JSON.stringify(parsed.data),
+      body: JSON.stringify({
+        enabled: parsed.data.enabled,
+        scheduleKind: parsed.data.scheduleKind,
+        scheduleCron: parsed.data.scheduleCron,
+        intervalMinutes: parsed.data.intervalMinutes,
+        queryText: parsed.data.queryText,
+        maxPosts: parsed.data.maxPosts,
+      }),
     });
 
     revalidatePath("/bindings");
+    revalidatePath("/strategies");
 
     return {
       success: messages.actions.bindings.profileUpdated,
@@ -528,7 +634,8 @@ export async function triggerCrawlProfileAction(
   if (!parsed.success) {
     return {
       error:
-        parsed.error.issues[0]?.message ?? messages.actions.bindings.missingProfileId,
+        parsed.error.issues[0]?.message ??
+        messages.actions.bindings.missingProfileId,
     } satisfies BindingActionState;
   }
 
@@ -540,6 +647,7 @@ export async function triggerCrawlProfileAction(
     });
 
     revalidatePath("/bindings");
+    revalidatePath("/strategies");
     revalidatePath("/dashboard");
     revalidatePath("/archives");
     revalidatePath("/runs");

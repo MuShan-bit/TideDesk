@@ -94,6 +94,11 @@ enum CrawlMode {
   SEARCH
 }
 
+enum CrawlScheduleKind {
+  INTERVAL
+  CRON
+}
+
 enum TaxonomySource {
   MANUAL
   AI
@@ -469,6 +474,8 @@ model CrawlProfile {
   bindingId          String              @map("binding_id")
   mode               CrawlMode
   enabled            Boolean             @default(true)
+  scheduleKind       CrawlScheduleKind   @default(INTERVAL) @map("schedule_kind")
+  scheduleCron       String?             @map("schedule_cron") @db.Text
   intervalMinutes    Int                 @map("interval_minutes")
   queryText          String?             @map("query_text") @db.Text
   region             String?

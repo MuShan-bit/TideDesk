@@ -16,6 +16,7 @@ type Messages = {
       overview: string;
       dashboard: string;
       bindings: string;
+      strategies: string;
       archives: string;
       runs: string;
     };
@@ -261,6 +262,83 @@ type Messages = {
       credentialPayload: string;
     };
   };
+  strategies: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    accountListTitle: string;
+    accountListDescription: string;
+    accountCount: string;
+    workspaceTitle: string;
+    workspaceDescription: string;
+    selectedAccount: string;
+    selectedAccountHint: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    noAccountTitle: string;
+    noAccountDescription: string;
+    openBindings: string;
+    createStrategy: string;
+    createStrategyForAccount: string;
+    editStrategy: string;
+    saveStrategy: string;
+    savingStrategy: string;
+    createStrategyDescription: string;
+    editStrategyDescription: string;
+    strategyCountLabel: string;
+    strategyCount: string;
+    enabledStrategyLabel: string;
+    enabledStrategyCount: string;
+    nextRunSummary: string;
+    modeLabel: string;
+    scheduleLabel: string;
+    lastRunLabel: string;
+    nextRunLabel: string;
+    maxPostsLabel: string;
+    queryTextLabel: string;
+    queryTextPlaceholder: string;
+    strategyEnabledLabel: string;
+    strategyEnabledHint: string;
+    triggerNow: string;
+    triggeringNow: string;
+    emptyStrategiesTitle: string;
+    emptyStrategiesDescription: string;
+    viewBindingWorkspace: string;
+    modeReadonlyHint: string;
+    form: {
+      modeLabel: string;
+      accountLabel: string;
+      accountSummary: string;
+      createHint: string;
+      editHint: string;
+    };
+    scheduleBuilder: {
+      customCronHint: string;
+      customCronLabel: string;
+      dailyTimeLabel: string;
+      hourlyEveryHoursLabel: string;
+      hourlyMinuteLabel: string;
+      intervalMinutesLabel: string;
+      schedulePresetCustom: string;
+      schedulePresetDaily: string;
+      schedulePresetHourly: string;
+      schedulePresetInterval: string;
+      schedulePresetLabel: string;
+      schedulePresetWeekly: string;
+      schedulePreviewLabel: string;
+      scheduleSummaryCustom: string;
+      scheduleSummaryDaily: string;
+      scheduleSummaryHourly: string;
+      scheduleSummaryInterval: string;
+      scheduleSummaryWeekly: string;
+      weeklyDaysLabel: string;
+      weeklyTimeLabel: string;
+      weekdays: Record<
+        "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat",
+        string
+      >;
+    };
+  };
   archives: {
     eyebrow: string;
     title: string;
@@ -378,17 +456,34 @@ type Messages = {
     noErrorDetail: string;
   };
   enums: {
-    bindingStatus: Record<"ACTIVE" | "INVALID" | "DISABLED" | "PENDING" | "UNBOUND", string>;
+    bindingStatus: Record<
+      "ACTIVE" | "INVALID" | "DISABLED" | "PENDING" | "UNBOUND",
+      string
+    >;
     runStatus: Record<
-      "QUEUED" | "RUNNING" | "SUCCESS" | "PARTIAL_FAILED" | "FAILED" | "CANCELLED" | "NO_RUN",
+      | "QUEUED"
+      | "RUNNING"
+      | "SUCCESS"
+      | "PARTIAL_FAILED"
+      | "FAILED"
+      | "CANCELLED"
+      | "NO_RUN",
       string
     >;
     triggerType: Record<"MANUAL" | "SCHEDULED" | "RETRY", string>;
     crawlMode: Record<"RECOMMENDED" | "HOT" | "SEARCH", string>;
     postType: Record<"POST" | "REPOST" | "QUOTE" | "REPLY", string>;
-    credentialSource: Record<"WEB_LOGIN" | "COOKIE_IMPORT" | "EXTENSION", string>;
+    credentialSource: Record<
+      "WEB_LOGIN" | "COOKIE_IMPORT" | "EXTENSION",
+      string
+    >;
     browserSessionStatus: Record<
-      "PENDING" | "WAITING_LOGIN" | "SUCCESS" | "FAILED" | "EXPIRED" | "CANCELLED",
+      | "PENDING"
+      | "WAITING_LOGIN"
+      | "SUCCESS"
+      | "FAILED"
+      | "EXPIRED"
+      | "CANCELLED",
       string
     >;
     actionType: Record<"CREATED" | "SKIPPED" | "FAILED", string>;
@@ -418,6 +513,7 @@ type Messages = {
       missingBindingId: string;
       missingProfileId: string;
       missingQueryText: string;
+      missingScheduleCron: string;
       bindingValidationFailed: string;
       profileValidationFailed: string;
       bindingSaved: string;
@@ -471,6 +567,7 @@ const messages: Record<Locale, Messages> = {
         overview: "概览",
         dashboard: "仪表盘",
         bindings: "绑定",
+        strategies: "策略",
         archives: "归档",
         runs: "运行记录",
       },
@@ -527,15 +624,18 @@ const messages: Record<Locale, Messages> = {
       setupCards: [
         {
           title: "真实账号绑定",
-          description: "系统拉起可见浏览器进入 X 登录页，你完成登录后，平台会自动回填账号信息与 Cookie。",
+          description:
+            "系统拉起可见浏览器进入 X 登录页，你完成登录后，平台会自动回填账号信息与 Cookie。",
         },
         {
           title: "自动抓取与去重",
-          description: "按设定周期抓取推荐流，记录每次执行结果，并按绑定账号与帖子 ID 去重，避免重复归档。",
+          description:
+            "按设定周期抓取推荐流，记录每次执行结果，并按绑定账号与帖子 ID 去重，避免重复归档。",
         },
         {
           title: "富文本归档展示",
-          description: "帖子会以富文本形式存档，支持卡片列表分页浏览、详情查看、来源回溯和运行记录联动。",
+          description:
+            "帖子会以富文本形式存档，支持卡片列表分页浏览、详情查看、来源回溯和运行记录联动。",
         },
       ],
       progress: {
@@ -570,14 +670,16 @@ const messages: Record<Locale, Messages> = {
       formTitle: "登录平台",
       emailLabel: "邮箱",
       passwordLabel: "密码",
-      sessionHint: "登录成功后会在 PostgreSQL 中写入 NextAuth 会话，并由服务端读取数据库会话保护页面。",
+      sessionHint:
+        "登录成功后会在 PostgreSQL 中写入 NextAuth 会话，并由服务端读取数据库会话保护页面。",
       submit: "进入系统",
       submitting: "登录中...",
     },
     dashboard: {
       eyebrow: "工作区",
       title: "仪表盘",
-      description: "这里集中展示当前绑定状态、下一次抓取安排、最近一次执行结果和累计归档规模。",
+      description:
+        "这里集中展示当前绑定状态、下一次抓取安排、最近一次执行结果和累计归档规模。",
       manageBindings: "管理绑定",
       signOut: "退出登录",
       errorTitle: "仪表盘暂时不可用",
@@ -590,7 +692,8 @@ const messages: Record<Locale, Messages> = {
       },
       bindingSummary: {
         title: "当前绑定摘要",
-        description: "绑定页负责配置账号与凭证，这里专注展示运行态摘要，方便快速判断系统是否健康。",
+        description:
+          "绑定页负责配置账号与凭证，这里专注展示运行态摘要，方便快速判断系统是否健康。",
         boundAccount: "已绑定账号",
         crawlConfig: "抓取配置",
         crawlEnabled: "已开启",
@@ -600,9 +703,11 @@ const messages: Record<Locale, Messages> = {
         nextRun: "下一次执行",
         latestError: "最近错误摘要",
         healthyTitle: "运行状态正常",
-        healthyDescription: "当前绑定没有记录到最近错误，可以继续观察后续自动抓取结果。",
+        healthyDescription:
+          "当前绑定没有记录到最近错误，可以继续观察后续自动抓取结果。",
         emptyTitle: "还没有绑定 X 账号",
-        emptyDescription: "先完成账号绑定和抓取配置，仪表盘才会开始展示抓取时间、执行结果和归档统计。",
+        emptyDescription:
+          "先完成账号绑定和抓取配置，仪表盘才会开始展示抓取时间、执行结果和归档统计。",
         emptyAction: "前往绑定",
       },
       latestRun: {
@@ -617,30 +722,36 @@ const messages: Record<Locale, Messages> = {
         errorSummary: "错误摘要",
         viewAll: "查看全部执行记录",
         emptyTitle: "还没有抓取记录",
-        emptyDescription: "你可以先到绑定页手动触发一次抓取，随后这里会显示最新的执行统计和错误摘要。",
+        emptyDescription:
+          "你可以先到绑定页手动触发一次抓取，随后这里会显示最新的执行统计和错误摘要。",
         emptyAction: "立即去抓取",
       },
       failures: {
         title: "错误告警摘要",
-        description: "汇总当前绑定下的失败执行次数、失败帖子数量，并聚合最近的失败记录。",
+        description:
+          "汇总当前绑定下的失败执行次数、失败帖子数量，并聚合最近的失败记录。",
         failedRuns: "失败执行次数",
         failedPosts: "失败帖子数量",
         failedPostsInline: "失败帖子 {count}",
         noErrorSummary: "没有记录错误摘要。",
         emptyTitle: "最近没有失败告警",
-        emptyDescription: "当前绑定下的抓取运行没有失败记录，告警聚合会在出现失败后自动累积。",
+        emptyDescription:
+          "当前绑定下的抓取运行没有失败记录，告警聚合会在出现失败后自动累积。",
         viewRun: "查看失败详情",
       },
     },
     bindings: {
       eyebrow: "账号",
       title: "绑定",
-      description: "这里已经接入真实 X 浏览器辅助绑定、自动 Cookie 回填、重新校验、抓取配置编辑和手动抓取联动。",
+      description:
+        "这里专注于 X 账号绑定、登录态校验与凭证维护。抓取策略已经拆分到独立的策略工作区，方便按账号集中管理。",
       accountListTitle: "已绑定账号",
-      accountListDescription: "一个平台用户现在可以维护多个 X 账号。点击列表项即可切换下方的状态、配置与操作面板。",
+      accountListDescription:
+        "一个平台用户可以维护多个 X 账号。点击列表项即可切换下方的账号状态、绑定摘要与操作面板。",
       accountCount: "{count} 个账号",
       statusTitle: "当前绑定状态",
-      statusDescription: "这里会持续展示当前绑定账号、抓取开关、校验结果和下一次执行时间。",
+      statusDescription:
+        "这里会持续展示当前绑定账号、策略概览、校验结果和最近一次错误摘要。",
       credentialSource: "凭证来源",
       lastValidatedAt: "最近校验",
       nextCrawlAt: "下一次抓取",
@@ -649,9 +760,11 @@ const messages: Record<Locale, Messages> = {
       crawlInterval: "每 {minutes} 分钟",
       latestError: "最近错误",
       emptyTitle: "还没有绑定 X 账号",
-      emptyDescription: "优先使用右侧的浏览器辅助绑定流程。登录成功后，这里会自动展示绑定状态、抓取配置和最近校验结果。",
+      emptyDescription:
+        "优先使用右侧的浏览器辅助绑定流程。登录成功后，这里会自动展示绑定状态、抓取配置和最近校验结果。",
       profilesTitle: "抓取策略",
-      profilesDescription: "每个账号可以配置多个抓取策略。你可以在这里分别管理推荐、热点和搜索模式的启停、频率与即时执行。",
+      profilesDescription:
+        "每个账号可以配置多个抓取策略。你可以在这里分别管理推荐、热点和搜索模式的启停、频率与即时执行。",
       profileRunSummary: "执行概览：",
       lastRunLabel: "最近执行：",
       nextRunLabel: "下一次：",
@@ -665,27 +778,32 @@ const messages: Record<Locale, Messages> = {
       savingProfile: "保存策略中...",
       triggerProfileNow: "立即执行该策略",
       addProfileTitle: "新增抓取策略",
-      addProfileDescription: "给当前账号追加新的热点或搜索策略。搜索模式必须填写搜索词。",
+      addProfileDescription:
+        "给当前账号追加新的热点或搜索策略。搜索模式必须填写搜索词。",
       addProfile: "新增策略",
       addingProfile: "新增中...",
       emptyProfilesTitle: "当前账号还没有抓取策略",
-      emptyProfilesDescription: "先新增一条策略，或重新保存当前绑定，让系统自动补齐默认推荐策略。",
+      emptyProfilesDescription:
+        "先新增一条策略，或重新保存当前绑定，让系统自动补齐默认推荐策略。",
       crawlConfigTitle: "抓取配置",
-      crawlConfigDescription: "单独调整抓取开关和抓取周期，不需要重新粘贴凭证。",
+      crawlConfigDescription:
+        "单独调整抓取开关和抓取周期，不需要重新粘贴凭证。",
       autoCrawlTitle: "自动抓取",
       autoCrawlDescription: "关闭后将不再自动安排下一次抓取。",
       crawlIntervalLabel: "抓取周期（分钟）",
       saveConfig: "保存抓取配置",
       savingConfig: "保存中...",
       operationsTitle: "绑定操作",
-      operationsDescription: "这里可以立即触发一次抓取、重新校验凭证，或停用当前绑定。",
+      operationsDescription:
+        "这里可以立即触发一次抓取、重新校验凭证，或停用当前绑定。",
       triggerNow: "立即抓取",
       triggeringNow: "抓取中...",
       revalidate: "重新校验绑定",
       revalidating: "校验中...",
       disable: "停用绑定",
       disabling: "停用中...",
-      unbindWarning: "解除绑定会删除当前绑定下的归档帖子和抓取记录。为避免数据损失，请仅在确认不再需要这些数据时执行。",
+      unbindWarning:
+        "解除绑定会删除当前绑定下的归档帖子和抓取记录。为避免数据损失，请仅在确认不再需要这些数据时执行。",
       unbind: "解除绑定并删除记录",
       unbinding: "解绑中...",
       browserAssistTitle: "浏览器辅助绑定",
@@ -694,14 +812,16 @@ const messages: Record<Locale, Messages> = {
       browserAssistDescriptionBound:
         "如果你想刷新某个已绑定账号的登录态，或新增另一个 X 账号，直接重新发起一次浏览器登录即可。系统会自动识别当前登录的是已有账号还是新账号，并分别执行更新或新增绑定。",
       browserFlowTitle: "流程",
-      browserFlowDescription: "浏览器窗口打开后，请直接在 X 页面里手动登录。当前页面会自动轮询会话状态，并在成功后刷新绑定信息。",
+      browserFlowDescription:
+        "浏览器窗口打开后，请直接在 X 页面里手动登录。当前页面会自动轮询会话状态，并在成功后刷新绑定信息。",
       browserStep1: "1. 点击“打开 X 登录窗口并开始绑定”。",
       browserStep2: "2. 在新打开的浏览器里完成 X 登录或账号切换。",
       browserStep3: "3. 回到当前页面，等待系统自动绑定用户信息与 Cookie。",
       sessionId: "会话 ID",
       sessionExpiresAt: "会话过期时间",
       fillingUserId: "正在回填 X 用户 ID",
-      browserSuccess: "浏览器登录成功，系统已经自动保存绑定资料与 Cookie。当前页面会自动刷新到最新绑定状态。",
+      browserSuccess:
+        "浏览器登录成功，系统已经自动保存绑定资料与 Cookie。当前页面会自动刷新到最新绑定状态。",
       startBrowserBinding: "打开 X 登录窗口并开始绑定",
       startBrowserBindingAgain: "重新打开新的绑定会话",
       startingBrowserBinding: "正在启动...",
@@ -711,14 +831,16 @@ const messages: Record<Locale, Messages> = {
         "当前部署运行在容器远程桌面模式。点击按钮后会自动打开一个远程浏览器页签，请在其中完成 X 登录。",
       openBrowserDesktop: "打开远程登录桌面",
       advancedTitle: "高级手动录入",
-      advancedDescription: "仅在调试、导入历史凭证或处理非标准场景时使用。提交与已存在账号匹配时会更新原绑定，提交不同 X 账号时会新增一条绑定记录。",
+      advancedDescription:
+        "仅在调试、导入历史凭证或处理非标准场景时使用。提交与已存在账号匹配时会更新原绑定，提交不同 X 账号时会新增一条绑定记录。",
       xUserId: "X 用户 ID",
       username: "用户名",
       displayName: "显示名",
       avatarUrl: "头像 URL",
       credentialSourceLabel: "凭证来源",
       credentialPayload: "抓取凭证",
-      credentialPayloadHint: "如果你手动维护 JSON 凭证，请确保字段结构与后端适配器要求一致。浏览器辅助绑定会自动生成这份凭证，无需手填。",
+      credentialPayloadHint:
+        "如果你手动维护 JSON 凭证，请确保字段结构与后端适配器要求一致。浏览器辅助绑定会自动生成这份凭证，无需手填。",
       enableAutoCrawlAfterSave: "提交后立即启用自动抓取",
       enableAutoCrawlAfterSaveHint: "如果暂时只想保存凭证，也可以先关闭。",
       submit: "创建绑定",
@@ -729,20 +851,116 @@ const messages: Record<Locale, Messages> = {
       browserSessionStartFailed: "无法启动浏览器绑定流程。",
       browserSessionCancelFailed: "无法取消浏览器绑定流程。",
       browserSessionRequestFailed: "浏览器绑定请求失败，请稍后重试。",
-      unbindConfirm: "解除绑定会删除当前账号下的归档帖子和抓取记录，且不可恢复。确定继续吗？",
+      unbindConfirm:
+        "解除绑定会删除当前账号下的归档帖子和抓取记录，且不可恢复。确定继续吗？",
       placeholders: {
         xUserId: "例如 44196397",
         username: "例如 openai",
         displayName: "例如 OpenAI",
-        credentialPayload: '例如 {"adapter":"real","cookies":[...],"username":"demo_x_user"}',
+        credentialPayload:
+          '例如 {"adapter":"real","cookies":[...],"username":"demo_x_user"}',
+      },
+    },
+    strategies: {
+      eyebrow: "策略工作区",
+      title: "策略",
+      description:
+        "按账号集中管理推荐、热点和搜索策略。你可以为不同 X 账号分别设置抓取模式、抓取上限和可视化周期。",
+      accountListTitle: "账号维度",
+      accountListDescription:
+        "先选中一个 X 账号，再在右侧查看它的全部策略。这样可以避免多策略场景下在绑定页反复长距离滚动。",
+      accountCount: "{count} 个账号",
+      workspaceTitle: "当前账号策略",
+      workspaceDescription:
+        "每张卡片都对应一个独立策略，支持不同模式、不同周期和即时执行。默认推荐策略会随绑定自动创建。",
+      selectedAccount: "当前账号",
+      selectedAccountHint:
+        "策略与绑定账号一对多关联。切换账号后，右侧内容会同步更新。",
+      emptyTitle: "还没有策略",
+      emptyDescription:
+        "当前账号还没有可管理的抓取策略。你可以新建热点或搜索策略，推荐策略会在绑定时自动补齐。",
+      noAccountTitle: "先绑定一个 X 账号",
+      noAccountDescription:
+        "策略中心需要依附绑定账号使用。先去绑定页完成账号接入，再回来配置策略与周期。",
+      openBindings: "前往绑定页",
+      createStrategy: "新建策略",
+      createStrategyForAccount: "为 @{username} 新建策略",
+      editStrategy: "编辑策略",
+      saveStrategy: "保存策略",
+      savingStrategy: "保存中...",
+      createStrategyDescription:
+        "给当前账号追加一条新的热点或搜索策略，并为它设置独立抓取周期。",
+      editStrategyDescription:
+        "调整当前策略的周期、抓取上限与启停状态。策略模式在创建后保持只读。",
+      strategyCountLabel: "策略数量",
+      strategyCount: "{count} 条策略",
+      enabledStrategyLabel: "已启用策略",
+      enabledStrategyCount: "{count} 条已启用",
+      nextRunSummary: "最近安排：{time}",
+      modeLabel: "策略模式",
+      scheduleLabel: "抓取周期",
+      lastRunLabel: "最近执行",
+      nextRunLabel: "下一次执行",
+      maxPostsLabel: "单次抓取上限",
+      queryTextLabel: "搜索词",
+      queryTextPlaceholder: "例如 AI agents、科技热点、创业融资",
+      strategyEnabledLabel: "启用该策略",
+      strategyEnabledHint: "关闭后不会参与定时调度，但仍可手动执行。",
+      triggerNow: "立即执行",
+      triggeringNow: "执行中...",
+      emptyStrategiesTitle: "当前账号还没有额外策略",
+      emptyStrategiesDescription:
+        "先创建一条热点或搜索策略，或编辑默认推荐策略来调整周期。",
+      viewBindingWorkspace: "查看绑定工作区",
+      modeReadonlyHint: "策略模式会影响抓取入口，创建后保持只读。",
+      form: {
+        modeLabel: "策略模式",
+        accountLabel: "关联账号",
+        accountSummary: "@{username} · {displayName}",
+        createHint: "新建时建议先从热点或搜索策略开始。",
+        editHint: "默认推荐策略也可以在这里调整周期与抓取上限。",
+      },
+      scheduleBuilder: {
+        customCronHint:
+          "支持标准五段 Cron 表达式，例如 `0 9 * * 1-5` 表示工作日 09:00 执行。",
+        customCronLabel: "自定义 Cron",
+        dailyTimeLabel: "每日执行时间",
+        hourlyEveryHoursLabel: "每隔多少小时",
+        hourlyMinuteLabel: "每小时的第几分钟",
+        intervalMinutesLabel: "间隔分钟数",
+        schedulePresetCustom: "自定义",
+        schedulePresetDaily: "每天",
+        schedulePresetHourly: "按小时",
+        schedulePresetInterval: "按分钟",
+        schedulePresetLabel: "周期类型",
+        schedulePresetWeekly: "每周",
+        schedulePreviewLabel: "周期预览",
+        scheduleSummaryCustom: "Cron：{expression}",
+        scheduleSummaryDaily: "每天 {time}",
+        scheduleSummaryHourly: "每 {hours} 小时，第 {minute} 分钟执行",
+        scheduleSummaryInterval: "每 {minutes} 分钟执行一次",
+        scheduleSummaryWeekly: "每周 {days} · {time}",
+        weeklyDaysLabel: "每周执行日",
+        weeklyTimeLabel: "每周执行时间",
+        weekdays: {
+          sun: "周日",
+          mon: "周一",
+          tue: "周二",
+          wed: "周三",
+          thu: "周四",
+          fri: "周五",
+          sat: "周六",
+        },
       },
     },
     archives: {
       eyebrow: "归档",
       title: "归档",
-      description: "这里按卡片展示已经归档的推荐帖子，支持分页浏览、查看原文来源和进入详情页。",
+      description:
+        "这里按卡片展示已经归档的推荐帖子，支持分页浏览、查看原文来源和进入详情页。",
       filterTitle: "筛选归档",
-      filterDescription: "按关键词、帖子类型和时间范围快速收窄结果。筛选提交后会自动从第一页开始展示。",
+      filterDescription:
+        "按关键词、帖子类型和时间范围快速收窄结果。筛选提交后会自动从第一页开始展示。",
       keywordPlaceholder: "搜索正文、作者、绑定账号或帖子 ID",
       allTypes: "全部类型",
       applyFilters: "应用筛选",
@@ -753,9 +971,11 @@ const messages: Record<Locale, Messages> = {
       errorTitle: "归档列表加载失败",
       errorAction: "先去检查绑定",
       emptyFilteredTitle: "没有匹配当前筛选条件的归档",
-      emptyFilteredDescription: "试着放宽关键词、调整类型或修改时间范围，然后重新查询。",
+      emptyFilteredDescription:
+        "试着放宽关键词、调整类型或修改时间范围，然后重新查询。",
       emptyTitle: "还没有归档内容",
-      emptyDescription: "先在绑定页完成账号配置并手动抓取一次，系统就会把推荐帖子存档到这里。",
+      emptyDescription:
+        "先在绑定页完成账号配置并手动抓取一次，系统就会把推荐帖子存档到这里。",
       emptyFilteredAction: "清空筛选",
       emptyAction: "去触发抓取",
       sourceBinding: "来源绑定账号",
@@ -768,7 +988,8 @@ const messages: Record<Locale, Messages> = {
     archiveDetail: {
       eyebrow: "归档详情",
       titleFallback: "归档详情",
-      descriptionReady: "这里展示归档富文本正文、媒体资源、来源链接和本次归档的上下文信息。",
+      descriptionReady:
+        "这里展示归档富文本正文、媒体资源、来源链接和本次归档的上下文信息。",
       descriptionLoading: "归档详情正在准备中。",
       openOriginal: "打开原帖",
       errorTitle: "归档详情暂时不可用",
@@ -783,26 +1004,31 @@ const messages: Record<Locale, Messages> = {
         likesViews: "喜欢 / 浏览",
       },
       sourceContextTitle: "来源与上下文",
-      sourceContextDescription: "这里保留原帖链接、绑定来源和首次归档执行记录，方便回溯抓取过程。",
+      sourceContextDescription:
+        "这里保留原帖链接、绑定来源和首次归档执行记录，方便回溯抓取过程。",
       originalPost: "原帖链接",
       binding: "绑定来源",
       firstRun: "首次归档执行",
       viewRun: "查看本次执行记录",
       mediaTitle: "媒体与关联",
-      mediaDescription: "展示归档中的媒体资源入口和引用关系，便于二次处理与回查。",
+      mediaDescription:
+        "展示归档中的媒体资源入口和引用关系，便于二次处理与回查。",
       noMediaTitle: "这条归档没有媒体资源",
-      noMediaDescription: "当前帖子只包含文本内容，富文本正文中不会出现图片或视频块。",
+      noMediaDescription:
+        "当前帖子只包含文本内容，富文本正文中不会出现图片或视频块。",
       openRelatedPost: "打开关联原帖",
       targetAuthor: "目标作者：@{username}",
     },
     runs: {
       eyebrow: "任务历史",
       title: "运行记录",
-      description: "这里按时间倒序展示抓取执行记录，方便回看触发方式、统计结果、失败原因和详情入口。",
+      description:
+        "这里按时间倒序展示抓取执行记录，方便回看触发方式、统计结果、失败原因和详情入口。",
       errorTitle: "抓取记录加载失败",
       errorAction: "返回绑定页",
       emptyTitle: "还没有执行记录",
-      emptyDescription: "先在绑定页完成账号配置并发起一次抓取，系统就会开始在这里沉淀执行历史。",
+      emptyDescription:
+        "先在绑定页完成账号配置并发起一次抓取，系统就会开始在这里沉淀执行历史。",
       emptyAction: "去触发抓取",
       createdAt: "创建于",
       bindingAccount: "绑定账号",
@@ -820,7 +1046,8 @@ const messages: Record<Locale, Messages> = {
       eyebrow: "执行详情",
       titleFallback: "执行详情",
       title: "运行 {id}",
-      descriptionReady: "这里展示单次抓取的状态、统计结果、错误信息和每条帖子处理结果。",
+      descriptionReady:
+        "这里展示单次抓取的状态、统计结果、错误信息和每条帖子处理结果。",
       descriptionLoading: "执行详情正在准备中。",
       viewBinding: "查看绑定",
       errorTitle: "抓取记录详情暂时不可用",
@@ -834,21 +1061,25 @@ const messages: Record<Locale, Messages> = {
       skipped: "跳过数量",
       failed: "失败数量",
       runItemsTitle: "处理项列表",
-      runItemsDescription: "每条推荐帖子都会在这里留下 `CREATED`、`SKIPPED` 或 `FAILED` 结果。",
+      runItemsDescription:
+        "每条推荐帖子都会在这里留下 `CREATED`、`SKIPPED` 或 `FAILED` 结果。",
       recordTime: "记录时间",
       viewArchive: "查看归档详情",
       noArchiveEntity: "该处理项没有归档实体",
       emptyTitle: "当前执行还没有处理项记录",
-      emptyDescription: "如果任务仍在排队或运行中，处理项会随着归档流程继续写入。",
+      emptyDescription:
+        "如果任务仍在排队或运行中，处理项会随着归档流程继续写入。",
       contextTitle: "执行上下文",
-      contextDescription: "用于确认本次运行归属于哪个绑定、哪个调度任务，以及当前调度配置状态。",
+      contextDescription:
+        "用于确认本次运行归属于哪个绑定、哪个调度任务，以及当前调度配置状态。",
       binding: "绑定",
       crawlJob: "抓取任务",
       crawlJobEnabled: "已启用",
       crawlJobDisabled: "已停用",
       nextRun: "下一次执行",
       errorInfoTitle: "错误信息",
-      errorInfoDescription: "若本次执行出现整体失败或部分失败，这里会展示摘要和结构化错误详情。",
+      errorInfoDescription:
+        "若本次执行出现整体失败或部分失败，这里会展示摘要和结构化错误详情。",
       errorSummary: "错误摘要",
       noErrorSummary: "当前执行没有记录错误摘要",
       noErrorDetail: "当前没有结构化 `errorDetail` 数据。",
@@ -934,6 +1165,7 @@ const messages: Record<Locale, Messages> = {
         missingBindingId: "缺少绑定 ID。",
         missingProfileId: "缺少策略 ID。",
         missingQueryText: "搜索模式必须填写搜索词。",
+        missingScheduleCron: "Cron 周期必须填写表达式。",
         bindingValidationFailed: "绑定信息校验失败。",
         profileValidationFailed: "抓取策略校验失败。",
         bindingSaved: "绑定信息已保存。",
@@ -943,11 +1175,14 @@ const messages: Record<Locale, Messages> = {
         configSaved: "抓取配置已更新。",
         bindingRevalidated: "绑定状态已重新校验。",
         bindingDisabled: "绑定已停用。",
-        bindingUnbound: "绑定已解除，并删除 {deletedArchiveCount} 条归档、{deletedRunCount} 条抓取记录。",
+        bindingUnbound:
+          "绑定已解除，并删除 {deletedArchiveCount} 条归档、{deletedRunCount} 条抓取记录。",
         viewCurrentRun: "查看当前抓取记录",
         viewTriggeredRun: "查看本次抓取记录",
-        manualCrawlTriggered: "手动抓取已执行，当前状态：{status}（{triggerType}）。",
-        profileManualTriggered: "策略抓取已执行，当前状态：{status}（{triggerType}）。",
+        manualCrawlTriggered:
+          "手动抓取已执行，当前状态：{status}（{triggerType}）。",
+        profileManualTriggered:
+          "策略抓取已执行，当前状态：{status}（{triggerType}）。",
       },
       api: {
         unauthorized: "未登录或会话已失效。",
@@ -960,12 +1195,14 @@ const messages: Record<Locale, Messages> = {
       description: "X recommendation capture, archive, and task workspace",
     },
     shell: {
-      subtitle: "Real X binding, recommendation capture, and rich-text archiving",
+      subtitle:
+        "Real X binding, recommendation capture, and rich-text archiving",
       badge: "Browser Binding",
       nav: {
         overview: "Overview",
         dashboard: "Dashboard",
         bindings: "Bindings",
+        strategies: "Strategies",
         archives: "Archives",
         runs: "Runs",
       },
@@ -1022,15 +1259,18 @@ const messages: Record<Locale, Messages> = {
       setupCards: [
         {
           title: "Real account binding",
-          description: "The platform opens a visible browser for X sign-in, then captures account information and cookies automatically after you log in.",
+          description:
+            "The platform opens a visible browser for X sign-in, then captures account information and cookies automatically after you log in.",
         },
         {
           title: "Scheduled capture and deduplication",
-          description: "The system captures the home timeline on schedule, stores every run result, and deduplicates by binding plus post ID.",
+          description:
+            "The system captures the home timeline on schedule, stores every run result, and deduplicates by binding plus post ID.",
         },
         {
           title: "Rich-text archive experience",
-          description: "Posts are stored as rich-text archives with paginated cards, detail pages, source links, and run history for backtracking.",
+          description:
+            "Posts are stored as rich-text archives with paginated cards, detail pages, source links, and run history for backtracking.",
         },
       ],
       progress: {
@@ -1048,7 +1288,8 @@ const messages: Record<Locale, Messages> = {
         title: "Tech Stack",
         description:
           "The frontend uses Next.js, ShadCN UI, Tailwind CSS, and TypeScript. The backend uses NestJS and Prisma, with PostgreSQL for storage and NextAuth.js for authentication.",
-        action: "Supports both local Docker deployment and a Vercel plus Neon cloud setup.",
+        action:
+          "Supports both local Docker deployment and a Vercel plus Neon cloud setup.",
       },
     },
     login: {
@@ -1059,20 +1300,24 @@ const messages: Record<Locale, Messages> = {
       accountTitle: "Development test account",
       accountEmail: "Email: `demo@example.com`",
       accountPassword: "Password: `demo123456`",
-      accountHint: "This account is created automatically by the database seed script.",
+      accountHint:
+        "This account is created automatically by the database seed script.",
       loadingTitle: "Preparing login form",
-      loadingDescription: "Reading callback parameters and initializing the session form.",
+      loadingDescription:
+        "Reading callback parameters and initializing the session form.",
       formTitle: "Sign in",
       emailLabel: "Email",
       passwordLabel: "Password",
-      sessionHint: "After sign-in, a NextAuth session is stored in PostgreSQL and read on the server to protect application pages.",
+      sessionHint:
+        "After sign-in, a NextAuth session is stored in PostgreSQL and read on the server to protect application pages.",
       submit: "Enter workspace",
       submitting: "Signing in...",
     },
     dashboard: {
       eyebrow: "Workspace",
       title: "Dashboard",
-      description: "This page summarizes the current binding status, next crawl schedule, latest execution result, and total archive scale.",
+      description:
+        "This page summarizes the current binding status, next crawl schedule, latest execution result, and total archive scale.",
       manageBindings: "Manage bindings",
       signOut: "Sign out",
       errorTitle: "Dashboard is temporarily unavailable",
@@ -1085,7 +1330,8 @@ const messages: Record<Locale, Messages> = {
       },
       bindingSummary: {
         title: "Current binding summary",
-        description: "Bindings configure the account and credentials. This panel focuses on runtime status so you can quickly tell whether the system looks healthy.",
+        description:
+          "Bindings configure the account and credentials. This panel focuses on runtime status so you can quickly tell whether the system looks healthy.",
         boundAccount: "Bound account",
         crawlConfig: "Crawl config",
         crawlEnabled: "Enabled",
@@ -1095,14 +1341,17 @@ const messages: Record<Locale, Messages> = {
         nextRun: "Next run",
         latestError: "Latest error summary",
         healthyTitle: "Runtime looks healthy",
-        healthyDescription: "No recent errors have been recorded for the current binding. You can continue observing future automatic crawls.",
+        healthyDescription:
+          "No recent errors have been recorded for the current binding. You can continue observing future automatic crawls.",
         emptyTitle: "No X account is bound yet",
-        emptyDescription: "Complete account binding and crawl configuration first, then the dashboard will begin showing schedules, execution results, and archive totals.",
+        emptyDescription:
+          "Complete account binding and crawl configuration first, then the dashboard will begin showing schedules, execution results, and archive totals.",
         emptyAction: "Go to bindings",
       },
       latestRun: {
         title: "Latest crawl run",
-        description: "This section shows the latest trigger type, result counts, and error summary.",
+        description:
+          "This section shows the latest trigger type, result counts, and error summary.",
         startedAt: "Started at",
         finishedAt: "Finished at",
         fetched: "Fetched",
@@ -1112,30 +1361,36 @@ const messages: Record<Locale, Messages> = {
         errorSummary: "Error summary",
         viewAll: "View all runs",
         emptyTitle: "No crawl runs yet",
-        emptyDescription: "You can trigger one run from the bindings page first, and this panel will then display the latest stats and errors.",
+        emptyDescription:
+          "You can trigger one run from the bindings page first, and this panel will then display the latest stats and errors.",
         emptyAction: "Trigger a crawl",
       },
       failures: {
         title: "Failure summary",
-        description: "Aggregates failed run counts, failed post counts, and the most recent failed runs for the current binding.",
+        description:
+          "Aggregates failed run counts, failed post counts, and the most recent failed runs for the current binding.",
         failedRuns: "Failed runs",
         failedPosts: "Failed posts",
         failedPostsInline: "{count} failed posts",
         noErrorSummary: "No error summary was recorded.",
         emptyTitle: "No recent failures",
-        emptyDescription: "There are currently no failed crawl runs under this binding. Aggregated alerts will appear automatically once failures happen.",
+        emptyDescription:
+          "There are currently no failed crawl runs under this binding. Aggregated alerts will appear automatically once failures happen.",
         viewRun: "View failure details",
       },
     },
     bindings: {
       eyebrow: "Account",
       title: "Bindings",
-      description: "This page already supports real X browser-assisted binding, automatic cookie capture, revalidation, crawl config editing, and manual crawl triggers.",
+      description:
+        "This workspace focuses on X account binding, session revalidation, and credential maintenance. Crawl strategies now live in a dedicated strategies workspace.",
       accountListTitle: "Bound accounts",
-      accountListDescription: "A single platform user can now maintain multiple X accounts. Select one from the list to switch the status, configuration, and actions shown below.",
+      accountListDescription:
+        "A single platform user can maintain multiple X accounts. Select one from the list to switch the account summary and actions shown below.",
       accountCount: "{count} accounts",
       statusTitle: "Current binding status",
-      statusDescription: "This panel continuously shows the current account, crawl switch, validation result, and next execution time.",
+      statusDescription:
+        "This panel continuously shows the current account, strategy summary, validation result, and latest error.",
       credentialSource: "Credential source",
       lastValidatedAt: "Last validated",
       nextCrawlAt: "Next crawl",
@@ -1144,9 +1399,11 @@ const messages: Record<Locale, Messages> = {
       crawlInterval: "Every {minutes} minutes",
       latestError: "Latest error",
       emptyTitle: "No X account is bound yet",
-      emptyDescription: "Prefer the browser-assisted binding flow on the right. Once login succeeds, this panel will update automatically with binding status, crawl config, and validation results.",
+      emptyDescription:
+        "Prefer the browser-assisted binding flow on the right. Once login succeeds, this panel will update automatically with binding status, crawl config, and validation results.",
       profilesTitle: "Crawl profiles",
-      profilesDescription: "Each account can keep multiple crawl strategies. Manage recommended, hot, and search modes with their own schedules and manual runs here.",
+      profilesDescription:
+        "Each account can keep multiple crawl strategies. Manage recommended, hot, and search modes with their own schedules and manual runs here.",
       profileRunSummary: "Run summary:",
       lastRunLabel: "Last run: ",
       nextRunLabel: "Next run: ",
@@ -1155,32 +1412,39 @@ const messages: Record<Locale, Messages> = {
       queryTextLabel: "Search query",
       queryTextPlaceholder: "For example AI agents or tech trends",
       profileEnabledLabel: "Enable this profile",
-      profileEnabledHint: "Disabled profiles are skipped by the scheduler, but can still be triggered manually.",
+      profileEnabledHint:
+        "Disabled profiles are skipped by the scheduler, but can still be triggered manually.",
       saveProfile: "Save profile",
       savingProfile: "Saving profile...",
       triggerProfileNow: "Run this profile now",
       addProfileTitle: "Add crawl profile",
-      addProfileDescription: "Add a new hot or search strategy to the current account. Search mode requires a query text.",
+      addProfileDescription:
+        "Add a new hot or search strategy to the current account. Search mode requires a query text.",
       addProfile: "Add profile",
       addingProfile: "Adding...",
       emptyProfilesTitle: "No crawl profiles yet",
-      emptyProfilesDescription: "Create a profile first or save the binding again so the default recommended profile can be restored.",
+      emptyProfilesDescription:
+        "Create a profile first or save the binding again so the default recommended profile can be restored.",
       crawlConfigTitle: "Crawl config",
-      crawlConfigDescription: "Adjust the crawl switch and interval without pasting credentials again.",
+      crawlConfigDescription:
+        "Adjust the crawl switch and interval without pasting credentials again.",
       autoCrawlTitle: "Automatic crawl",
-      autoCrawlDescription: "If turned off, no next crawl will be scheduled automatically.",
+      autoCrawlDescription:
+        "If turned off, no next crawl will be scheduled automatically.",
       crawlIntervalLabel: "Crawl interval (minutes)",
       saveConfig: "Save crawl config",
       savingConfig: "Saving...",
       operationsTitle: "Binding actions",
-      operationsDescription: "Trigger a crawl now, revalidate credentials, or disable the current binding.",
+      operationsDescription:
+        "Trigger a crawl now, revalidate credentials, or disable the current binding.",
       triggerNow: "Run now",
       triggeringNow: "Running...",
       revalidate: "Revalidate binding",
       revalidating: "Validating...",
       disable: "Disable binding",
       disabling: "Disabling...",
-      unbindWarning: "Unbinding will delete archived posts and crawl run records under this binding. Only do this when you are sure the data is no longer needed.",
+      unbindWarning:
+        "Unbinding will delete archived posts and crawl run records under this binding. Only do this when you are sure the data is no longer needed.",
       unbind: "Unbind and delete records",
       unbinding: "Unbinding...",
       browserAssistTitle: "Browser-assisted binding",
@@ -1189,14 +1453,18 @@ const messages: Record<Locale, Messages> = {
       browserAssistDescriptionBound:
         "If you want to refresh the login state for an existing account or add another X account, simply launch the browser login flow again. The system will recognize whether the signed-in account already exists and update or create the binding accordingly.",
       browserFlowTitle: "Flow",
-      browserFlowDescription: "Once the browser window opens, sign in on X directly. This page polls the session state automatically and refreshes binding info after success.",
+      browserFlowDescription:
+        "Once the browser window opens, sign in on X directly. This page polls the session state automatically and refreshes binding info after success.",
       browserStep1: '1. Click "Open X login window and start binding".',
-      browserStep2: "2. Complete X login or switch account in the newly opened browser.",
-      browserStep3: "3. Return to this page and wait for the system to bind account info and cookies automatically.",
+      browserStep2:
+        "2. Complete X login or switch account in the newly opened browser.",
+      browserStep3:
+        "3. Return to this page and wait for the system to bind account info and cookies automatically.",
       sessionId: "Session ID",
       sessionExpiresAt: "Session expires at",
       fillingUserId: "Backfilling X user ID",
-      browserSuccess: "Browser login succeeded. The system has already saved binding information and cookies, and this page will refresh to the latest binding state.",
+      browserSuccess:
+        "Browser login succeeded. The system has already saved binding information and cookies, and this page will refresh to the latest binding state.",
       startBrowserBinding: "Open X login window and start binding",
       startBrowserBindingAgain: "Open a new binding session again",
       startingBrowserBinding: "Starting...",
@@ -1206,38 +1474,143 @@ const messages: Record<Locale, Messages> = {
         "This deployment is using container-based remote desktop mode. After you click the button, a remote browser tab will open for the X sign-in flow.",
       openBrowserDesktop: "Open remote login desktop",
       advancedTitle: "Advanced manual input",
-      advancedDescription: "Use this only for debugging, importing historical credentials, or non-standard scenarios. Matching an existing X account updates that binding, while submitting a different account creates a new binding record.",
+      advancedDescription:
+        "Use this only for debugging, importing historical credentials, or non-standard scenarios. Matching an existing X account updates that binding, while submitting a different account creates a new binding record.",
       xUserId: "X user ID",
       username: "Username",
       displayName: "Display name",
       avatarUrl: "Avatar URL",
       credentialSourceLabel: "Credential source",
       credentialPayload: "Crawl credentials",
-      credentialPayloadHint: "If you maintain JSON credentials manually, make sure the field structure matches the backend adapter requirements. Browser-assisted binding generates these credentials automatically.",
+      credentialPayloadHint:
+        "If you maintain JSON credentials manually, make sure the field structure matches the backend adapter requirements. Browser-assisted binding generates these credentials automatically.",
       enableAutoCrawlAfterSave: "Enable automatic crawl immediately after save",
-      enableAutoCrawlAfterSaveHint: "If you only want to save credentials for now, you can switch it off first.",
+      enableAutoCrawlAfterSaveHint:
+        "If you only want to save credentials for now, you can switch it off first.",
       submit: "Create binding",
       submitting: "Submitting...",
       update: "Update binding and credentials",
-      browserSessionRestoreFailed: "Unable to restore the browser binding session.",
-      browserSessionPollingFailed: "Browser binding polling failed. Please try again later.",
+      browserSessionRestoreFailed:
+        "Unable to restore the browser binding session.",
+      browserSessionPollingFailed:
+        "Browser binding polling failed. Please try again later.",
       browserSessionStartFailed: "Unable to start the browser binding flow.",
       browserSessionCancelFailed: "Unable to cancel the browser binding flow.",
-      browserSessionRequestFailed: "Browser binding request failed. Please try again later.",
-      unbindConfirm: "Unbinding will delete archived posts and crawl run records under the current account, and it cannot be undone. Continue?",
+      browserSessionRequestFailed:
+        "Browser binding request failed. Please try again later.",
+      unbindConfirm:
+        "Unbinding will delete archived posts and crawl run records under the current account, and it cannot be undone. Continue?",
       placeholders: {
         xUserId: "For example 44196397",
         username: "For example openai",
         displayName: "For example OpenAI",
-        credentialPayload: 'For example {"adapter":"real","cookies":[...],"username":"demo_x_user"}',
+        credentialPayload:
+          'For example {"adapter":"real","cookies":[...],"username":"demo_x_user"}',
+      },
+    },
+    strategies: {
+      eyebrow: "Strategy workspace",
+      title: "Strategies",
+      description:
+        "Manage recommended, hot, and search strategies by account. Each bound X account can carry its own modes, fetch limits, and visualized schedules.",
+      accountListTitle: "Accounts",
+      accountListDescription:
+        "Select an X account first, then manage all of its strategies on the right. This keeps high-volume strategy management out of the bindings page.",
+      accountCount: "{count} accounts",
+      workspaceTitle: "Strategies for this account",
+      workspaceDescription:
+        "Each card represents one independent strategy with its own mode, cadence, post limit, and manual run entry point. The default recommended strategy is provisioned automatically.",
+      selectedAccount: "Selected account",
+      selectedAccountHint:
+        "Strategies are linked one-to-many with bound accounts. Switch accounts to update the workspace context.",
+      emptyTitle: "No strategies yet",
+      emptyDescription:
+        "This account does not have manageable crawl strategies yet. Create a hot or search strategy, or rely on the default recommended strategy created during binding.",
+      noAccountTitle: "Bind an X account first",
+      noAccountDescription:
+        "The strategy center depends on bound accounts. Finish the account setup on the bindings page, then return here to manage schedules.",
+      openBindings: "Go to bindings",
+      createStrategy: "New strategy",
+      createStrategyForAccount: "Create strategy for @{username}",
+      editStrategy: "Edit strategy",
+      saveStrategy: "Save strategy",
+      savingStrategy: "Saving...",
+      createStrategyDescription:
+        "Add a new hot or search strategy for the current account and give it an independent schedule.",
+      editStrategyDescription:
+        "Adjust the schedule, post limit, and enable state for the current strategy. The mode stays read-only after creation.",
+      strategyCountLabel: "Strategy count",
+      strategyCount: "{count} strategies",
+      enabledStrategyLabel: "Enabled strategies",
+      enabledStrategyCount: "{count} enabled",
+      nextRunSummary: "Next schedule: {time}",
+      modeLabel: "Mode",
+      scheduleLabel: "Schedule",
+      lastRunLabel: "Last run",
+      nextRunLabel: "Next run",
+      maxPostsLabel: "Max posts per run",
+      queryTextLabel: "Search query",
+      queryTextPlaceholder: "For example AI agents, startup funding, robotics",
+      strategyEnabledLabel: "Enable this strategy",
+      strategyEnabledHint:
+        "Disabled strategies are skipped by the scheduler, but they can still be run manually.",
+      triggerNow: "Run now",
+      triggeringNow: "Running...",
+      emptyStrategiesTitle: "No additional strategies yet",
+      emptyStrategiesDescription:
+        "Create a hot or search strategy first, or edit the default recommended strategy to change its cadence.",
+      viewBindingWorkspace: "Open binding workspace",
+      modeReadonlyHint:
+        "The strategy mode controls the fetch entry point and stays read-only after creation.",
+      form: {
+        modeLabel: "Strategy mode",
+        accountLabel: "Bound account",
+        accountSummary: "@{username} · {displayName}",
+        createHint:
+          "Starting with a hot or search strategy usually works best.",
+        editHint: "The default recommended strategy can also be tuned here.",
+      },
+      scheduleBuilder: {
+        customCronHint:
+          "Supports five-field Cron expressions. Example: `0 9 * * 1-5` runs at 09:00 on weekdays.",
+        customCronLabel: "Custom Cron",
+        dailyTimeLabel: "Daily run time",
+        hourlyEveryHoursLabel: "Repeat every N hours",
+        hourlyMinuteLabel: "Minute within the hour",
+        intervalMinutesLabel: "Interval in minutes",
+        schedulePresetCustom: "Custom",
+        schedulePresetDaily: "Daily",
+        schedulePresetHourly: "Hourly",
+        schedulePresetInterval: "Interval",
+        schedulePresetLabel: "Schedule preset",
+        schedulePresetWeekly: "Weekly",
+        schedulePreviewLabel: "Schedule preview",
+        scheduleSummaryCustom: "Cron: {expression}",
+        scheduleSummaryDaily: "Every day at {time}",
+        scheduleSummaryHourly: "Every {hours} hours at minute {minute}",
+        scheduleSummaryInterval: "Every {minutes} minutes",
+        scheduleSummaryWeekly: "Every week on {days} at {time}",
+        weeklyDaysLabel: "Days of week",
+        weeklyTimeLabel: "Weekly run time",
+        weekdays: {
+          sun: "Sun",
+          mon: "Mon",
+          tue: "Tue",
+          wed: "Wed",
+          thu: "Thu",
+          fri: "Fri",
+          sat: "Sat",
+        },
       },
     },
     archives: {
       eyebrow: "Archive",
       title: "Archives",
-      description: "Archived recommended posts are shown here as cards, with pagination, source links, and detail pages.",
+      description:
+        "Archived recommended posts are shown here as cards, with pagination, source links, and detail pages.",
       filterTitle: "Filter archives",
-      filterDescription: "Narrow results quickly by keyword, post type, and date range. Filters always reset back to the first page.",
+      filterDescription:
+        "Narrow results quickly by keyword, post type, and date range. Filters always reset back to the first page.",
       keywordPlaceholder: "Search body, author, binding account, or post ID",
       allTypes: "All types",
       applyFilters: "Apply filters",
@@ -1248,9 +1621,11 @@ const messages: Record<Locale, Messages> = {
       errorTitle: "Failed to load archives",
       errorAction: "Check bindings first",
       emptyFilteredTitle: "No archives match the current filters",
-      emptyFilteredDescription: "Try a broader keyword, another type, or a different date range, then search again.",
+      emptyFilteredDescription:
+        "Try a broader keyword, another type, or a different date range, then search again.",
       emptyTitle: "No archived content yet",
-      emptyDescription: "Finish binding on the bindings page and trigger a crawl once. The system will then archive recommended posts here.",
+      emptyDescription:
+        "Finish binding on the bindings page and trigger a crawl once. The system will then archive recommended posts here.",
       emptyFilteredAction: "Clear filters",
       emptyAction: "Trigger a crawl",
       sourceBinding: "Source binding",
@@ -1263,7 +1638,8 @@ const messages: Record<Locale, Messages> = {
     archiveDetail: {
       eyebrow: "Archive detail",
       titleFallback: "Archive detail",
-      descriptionReady: "This page shows the archived rich text body, media assets, source links, and surrounding archive context.",
+      descriptionReady:
+        "This page shows the archived rich text body, media assets, source links, and surrounding archive context.",
       descriptionLoading: "Archive details are loading.",
       openOriginal: "Open original post",
       errorTitle: "Archive detail is temporarily unavailable",
@@ -1278,26 +1654,31 @@ const messages: Record<Locale, Messages> = {
         likesViews: "Likes / Views",
       },
       sourceContextTitle: "Source and context",
-      sourceContextDescription: "This section keeps the original post link, source binding, and first archive run for easy tracing.",
+      sourceContextDescription:
+        "This section keeps the original post link, source binding, and first archive run for easy tracing.",
       originalPost: "Original post",
       binding: "Binding",
       firstRun: "First crawl run",
       viewRun: "View this run",
       mediaTitle: "Media and relations",
-      mediaDescription: "Shows archived media entries and relation links for secondary processing or backtracking.",
+      mediaDescription:
+        "Shows archived media entries and relation links for secondary processing or backtracking.",
       noMediaTitle: "This archive has no media",
-      noMediaDescription: "The current post contains only text, so no image or video blocks appear in the rich text body.",
+      noMediaDescription:
+        "The current post contains only text, so no image or video blocks appear in the rich text body.",
       openRelatedPost: "Open related post",
       targetAuthor: "Target author: @{username}",
     },
     runs: {
       eyebrow: "Task history",
       title: "Runs",
-      description: "Runs are displayed in reverse chronological order so you can review trigger type, counts, failure causes, and details.",
+      description:
+        "Runs are displayed in reverse chronological order so you can review trigger type, counts, failure causes, and details.",
       errorTitle: "Failed to load run history",
       errorAction: "Back to bindings",
       emptyTitle: "No runs yet",
-      emptyDescription: "Finish the account setup on the bindings page and trigger a crawl once. Execution history will start accumulating here.",
+      emptyDescription:
+        "Finish the account setup on the bindings page and trigger a crawl once. Execution history will start accumulating here.",
       emptyAction: "Trigger a crawl",
       createdAt: "Created",
       bindingAccount: "Binding account",
@@ -1315,7 +1696,8 @@ const messages: Record<Locale, Messages> = {
       eyebrow: "Run detail",
       titleFallback: "Run detail",
       title: "Run {id}",
-      descriptionReady: "This page shows one crawl execution, including status, counts, error info, and the handling result for each post.",
+      descriptionReady:
+        "This page shows one crawl execution, including status, counts, error info, and the handling result for each post.",
       descriptionLoading: "Run details are loading.",
       viewBinding: "View binding",
       errorTitle: "Run detail is temporarily unavailable",
@@ -1329,21 +1711,25 @@ const messages: Record<Locale, Messages> = {
       skipped: "Skipped",
       failed: "Failed",
       runItemsTitle: "Handled items",
-      runItemsDescription: "Each recommended post leaves a `CREATED`, `SKIPPED`, or `FAILED` result here.",
+      runItemsDescription:
+        "Each recommended post leaves a `CREATED`, `SKIPPED`, or `FAILED` result here.",
       recordTime: "Recorded at",
       viewArchive: "View archive",
       noArchiveEntity: "This item has no archive entity",
       emptyTitle: "No handled items yet",
-      emptyDescription: "If the task is still queued or running, items will keep being written as the archive flow continues.",
+      emptyDescription:
+        "If the task is still queued or running, items will keep being written as the archive flow continues.",
       contextTitle: "Execution context",
-      contextDescription: "Used to confirm which binding and scheduler job this run belongs to, together with current scheduler settings.",
+      contextDescription:
+        "Used to confirm which binding and scheduler job this run belongs to, together with current scheduler settings.",
       binding: "Binding",
       crawlJob: "Crawl job",
       crawlJobEnabled: "Enabled",
       crawlJobDisabled: "Disabled",
       nextRun: "Next run",
       errorInfoTitle: "Error information",
-      errorInfoDescription: "If the run failed completely or partially, this section shows the summary and structured error detail.",
+      errorInfoDescription:
+        "If the run failed completely or partially, this section shows the summary and structured error detail.",
       errorSummary: "Error summary",
       noErrorSummary: "This run has no error summary",
       noErrorDetail: "There is no structured `errorDetail` data for this run.",
@@ -1420,8 +1806,10 @@ const messages: Record<Locale, Messages> = {
         missingCredentialPayload: "Please paste crawl credentials.",
         missingCrawlInterval: "Please enter a crawl interval.",
         invalidCrawlIntervalInt: "The crawl interval must be an integer.",
-        invalidCrawlIntervalMin: "The crawl interval must be at least 5 minutes.",
-        invalidCrawlIntervalMax: "The crawl interval cannot exceed 1440 minutes.",
+        invalidCrawlIntervalMin:
+          "The crawl interval must be at least 5 minutes.",
+        invalidCrawlIntervalMax:
+          "The crawl interval cannot exceed 1440 minutes.",
         missingMaxPosts: "Please enter a max-post limit.",
         invalidMaxPostsInt: "The max-post limit must be an integer.",
         invalidMaxPostsMin: "The max-post limit must be at least 1.",
@@ -1429,6 +1817,7 @@ const messages: Record<Locale, Messages> = {
         missingBindingId: "Missing binding ID.",
         missingProfileId: "Missing crawl profile ID.",
         missingQueryText: "Search mode requires a query text.",
+        missingScheduleCron: "Cron schedules require an expression.",
         bindingValidationFailed: "Binding form validation failed.",
         profileValidationFailed: "Crawl profile validation failed.",
         bindingSaved: "Binding information has been saved.",
@@ -1438,11 +1827,14 @@ const messages: Record<Locale, Messages> = {
         configSaved: "Crawl config has been updated.",
         bindingRevalidated: "Binding status has been revalidated.",
         bindingDisabled: "Binding has been disabled.",
-        bindingUnbound: "Binding removed. Deleted {deletedArchiveCount} archived posts and {deletedRunCount} crawl runs.",
+        bindingUnbound:
+          "Binding removed. Deleted {deletedArchiveCount} archived posts and {deletedRunCount} crawl runs.",
         viewCurrentRun: "View current crawl run",
         viewTriggeredRun: "View this crawl run",
-        manualCrawlTriggered: "Manual crawl was triggered. Current status: {status} ({triggerType}).",
-        profileManualTriggered: "Profile run was triggered. Current status: {status} ({triggerType}).",
+        manualCrawlTriggered:
+          "Manual crawl was triggered. Current status: {status} ({triggerType}).",
+        profileManualTriggered:
+          "Profile run was triggered. Current status: {status} ({triggerType}).",
       },
       api: {
         unauthorized: "Not signed in or the session has expired.",

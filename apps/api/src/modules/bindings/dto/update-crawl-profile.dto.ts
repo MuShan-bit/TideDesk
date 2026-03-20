@@ -1,22 +1,33 @@
+import { CrawlScheduleKind } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
   Max,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 export class UpdateCrawlProfileDto {
   @IsBoolean()
   enabled!: boolean;
 
+  @IsEnum(CrawlScheduleKind)
+  scheduleKind!: CrawlScheduleKind;
+
+  @ValidateIf((value) => value.scheduleKind === CrawlScheduleKind.INTERVAL)
   @Type(() => Number)
   @IsInt()
   @Min(5)
   @Max(1440)
-  intervalMinutes!: number;
+  intervalMinutes?: number;
+
+  @ValidateIf((value) => value.scheduleKind === CrawlScheduleKind.CRON)
+  @IsString()
+  scheduleCron?: string;
 
   @IsOptional()
   @IsString()
