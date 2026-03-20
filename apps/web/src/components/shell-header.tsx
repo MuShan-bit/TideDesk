@@ -30,6 +30,7 @@ export function ShellHeader({ locale, theme }: ShellHeaderProps) {
     { href: "/dashboard", label: messages.shell.nav.dashboard },
     { href: "/bindings", label: messages.shell.nav.bindings },
     { href: "/strategies", label: messages.shell.nav.strategies },
+    { href: "/taxonomy", label: messages.shell.nav.taxonomy },
     { href: "/archives", label: messages.shell.nav.archives },
     { href: "/runs", label: messages.shell.nav.runs },
   ];

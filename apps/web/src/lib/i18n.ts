@@ -17,6 +17,7 @@ type Messages = {
       dashboard: string;
       bindings: string;
       strategies: string;
+      taxonomy: string;
       archives: string;
       runs: string;
     };
@@ -343,6 +344,61 @@ type Messages = {
       >;
     };
   };
+  taxonomy: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    badge: string;
+    errorTitle: string;
+    errorDescription: string;
+    categoriesTitle: string;
+    categoriesDescription: string;
+    tagsTitle: string;
+    tagsDescription: string;
+    createCategory: string;
+    createCategoryDescription: string;
+    editCategory: string;
+    editCategoryDescription: string;
+    saveCategory: string;
+    createTag: string;
+    createTagDescription: string;
+    editTag: string;
+    editTagDescription: string;
+    saveTag: string;
+    saving: string;
+    cancel: string;
+    edit: string;
+    disable: string;
+    disableCategoryConfirm: string;
+    disableTagConfirm: string;
+    statusActive: string;
+    statusInactive: string;
+    systemBadge: string;
+    customBadge: string;
+    noColor: string;
+    noCategoryDescription: string;
+    emptyCategories: string;
+    emptyTags: string;
+    summary: {
+      totalCategories: string;
+      activeCategories: string;
+      totalTags: string;
+      activeTags: string;
+    };
+    form: {
+      nameLabel: string;
+      slugLabel: string;
+      descriptionLabel: string;
+      colorLabel: string;
+      sortOrderLabel: string;
+      statusLabel: string;
+      categoryNamePlaceholder: string;
+      categoryDescriptionPlaceholder: string;
+      tagNamePlaceholder: string;
+      slugPlaceholder: string;
+      colorPlaceholder: string;
+    };
+  };
   archives: {
     eyebrow: string;
     title: string;
@@ -559,6 +615,21 @@ type Messages = {
       taxonomyUpdated: string;
       taxonomyValidationFailed: string;
     };
+    taxonomy: {
+      missingName: string;
+      invalidColor: string;
+      invalidSortOrder: string;
+      missingCategoryId: string;
+      missingTagId: string;
+      categoryValidationFailed: string;
+      categoryCreated: string;
+      categoryUpdated: string;
+      categoryDisabled: string;
+      tagValidationFailed: string;
+      tagCreated: string;
+      tagUpdated: string;
+      tagDisabled: string;
+    };
     api: {
       unauthorized: string;
       requestFailed: string;
@@ -598,6 +669,7 @@ const messages: Record<Locale, Messages> = {
         dashboard: "仪表盘",
         bindings: "绑定",
         strategies: "策略",
+        taxonomy: "分类标签",
         archives: "归档",
         runs: "运行记录",
       },
@@ -988,6 +1060,67 @@ const messages: Record<Locale, Messages> = {
         },
       },
     },
+    taxonomy: {
+      eyebrow: "分类标签",
+      title: "分类标签",
+      description:
+        "在这里集中维护归档内容的分类体系和标签体系，支持后续筛选、人工编辑和 AI 结果承接。",
+      badge: "{count} 个分类与标签",
+      errorTitle: "分类标签页面暂时不可用",
+      errorDescription: "分类标签数据加载失败，请稍后重试。",
+      categoriesTitle: "分类管理",
+      categoriesDescription:
+        "分类用于为帖子设置单个主分类，适合沉淀主题目录、栏目或长期观察维度。",
+      tagsTitle: "标签管理",
+      tagsDescription:
+        "标签适合表达多维属性，可被人工、AI 或规则同时使用，并服务后续筛选与报告。",
+      createCategory: "新建分类",
+      createCategoryDescription:
+        "填写名称、可选 slug、描述、颜色和排序值，创建后即可在归档详情里选用。",
+      editCategory: "编辑分类",
+      editCategoryDescription:
+        "你可以更新分类名称、描述、颜色、排序和启用状态。",
+      saveCategory: "保存分类",
+      createTag: "新建标签",
+      createTagDescription:
+        "标签适合表达多选属性，创建后可在归档详情页被人工添加。",
+      editTag: "编辑标签",
+      editTagDescription: "你可以更新标签名称、颜色、slug 和启用状态。",
+      saveTag: "保存标签",
+      saving: "保存中...",
+      cancel: "取消",
+      edit: "编辑",
+      disable: "停用",
+      disableCategoryConfirm: "停用后该分类不会再出现在可选列表中，继续吗？",
+      disableTagConfirm: "停用后该标签不会再出现在可选列表中，继续吗？",
+      statusActive: "启用中",
+      statusInactive: "已停用",
+      systemBadge: "系统内置",
+      customBadge: "自定义",
+      noColor: "未设置颜色",
+      noCategoryDescription: "还没有填写分类描述。",
+      emptyCategories: "当前还没有分类，先创建一个主分类吧。",
+      emptyTags: "当前还没有标签，先创建一个标签吧。",
+      summary: {
+        totalCategories: "分类总数",
+        activeCategories: "启用分类",
+        totalTags: "标签总数",
+        activeTags: "启用标签",
+      },
+      form: {
+        nameLabel: "名称",
+        slugLabel: "Slug",
+        descriptionLabel: "描述",
+        colorLabel: "颜色",
+        sortOrderLabel: "排序值",
+        statusLabel: "状态",
+        categoryNamePlaceholder: "例如 AI 观察",
+        categoryDescriptionPlaceholder: "描述这个分类适用于哪些帖子",
+        tagNamePlaceholder: "例如 OpenAI",
+        slugPlaceholder: "留空则根据名称自动生成",
+        colorPlaceholder: "例如 #2563eb",
+      },
+    },
     archives: {
       eyebrow: "归档",
       title: "归档",
@@ -1070,7 +1203,7 @@ const messages: Record<Locale, Messages> = {
       tagsFieldLabel: "人工标签选择",
       taxonomyEditorHint:
         "勾选后会写入 `MANUAL` 来源标签；已有 AI 或规则标签会继续保留在摘要里。",
-      noTagOptions: "当前还没有可选标签，请先在后续设置页中创建标签。",
+      noTagOptions: "当前还没有可选标签，请先在分类标签页中创建标签。",
       taxonomyLoadError: "分类与标签选项加载失败。",
       saveTaxonomy: "保存人工分类与标签",
       saveTaxonomyPending: "正在保存分类与标签...",
@@ -1251,6 +1384,21 @@ const messages: Record<Locale, Messages> = {
         taxonomyUpdated: "人工分类与标签已保存。",
         taxonomyValidationFailed: "归档分类标签校验失败。",
       },
+      taxonomy: {
+        missingName: "请填写名称。",
+        invalidColor: "颜色必须是合法的十六进制色值。",
+        invalidSortOrder: "排序值必须是整数。",
+        missingCategoryId: "缺少分类 ID。",
+        missingTagId: "缺少标签 ID。",
+        categoryValidationFailed: "分类表单校验失败。",
+        categoryCreated: "分类已创建。",
+        categoryUpdated: "分类已更新。",
+        categoryDisabled: "分类已停用。",
+        tagValidationFailed: "标签表单校验失败。",
+        tagCreated: "标签已创建。",
+        tagUpdated: "标签已更新。",
+        tagDisabled: "标签已停用。",
+      },
       api: {
         unauthorized: "未登录或会话已失效。",
         requestFailed: "请求失败，请稍后重试。",
@@ -1270,6 +1418,7 @@ const messages: Record<Locale, Messages> = {
         dashboard: "Dashboard",
         bindings: "Bindings",
         strategies: "Strategies",
+        taxonomy: "Taxonomy",
         archives: "Archives",
         runs: "Runs",
       },
@@ -1675,6 +1824,71 @@ const messages: Record<Locale, Messages> = {
         },
       },
     },
+    taxonomy: {
+      eyebrow: "Taxonomy",
+      title: "Category and tags",
+      description:
+        "Manage archive categories and multi-tag vocabularies in one place so filters, manual editing, and future AI workflows can reuse the same structure.",
+      badge: "{count} categories and tags",
+      errorTitle: "Taxonomy is temporarily unavailable",
+      errorDescription: "Failed to load taxonomy data. Please try again later.",
+      categoriesTitle: "Categories",
+      categoriesDescription:
+        "Categories provide a single primary topic for each archived post and work well for long-term tracks, columns, and reporting dimensions.",
+      tagsTitle: "Tags",
+      tagsDescription:
+        "Tags capture multi-dimensional attributes and can later be assigned manually, by AI models, or by automation rules.",
+      createCategory: "New category",
+      createCategoryDescription:
+        "Fill in the name, optional slug, description, color, and sort order. The category will be available in archive details immediately.",
+      editCategory: "Edit category",
+      editCategoryDescription:
+        "Update the category name, description, color, sort order, and active state here.",
+      saveCategory: "Save category",
+      createTag: "New tag",
+      createTagDescription:
+        "Create a reusable multi-select tag that can be applied from archive details.",
+      editTag: "Edit tag",
+      editTagDescription:
+        "Update the tag name, slug, color, and active state here.",
+      saveTag: "Save tag",
+      saving: "Saving...",
+      cancel: "Cancel",
+      edit: "Edit",
+      disable: "Disable",
+      disableCategoryConfirm:
+        "This category will no longer appear in selection lists after disabling. Continue?",
+      disableTagConfirm:
+        "This tag will no longer appear in selection lists after disabling. Continue?",
+      statusActive: "Active",
+      statusInactive: "Disabled",
+      systemBadge: "System",
+      customBadge: "Custom",
+      noColor: "No color",
+      noCategoryDescription: "No category description yet.",
+      emptyCategories: "No categories yet. Create the first primary category.",
+      emptyTags: "No tags yet. Create the first reusable tag.",
+      summary: {
+        totalCategories: "Total categories",
+        activeCategories: "Active categories",
+        totalTags: "Total tags",
+        activeTags: "Active tags",
+      },
+      form: {
+        nameLabel: "Name",
+        slugLabel: "Slug",
+        descriptionLabel: "Description",
+        colorLabel: "Color",
+        sortOrderLabel: "Sort order",
+        statusLabel: "Status",
+        categoryNamePlaceholder: "For example AI Watch",
+        categoryDescriptionPlaceholder:
+          "Describe which archived posts belong to this category",
+        tagNamePlaceholder: "For example OpenAI",
+        slugPlaceholder: "Leave blank to generate from the name",
+        colorPlaceholder: "For example #2563eb",
+      },
+    },
     archives: {
       eyebrow: "Archive",
       title: "Archives",
@@ -1759,7 +1973,7 @@ const messages: Record<Locale, Messages> = {
       taxonomyEditorHint:
         "Checked items are stored as `MANUAL` tags. Existing AI or rule tags remain visible in the summary.",
       noTagOptions:
-        "No tag options are available yet. Create tags from the settings page later.",
+        "No tag options are available yet. Create tags from the taxonomy page first.",
       taxonomyLoadError: "Failed to load taxonomy options.",
       saveTaxonomy: "Save manual category and tags",
       saveTaxonomyPending: "Saving category and tags...",
@@ -1942,6 +2156,21 @@ const messages: Record<Locale, Messages> = {
         taxonomyUpdated: "Manual category and tags have been saved.",
         taxonomyValidationFailed:
           "Archive taxonomy validation failed. Please check the form.",
+      },
+      taxonomy: {
+        missingName: "Please enter a name.",
+        invalidColor: "Color must be a valid hexadecimal value.",
+        invalidSortOrder: "Sort order must be an integer.",
+        missingCategoryId: "Missing category ID.",
+        missingTagId: "Missing tag ID.",
+        categoryValidationFailed: "Category form validation failed.",
+        categoryCreated: "Category created.",
+        categoryUpdated: "Category updated.",
+        categoryDisabled: "Category disabled.",
+        tagValidationFailed: "Tag form validation failed.",
+        tagCreated: "Tag created.",
+        tagUpdated: "Tag updated.",
+        tagDisabled: "Tag disabled.",
       },
       api: {
         unauthorized: "Not signed in or the session has expired.",
