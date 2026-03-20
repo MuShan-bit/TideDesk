@@ -588,9 +588,10 @@
       依赖：`T1203`。
       备注：已通过 `20260320061610_add_enhancement_foundation` 迁移落地 `categories`、`tags`、`archived_post_tags` 及 `archived_posts.primary_category_id`，并同步 Prisma schema 关系定义。
 
-- [ ] `T1402` `P1` 实现分类与标签管理后端接口。
+- [x] `T1402` `P1` 实现分类与标签管理后端接口。
       完成标准：支持创建、编辑、停用、查询分类与标签。
       依赖：`T1401`。
+      备注：已新增 `taxonomy` 模块，提供分类/标签的列表、创建、更新、停用接口；补充 `is_active` 软停用字段与服务级 slug 归一化、唯一性校验，并通过 `taxonomy.service.spec.ts` 验证。
 
 - [ ] `T1403` `P1` 改造归档查询接口，支持分类与标签筛选。
       完成标准：归档列表 API 支持 `categoryId`、`tagIds` 等条件。

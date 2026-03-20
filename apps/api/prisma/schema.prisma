@@ -523,6 +523,7 @@ model Category {
   slug          String
   description   String?        @db.Text
   color         String?
+  isActive      Boolean        @default(true) @map("is_active")
   isSystem      Boolean        @default(false) @map("is_system")
   sortOrder     Int            @default(0) @map("sort_order")
   createdAt     DateTime       @default(now()) @map("created_at")
@@ -541,6 +542,7 @@ model Tag {
   name             String
   slug             String
   color            String?
+  isActive         Boolean           @default(true) @map("is_active")
   isSystem         Boolean           @default(false) @map("is_system")
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")

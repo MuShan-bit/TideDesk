@@ -10,6 +10,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
+import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PrismaModule } from './modules/prisma/prisma.module';
     CrawlJobsModule,
     CrawlRunsModule,
     DashboardModule,
+    TaxonomyModule,
   ],
 })
 export class AppModule {}
