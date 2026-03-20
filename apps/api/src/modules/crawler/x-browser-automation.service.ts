@@ -14,7 +14,7 @@ import {
   type Page,
   type Response,
 } from 'playwright';
-import type { MediaType, PostType } from '@prisma/client';
+import type { MediaType } from '@prisma/client';
 import type {
   BindingProfile,
   PostEntities,
@@ -40,6 +40,12 @@ import {
   matchResolvedVideoMedia,
   type ResolvedVideoMediaSource,
 } from './x-video-media';
+import {
+  detectPostType,
+  inferRelations,
+  type PostDetectionSnapshot,
+  type StatusLinkCandidate,
+} from './x-post-detection';
 
 const HOME_URL = 'https://x.com/home';
 const LOGIN_URL = 'https://x.com/i/flow/login';
@@ -60,6 +66,12 @@ const DEFAULT_SYSTEM_CHROME_PATHS = [
   '/usr/bin/chromium-browser',
 ] as const;
 type ScrapedRawFeedPost = RawFeedResponse['posts'][number];
+type ScrapedVisiblePostSnapshot = Omit<
+  ScrapedRawFeedPost,
+  'postType' | 'relations'
+> & {
+  detection: PostDetectionSnapshot;
+};
 
 @Injectable()
 export class XBrowserAutomationService implements XBrowserAutomationPort {
@@ -1015,104 +1027,6 @@ export class XBrowserAutomationService implements XBrowserAutomationPort {
         };
       }
 
-      function detectPostType(
-        article: Element,
-        rawText: string,
-        permalink: string,
-      ): PostType {
-        if (article.querySelector('[data-testid="socialContext"]')) {
-          return 'REPOST';
-        }
-
-        const nestedStatusLinks = Array.from(
-          article.querySelectorAll('a[href*="/status/"]'),
-        )
-          .map((item) => item.getAttribute('href') ?? '')
-          .filter((href) => href.length > 0 && href !== permalink);
-
-        if (nestedStatusLinks.length > 0) {
-          return 'QUOTE';
-        }
-
-        if (rawText.trim().startsWith('@')) {
-          return 'REPLY';
-        }
-
-        return 'POST';
-      }
-
-      function listNestedStatusLinks(article: Element, permalink: string) {
-        return Array.from(article.querySelectorAll('a[href*="/status/"]'))
-          .map((item) => item.getAttribute('href') ?? '')
-          .filter((href) => href.length > 0 && href !== permalink);
-      }
-
-      function parseStatusHref(href?: string) {
-        if (!href) {
-          return {};
-        }
-
-        const match = href.match(/\/([^/?]+)\/status\/([^/?]+)/);
-
-        if (!match) {
-          return {
-            targetUrl: href,
-          };
-        }
-
-        return {
-          targetUrl: href,
-          targetAuthorUsername: match[1],
-          targetXPostId: match[2],
-        };
-      }
-
-      function inferRelations(
-        article: Element,
-        postType: PostType,
-        permalink: string,
-        xPostId: string,
-        username: string,
-        entities: ReturnType<typeof inferEntities>,
-      ) {
-        if (postType === 'QUOTE') {
-          const quotedStatusHref = listNestedStatusLinks(article, permalink)[0];
-
-          if (!quotedStatusHref) {
-            return [];
-          }
-
-          return [
-            {
-              relationType: 'QUOTE' as const,
-              ...parseStatusHref(quotedStatusHref),
-            },
-          ];
-        }
-
-        if (postType === 'REPLY') {
-          return [
-            {
-              relationType: 'REPLY' as const,
-              targetAuthorUsername: entities.mentions[0]?.username,
-            },
-          ];
-        }
-
-        if (postType === 'REPOST') {
-          return [
-            {
-              relationType: 'REPOST' as const,
-              targetXPostId: xPostId,
-              targetUrl: permalink,
-              targetAuthorUsername: username,
-            },
-          ];
-        }
-
-        return [];
-      }
-
       return Array.from(
         document.querySelectorAll('article[data-testid="tweet"]'),
       )
@@ -1188,12 +1102,21 @@ export class XBrowserAutomationService implements XBrowserAutomationPort {
             (item) => !videoPosterUrls.has(item.sourceUrl),
           );
           const entities = inferEntities(rawText);
-          const postType = detectPostType(article, rawText, permalink);
+          const statusLinkCandidates = Array.from(
+            article.querySelectorAll('a[href*="/status/"]'),
+          ).map((item) => ({
+            href: item.getAttribute('href') ?? '',
+            resolvedUrl:
+              item instanceof HTMLAnchorElement ? item.href : undefined,
+            hasTimeElement: Boolean(item.querySelector('time')),
+            isInNestedTweet:
+              Boolean(item.closest('article[data-testid="tweet"]')) &&
+              item.closest('article[data-testid="tweet"]') !== article,
+          })) satisfies StatusLinkCandidate[];
 
           return {
             xPostId,
             postUrl: permalink,
-            postType,
             author: {
               username,
               displayName,
@@ -1206,14 +1129,6 @@ export class XBrowserAutomationService implements XBrowserAutomationPort {
               undefined,
             entities,
             media: [...deduplicatedImageMedia, ...videoMedia],
-            relations: inferRelations(
-              article,
-              postType,
-              permalink,
-              xPostId,
-              username,
-              entities,
-            ),
             metrics: {
               replyCount: parseMetric(article, '[data-testid="reply"]'),
               repostCount:
@@ -1228,21 +1143,48 @@ export class XBrowserAutomationService implements XBrowserAutomationPort {
               permalink,
               capturedAt: new Date().toISOString(),
             },
+            detection: {
+              hasSocialContext: Boolean(
+                article.querySelector('[data-testid="socialContext"]'),
+              ),
+              permalink,
+              rawText,
+              statusLinkCandidates,
+              timeElementCount: article.querySelectorAll('time').length,
+              tweetTextCount:
+                article.querySelectorAll('[data-testid="tweetText"]').length,
+              userNameBlockCount:
+                article.querySelectorAll('[data-testid="User-Name"]').length,
+              xPostId,
+            },
           };
         })
         .filter(Boolean);
     }, maxPosts);
 
-    const rawPosts = rawPostsUnknown as Array<ScrapedRawFeedPost | null>;
+    const rawPosts = rawPostsUnknown as Array<ScrapedVisiblePostSnapshot | null>;
 
     return rawPosts
-      .filter((item): item is ScrapedRawFeedPost => item !== null)
-      .map((item) => ({
-        ...item,
-        postType: item.postType,
-        entities: item.entities as PostEntities,
-        media: filterDuplicateVideoPosterImages(item.media ?? []),
-      }));
+      .filter((item): item is ScrapedVisiblePostSnapshot => item !== null)
+      .map((item) => {
+        const postType = detectPostType(item.detection);
+        const { detection, ...post } = item;
+
+        return {
+          ...post,
+          postType,
+          relations: inferRelations({
+            entities: item.entities as PostEntities,
+            permalink: item.postUrl,
+            postType,
+            snapshot: detection,
+            username: item.author.username,
+            xPostId: item.xPostId,
+          }),
+          entities: item.entities as PostEntities,
+          media: filterDuplicateVideoPosterImages(item.media ?? []),
+        };
+      }) satisfies ScrapedRawFeedPost[];
   }
 
   private async hydrateResolvedVideoMediaSources(
