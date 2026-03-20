@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import ArchiveDetailPage from "./page";
 import { apiRequest } from "@/lib/api-client";
 
@@ -99,5 +99,12 @@ describe("ArchiveDetailPage", () => {
     expect(screen.getByRole("link", { name: "查看本次执行记录" })).toHaveClass(
       "dark:bg-white/10",
     );
+    const mediaCard = screen.getByTestId("archive-media-card");
+
+    expect(
+      within(mediaCard).getByText("媒体预览已在正文中显示，这里保留资源入口。"),
+    ).toBeInTheDocument();
+    expect(within(mediaCard).queryByRole("img")).not.toBeInTheDocument();
+    expect(mediaCard.querySelector("video")).toBeNull();
   });
 });

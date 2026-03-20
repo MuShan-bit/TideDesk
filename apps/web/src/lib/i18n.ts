@@ -396,6 +396,7 @@ type Messages = {
     viewRun: string;
     mediaTitle: string;
     mediaDescription: string;
+    mediaInlineHint: string;
     noMediaTitle: string;
     noMediaDescription: string;
     openRelatedPost: string;
@@ -1022,7 +1023,8 @@ const messages: Record<Locale, Messages> = {
       viewRun: "查看本次执行记录",
       mediaTitle: "媒体与关联",
       mediaDescription:
-        "展示归档中的媒体资源入口和引用关系，便于二次处理与回查。",
+        "这里保留媒体资源入口和引用关系；图片、视频会直接在帖子正文中展示。",
+      mediaInlineHint: "媒体预览已在正文中显示，这里保留资源入口。",
       noMediaTitle: "这条归档没有媒体资源",
       noMediaDescription:
         "当前帖子只包含文本内容，富文本正文中不会出现图片或视频块。",
@@ -1678,7 +1680,9 @@ const messages: Record<Locale, Messages> = {
       viewRun: "View this run",
       mediaTitle: "Media and relations",
       mediaDescription:
-        "Shows archived media entries and relation links for secondary processing or backtracking.",
+        "This section keeps media entry links and relation references. Images and videos are displayed directly in the post body.",
+      mediaInlineHint:
+        "Media previews are shown in the post body. This panel keeps the resource entry.",
       noMediaTitle: "This archive has no media",
       noMediaDescription:
         "The current post contains only text, so no image or video blocks appear in the rich text body.",

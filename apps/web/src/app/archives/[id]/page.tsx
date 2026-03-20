@@ -25,7 +25,6 @@ import {
   getApiErrorMessage,
 } from "@/lib/api-client";
 import { formatMessage, getIntlLocale, type Locale } from "@/lib/i18n";
-import { buildMediaProxyUrl } from "@/lib/media-proxy";
 import { getRequestMessages } from "@/lib/request-locale";
 
 type ArchiveDetailPageProps = {
@@ -333,7 +332,10 @@ export default async function ArchiveDetailPage({
               </CardContent>
             </Card>
 
-            <Card className="rounded-[2rem] border-border/70 bg-white/92 shadow-[0_24px_80px_-40px_rgba(45,77,63,0.24)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
+            <Card
+              className="rounded-[2rem] border-border/70 bg-white/92 shadow-[0_24px_80px_-40px_rgba(45,77,63,0.24)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]"
+              data-testid="archive-media-card"
+            >
               <CardHeader>
                 <div className="flex items-center gap-3">
                   <div className="flex size-11 items-center justify-center rounded-2xl bg-[#eef4f0] text-[#2d4d3f] dark:bg-[#223228] dark:text-[#d8e2db]">
@@ -357,26 +359,6 @@ export default async function ArchiveDetailPage({
                         key={item.id}
                         className="rounded-3xl border border-border/70 bg-[#fcfaf5] p-4 dark:border-white/10 dark:bg-white/8"
                       >
-                        {item.mediaType === "IMAGE" ? (
-                          <img
-                            src={item.sourceUrl}
-                            alt=""
-                            className="mt-4 w-full rounded-2xl border border-border/70 bg-white object-cover dark:border-white/10 dark:bg-white/8"
-                          />
-                        ) : (
-                          <video
-                            autoPlay={item.mediaType === "GIF"}
-                            className="mt-4 w-full rounded-2xl border border-border/70 bg-black dark:border-white/10"
-                            controls={item.mediaType === "VIDEO"}
-                            crossOrigin="anonymous"
-                            loop={item.mediaType === "GIF"}
-                            muted={item.mediaType === "GIF"}
-                            playsInline
-                            poster={item.previewUrl ?? undefined}
-                            preload="metadata"
-                            src={buildMediaProxyUrl(item.sourceUrl)}
-                          />
-                        )}
                         <div className="flex flex-wrap items-center gap-3">
                           <Badge className="rounded-full bg-[#2d4d3f] text-white">
                             {item.mediaType}
@@ -392,6 +374,9 @@ export default async function ArchiveDetailPage({
                           {item.durationMs
                             ? ` · ${Math.round(item.durationMs / 1000)} ${messages.common.seconds}`
                             : ""}
+                        </p>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {messages.archiveDetail.mediaInlineHint}
                         </p>
                         <Link
                           href={item.sourceUrl}
