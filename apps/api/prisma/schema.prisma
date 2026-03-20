@@ -80,21 +80,135 @@ enum RelationType {
   REPLY
 }
 
+enum SourcePlatform {
+  X
+  WECHAT
+  ZHIHU
+  CSDN
+  TELEGRAM
+}
+
+enum CrawlMode {
+  RECOMMENDED
+  HOT
+  SEARCH
+}
+
+enum TaxonomySource {
+  MANUAL
+  AI
+  RULE
+}
+
+enum AIProviderType {
+  OPENAI
+  ANTHROPIC
+  GEMINI
+  OPENAI_COMPATIBLE
+}
+
+enum AITaskType {
+  POST_CLASSIFY
+  REPORT_SUMMARY
+  DRAFT_REWRITE
+}
+
+enum AITaskStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum ReportType {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum ReportStatus {
+  DRAFT
+  READY
+  FAILED
+}
+
+enum PublishPlatformType {
+  WECHAT
+  ZHIHU
+  CSDN
+}
+
+enum PublishBindingStatus {
+  PENDING
+  ACTIVE
+  INVALID
+  DISABLED
+}
+
+enum PublishDraftSourceType {
+  ARCHIVE
+  REPORT
+  MIXED
+}
+
+enum PublishDraftStatus {
+  DRAFT
+  READY
+  PUBLISHED_PARTIAL
+  PUBLISHED_ALL
+  FAILED
+}
+
+enum PublishJobStatus {
+  QUEUED
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum TelegramTargetType {
+  ARCHIVE
+  REPORT
+}
+
+enum TelegramSubscriptionFrequency {
+  REALTIME
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum TelegramDeliveryStatus {
+  SUCCESS
+  FAILED
+}
+
 model User {
-  id            String            @id @default(cuid())
-  name          String?
-  email         String?           @unique
-  emailVerified DateTime?         @map("email_verified")
-  image         String?
-  passwordHash  String?           @map("password_hash")
-  role          UserRole          @default(USER)
-  createdAt     DateTime          @default(now()) @map("created_at")
-  updatedAt     DateTime          @updatedAt @map("updated_at")
-  accounts      Account[]
-  sessions      Session[]
-  bindings      XAccountBinding[]
+  id                     String                  @id @default(cuid())
+  name                   String?
+  email                  String?                 @unique
+  emailVerified          DateTime?               @map("email_verified")
+  image                  String?
+  passwordHash           String?                 @map("password_hash")
+  role                   UserRole                @default(USER)
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+  accounts               Account[]
+  sessions               Session[]
+  bindings               XAccountBinding[]
   bindingBrowserSessions BindingBrowserSession[]
-  auditLogs     AuditLog[]
+  archivedPosts          ArchivedPost[]
+  categories             Category[]
+  tags                   Tag[]
+  aiProviderConfigs      AIProviderConfig[]
+  aiTaskRecords          AITaskRecord[]
+  reports                Report[]
+  publishChannelBindings PublishChannelBinding[]
+  publishDrafts          PublishDraft[]
+  telegramSubscriptions  TelegramSubscription[]
+  auditLogs              AuditLog[]
 
   @@map("users")
 }
@@ -138,27 +252,29 @@ model VerificationToken {
 }
 
 model XAccountBinding {
-  id                   String            @id @default(cuid())
-  userId               String            @map("user_id")
-  xUserId              String            @map("x_user_id")
-  username             String
-  displayName          String?           @map("display_name")
-  avatarUrl            String?           @map("avatar_url")
-  status               BindingStatus     @default(PENDING)
-  credentialSource     CredentialSource  @map("credential_source")
-  authPayloadEncrypted String            @db.Text @map("auth_payload_encrypted")
-  lastValidatedAt      DateTime?         @map("last_validated_at")
-  crawlEnabled         Boolean           @default(true) @map("crawl_enabled")
-  crawlIntervalMinutes Int               @default(60) @map("crawl_interval_minutes")
-  lastCrawledAt        DateTime?         @map("last_crawled_at")
-  nextCrawlAt          DateTime?         @map("next_crawl_at")
-  lastErrorMessage     String?           @db.Text @map("last_error_message")
-  createdAt            DateTime          @default(now()) @map("created_at")
-  updatedAt            DateTime          @updatedAt @map("updated_at")
-  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  crawlJob             CrawlJob?
-  crawlRuns            CrawlRun[]
-  archivedPosts        ArchivedPost[]
+  id                     String                  @id @default(cuid())
+  userId                 String                  @map("user_id")
+  xUserId                String                  @map("x_user_id")
+  username               String
+  displayName            String?                 @map("display_name")
+  avatarUrl              String?                 @map("avatar_url")
+  status                 BindingStatus           @default(PENDING)
+  credentialSource       CredentialSource        @map("credential_source")
+  authPayloadEncrypted   String                  @map("auth_payload_encrypted") @db.Text
+  lastValidatedAt        DateTime?               @map("last_validated_at")
+  crawlEnabled           Boolean                 @default(true) @map("crawl_enabled")
+  crawlIntervalMinutes   Int                     @default(60) @map("crawl_interval_minutes")
+  lastCrawledAt          DateTime?               @map("last_crawled_at")
+  nextCrawlAt            DateTime?               @map("next_crawl_at")
+  lastErrorMessage       String?                 @map("last_error_message") @db.Text
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  crawlJob               CrawlJob?
+  crawlProfiles          CrawlProfile[]
+  crawlRuns              CrawlRun[]
+  archivedPosts          ArchivedPost[]
+  archiveOccurrences     ArchiveOccurrence[]
   bindingBrowserSessions BindingBrowserSession[]
 
   @@index([userId])
@@ -168,23 +284,23 @@ model XAccountBinding {
 }
 
 model BindingBrowserSession {
-  id                     String                      @id @default(cuid())
-  userId                 String                      @map("user_id")
-  bindingId              String?                     @map("binding_id")
-  status                 BindingBrowserSessionStatus @default(PENDING)
-  loginUrl               String                      @db.Text @map("login_url")
-  capturedPayloadEncrypted String?                   @db.Text @map("captured_payload_encrypted")
-  expiresAt              DateTime                    @map("expires_at")
-  completedAt            DateTime?                   @map("completed_at")
-  errorMessage           String?                     @db.Text @map("error_message")
-  xUserId                String?                     @map("x_user_id")
-  username               String?
-  displayName            String?                     @map("display_name")
-  avatarUrl              String?                     @map("avatar_url")
-  createdAt              DateTime                    @default(now()) @map("created_at")
-  updatedAt              DateTime                    @updatedAt @map("updated_at")
-  user                   User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  binding                XAccountBinding?            @relation(fields: [bindingId], references: [id], onDelete: SetNull)
+  id                       String                      @id @default(cuid())
+  userId                   String                      @map("user_id")
+  bindingId                String?                     @map("binding_id")
+  status                   BindingBrowserSessionStatus @default(PENDING)
+  loginUrl                 String                      @map("login_url") @db.Text
+  capturedPayloadEncrypted String?                     @map("captured_payload_encrypted") @db.Text
+  expiresAt                DateTime                    @map("expires_at")
+  completedAt              DateTime?                   @map("completed_at")
+  errorMessage             String?                     @map("error_message") @db.Text
+  xUserId                  String?                     @map("x_user_id")
+  username                 String?
+  displayName              String?                     @map("display_name")
+  avatarUrl                String?                     @map("avatar_url")
+  createdAt                DateTime                    @default(now()) @map("created_at")
+  updatedAt                DateTime                    @updatedAt @map("updated_at")
+  user                     User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  binding                  XAccountBinding?            @relation(fields: [bindingId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([status, expiresAt])
@@ -207,26 +323,30 @@ model CrawlJob {
 }
 
 model CrawlRun {
-  id           String           @id @default(cuid())
-  bindingId    String           @map("binding_id")
-  crawlJobId   String?          @map("crawl_job_id")
-  triggerType  CrawlTriggerType @map("trigger_type")
-  status       CrawlRunStatus   @default(QUEUED)
-  startedAt    DateTime?        @map("started_at")
-  finishedAt   DateTime?        @map("finished_at")
-  fetchedCount Int              @default(0) @map("fetched_count")
-  newCount     Int              @default(0) @map("new_count")
-  skippedCount Int              @default(0) @map("skipped_count")
-  failedCount  Int              @default(0) @map("failed_count")
-  errorMessage String?          @db.Text @map("error_message")
-  errorDetail  Json?            @map("error_detail")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  binding      XAccountBinding  @relation(fields: [bindingId], references: [id], onDelete: Cascade)
-  crawlJob     CrawlJob?        @relation(fields: [crawlJobId], references: [id], onDelete: SetNull)
-  runPosts     CrawlRunPost[]
-  archivedPosts ArchivedPost[]
+  id                 String              @id @default(cuid())
+  bindingId          String              @map("binding_id")
+  crawlJobId         String?             @map("crawl_job_id")
+  crawlProfileId     String?             @map("crawl_profile_id")
+  triggerType        CrawlTriggerType    @map("trigger_type")
+  status             CrawlRunStatus      @default(QUEUED)
+  startedAt          DateTime?           @map("started_at")
+  finishedAt         DateTime?           @map("finished_at")
+  fetchedCount       Int                 @default(0) @map("fetched_count")
+  newCount           Int                 @default(0) @map("new_count")
+  skippedCount       Int                 @default(0) @map("skipped_count")
+  failedCount        Int                 @default(0) @map("failed_count")
+  errorMessage       String?             @map("error_message") @db.Text
+  errorDetail        Json?               @map("error_detail")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  binding            XAccountBinding     @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  crawlJob           CrawlJob?           @relation(fields: [crawlJobId], references: [id], onDelete: SetNull)
+  crawlProfile       CrawlProfile?       @relation(fields: [crawlProfileId], references: [id], onDelete: SetNull)
+  runPosts           CrawlRunPost[]
+  archivedPosts      ArchivedPost[]
+  archiveOccurrences ArchiveOccurrence[]
 
   @@index([bindingId, createdAt])
+  @@index([crawlProfileId, createdAt])
   @@index([status])
   @@map("crawl_runs")
 }
@@ -248,40 +368,51 @@ model CrawlRunPost {
 }
 
 model ArchivedPost {
-  id                String                 @id @default(cuid())
-  bindingId         String                 @map("binding_id")
-  firstCrawlRunId   String?                @map("first_crawl_run_id")
-  xPostId           String                 @map("x_post_id")
-  postUrl           String                 @map("post_url")
-  postType          PostType               @map("post_type")
-  archiveStatus     ArchiveStatus          @default(ACTIVE) @map("archive_status")
-  authorXUserId     String?                @map("author_x_user_id")
-  authorUsername    String                 @map("author_username")
-  authorDisplayName String?                @map("author_display_name")
-  authorAvatarUrl   String?                @map("author_avatar_url")
-  language          String?
-  rawText           String                 @db.Text @map("raw_text")
-  richTextJson      Json                   @map("rich_text_json")
-  renderedHtml      String?                @db.Text @map("rendered_html")
-  rawPayloadJson    Json                   @map("raw_payload_json")
-  sourceCreatedAt   DateTime               @map("source_created_at")
-  archivedAt        DateTime               @default(now()) @map("archived_at")
-  replyCount        Int?                   @map("reply_count")
-  repostCount       Int?                   @map("repost_count")
-  quoteCount        Int?                   @map("quote_count")
-  favoriteCount     Int?                   @map("favorite_count")
-  viewCount         BigInt?                @map("view_count")
-  createdAt         DateTime               @default(now()) @map("created_at")
-  updatedAt         DateTime               @updatedAt @map("updated_at")
-  binding           XAccountBinding        @relation(fields: [bindingId], references: [id], onDelete: Cascade)
-  firstCrawlRun     CrawlRun?              @relation(fields: [firstCrawlRunId], references: [id], onDelete: SetNull)
-  mediaItems        ArchivedPostMedia[]
-  relations         ArchivedPostRelation[]
-  runPosts          CrawlRunPost[]
+  id                 String                 @id @default(cuid())
+  bindingId          String                 @map("binding_id")
+  userId             String?                @map("user_id")
+  firstCrawlRunId    String?                @map("first_crawl_run_id")
+  xPostId            String                 @map("x_post_id")
+  sourcePlatform     SourcePlatform         @default(X) @map("source_platform")
+  sourcePostId       String?                @map("source_post_id")
+  postUrl            String                 @map("post_url")
+  postType           PostType               @map("post_type")
+  archiveStatus      ArchiveStatus          @default(ACTIVE) @map("archive_status")
+  primaryCategoryId  String?                @map("primary_category_id")
+  aiSummary          String?                @map("ai_summary") @db.Text
+  authorXUserId      String?                @map("author_x_user_id")
+  authorUsername     String                 @map("author_username")
+  authorDisplayName  String?                @map("author_display_name")
+  authorAvatarUrl    String?                @map("author_avatar_url")
+  language           String?
+  rawText            String                 @map("raw_text") @db.Text
+  richTextJson       Json                   @map("rich_text_json")
+  renderedHtml       String?                @map("rendered_html") @db.Text
+  rawPayloadJson     Json                   @map("raw_payload_json")
+  sourceCreatedAt    DateTime               @map("source_created_at")
+  archivedAt         DateTime               @default(now()) @map("archived_at")
+  replyCount         Int?                   @map("reply_count")
+  repostCount        Int?                   @map("repost_count")
+  quoteCount         Int?                   @map("quote_count")
+  favoriteCount      Int?                   @map("favorite_count")
+  viewCount          BigInt?                @map("view_count")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+  binding            XAccountBinding        @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  user               User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  firstCrawlRun      CrawlRun?              @relation(fields: [firstCrawlRunId], references: [id], onDelete: SetNull)
+  primaryCategory    Category?              @relation(fields: [primaryCategoryId], references: [id], onDelete: SetNull)
+  mediaItems         ArchivedPostMedia[]
+  relations          ArchivedPostRelation[]
+  runPosts           CrawlRunPost[]
+  tagAssignments     ArchivedPostTag[]
+  archiveOccurrences ArchiveOccurrence[]
+  reportSourcePosts  ReportSourcePost[]
 
   @@unique([bindingId, xPostId])
   @@index([bindingId, archivedAt])
   @@index([bindingId, sourceCreatedAt])
+  @@index([userId, sourcePlatform, sourcePostId])
   @@index([authorUsername])
   @@index([postType])
   @@map("archived_posts")
@@ -331,4 +462,276 @@ model AuditLog {
 
   @@index([userId, createdAt])
   @@map("audit_logs")
+}
+
+model CrawlProfile {
+  id                 String              @id @default(cuid())
+  bindingId          String              @map("binding_id")
+  mode               CrawlMode
+  enabled            Boolean             @default(true)
+  intervalMinutes    Int                 @map("interval_minutes")
+  queryText          String?             @map("query_text") @db.Text
+  region             String?
+  language           String?
+  maxPosts           Int                 @default(20) @map("max_posts")
+  lastRunAt          DateTime?           @map("last_run_at")
+  nextRunAt          DateTime?           @map("next_run_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  binding            XAccountBinding     @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  crawlRuns          CrawlRun[]
+  archiveOccurrences ArchiveOccurrence[]
+
+  @@index([bindingId])
+  @@index([enabled, nextRunAt])
+  @@map("crawl_profiles")
+}
+
+model ArchiveOccurrence {
+  id                String          @id @default(cuid())
+  archivedPostId    String          @map("archived_post_id")
+  bindingId         String          @map("binding_id")
+  crawlProfileId    String?         @map("crawl_profile_id")
+  crawlRunId        String?         @map("crawl_run_id")
+  sourcePostId      String          @map("source_post_id")
+  queryTextSnapshot String?         @map("query_text_snapshot") @db.Text
+  createdAt         DateTime        @default(now()) @map("created_at")
+  archivedPost      ArchivedPost    @relation(fields: [archivedPostId], references: [id], onDelete: Cascade)
+  binding           XAccountBinding @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  crawlProfile      CrawlProfile?   @relation(fields: [crawlProfileId], references: [id], onDelete: SetNull)
+  crawlRun          CrawlRun?       @relation(fields: [crawlRunId], references: [id], onDelete: SetNull)
+
+  @@index([archivedPostId, createdAt])
+  @@index([bindingId, createdAt])
+  @@index([crawlProfileId, createdAt])
+  @@map("archive_occurrences")
+}
+
+model Category {
+  id            String         @id @default(cuid())
+  userId        String         @map("user_id")
+  name          String
+  slug          String
+  description   String?        @db.Text
+  color         String?
+  isSystem      Boolean        @default(false) @map("is_system")
+  sortOrder     Int            @default(0) @map("sort_order")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  archivedPosts ArchivedPost[]
+
+  @@unique([userId, slug])
+  @@index([userId, sortOrder])
+  @@map("categories")
+}
+
+model Tag {
+  id               String            @id @default(cuid())
+  userId           String            @map("user_id")
+  name             String
+  slug             String
+  color            String?
+  isSystem         Boolean           @default(false) @map("is_system")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  archivedPostTags ArchivedPostTag[]
+
+  @@unique([userId, slug])
+  @@index([userId, name])
+  @@map("tags")
+}
+
+model ArchivedPostTag {
+  id             String         @id @default(cuid())
+  archivedPostId String         @map("archived_post_id")
+  tagId          String         @map("tag_id")
+  source         TaxonomySource @default(MANUAL)
+  confidence     Decimal?       @db.Decimal(5, 4)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  archivedPost   ArchivedPost   @relation(fields: [archivedPostId], references: [id], onDelete: Cascade)
+  tag            Tag            @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([archivedPostId, tagId, source])
+  @@index([tagId, createdAt])
+  @@map("archived_post_tags")
+}
+
+model AIProviderConfig {
+  id              String          @id @default(cuid())
+  userId          String          @map("user_id")
+  providerType    AIProviderType  @map("provider_type")
+  name            String
+  baseUrl         String?         @map("base_url") @db.Text
+  apiKeyEncrypted String          @map("api_key_encrypted") @db.Text
+  enabled         Boolean         @default(true)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  models          AIModelConfig[]
+
+  @@index([userId, enabled])
+  @@map("ai_provider_configs")
+}
+
+model AIModelConfig {
+  id               String           @id @default(cuid())
+  providerConfigId String           @map("provider_config_id")
+  modelCode        String           @map("model_code")
+  displayName      String           @map("display_name")
+  taskType         AITaskType       @map("task_type")
+  enabled          Boolean          @default(true)
+  parametersJson   Json?            @map("parameters_json")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  provider         AIProviderConfig @relation(fields: [providerConfigId], references: [id], onDelete: Cascade)
+  aiTasks          AITaskRecord[]
+
+  @@index([providerConfigId, taskType, enabled])
+  @@map("ai_model_configs")
+}
+
+model AITaskRecord {
+  id                 String         @id @default(cuid())
+  userId             String         @map("user_id")
+  taskType           AITaskType     @map("task_type")
+  targetType         String         @map("target_type")
+  targetId           String         @map("target_id")
+  modelConfigId      String?        @map("model_config_id")
+  status             AITaskStatus   @default(PENDING)
+  inputSnapshotJson  Json?          @map("input_snapshot_json")
+  outputSnapshotJson Json?          @map("output_snapshot_json")
+  errorMessage       String?        @map("error_message") @db.Text
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modelConfig        AIModelConfig? @relation(fields: [modelConfigId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([targetType, targetId])
+  @@index([status, createdAt])
+  @@map("ai_task_records")
+}
+
+model Report {
+  id           String             @id @default(cuid())
+  userId       String             @map("user_id")
+  reportType   ReportType         @map("report_type")
+  status       ReportStatus       @default(DRAFT)
+  title        String
+  periodStart  DateTime           @map("period_start")
+  periodEnd    DateTime           @map("period_end")
+  richTextJson Json               @map("rich_text_json")
+  renderedHtml String?            @map("rendered_html") @db.Text
+  summaryJson  Json?              @map("summary_json")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourcePosts  ReportSourcePost[]
+
+  @@index([userId, reportType, periodStart, periodEnd])
+  @@map("reports")
+}
+
+model ReportSourcePost {
+  id             String       @id @default(cuid())
+  reportId       String       @map("report_id")
+  archivedPostId String       @map("archived_post_id")
+  weightScore    Decimal?     @map("weight_score") @db.Decimal(8, 4)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  report         Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  archivedPost   ArchivedPost @relation(fields: [archivedPostId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, archivedPostId])
+  @@index([archivedPostId, createdAt])
+  @@map("report_source_posts")
+}
+
+model PublishChannelBinding {
+  id                   String               @id @default(cuid())
+  userId               String               @map("user_id")
+  platformType         PublishPlatformType  @map("platform_type")
+  displayName          String               @map("display_name")
+  accountIdentifier    String?              @map("account_identifier")
+  authPayloadEncrypted String               @map("auth_payload_encrypted") @db.Text
+  status               PublishBindingStatus @default(PENDING)
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publishJobs          PublishJob[]
+
+  @@index([userId, platformType, status])
+  @@map("publish_channel_bindings")
+}
+
+model PublishDraft {
+  id            String                 @id @default(cuid())
+  userId        String                 @map("user_id")
+  sourceType    PublishDraftSourceType @map("source_type")
+  status        PublishDraftStatus     @default(DRAFT)
+  title         String
+  summary       String?                @db.Text
+  sourceIdsJson Json?                  @map("source_ids_json")
+  richTextJson  Json                   @map("rich_text_json")
+  renderedHtml  String?                @map("rendered_html") @db.Text
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publishJobs   PublishJob[]
+
+  @@index([userId, status, createdAt])
+  @@map("publish_drafts")
+}
+
+model PublishJob {
+  id               String                @id @default(cuid())
+  draftId          String                @map("draft_id")
+  channelBindingId String                @map("channel_binding_id")
+  status           PublishJobStatus      @default(QUEUED)
+  remotePostId     String?               @map("remote_post_id")
+  remotePostUrl    String?               @map("remote_post_url") @db.Text
+  errorMessage     String?               @map("error_message") @db.Text
+  publishedAt      DateTime?             @map("published_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  draft            PublishDraft          @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  channelBinding   PublishChannelBinding @relation(fields: [channelBindingId], references: [id], onDelete: Cascade)
+
+  @@index([draftId, createdAt])
+  @@index([channelBindingId, status, createdAt])
+  @@map("publish_jobs")
+}
+
+model TelegramSubscription {
+  id              String                        @id @default(cuid())
+  userId          String                        @map("user_id")
+  chatId          String                        @map("chat_id")
+  targetType      TelegramTargetType            @map("target_type")
+  frequency       TelegramSubscriptionFrequency
+  filterJson      Json?                         @map("filter_json")
+  enabled         Boolean                       @default(true)
+  lastDeliveredAt DateTime?                     @map("last_delivered_at")
+  createdAt       DateTime                      @default(now()) @map("created_at")
+  updatedAt       DateTime                      @updatedAt @map("updated_at")
+  user            User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveryLogs    TelegramDeliveryLog[]
+
+  @@index([userId, enabled, frequency])
+  @@map("telegram_subscriptions")
+}
+
+model TelegramDeliveryLog {
+  id             String                 @id @default(cuid())
+  subscriptionId String                 @map("subscription_id")
+  targetType     TelegramTargetType     @map("target_type")
+  targetId       String                 @map("target_id")
+  status         TelegramDeliveryStatus
+  errorMessage   String?                @map("error_message") @db.Text
+  deliveredAt    DateTime?              @map("delivered_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  subscription   TelegramSubscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, createdAt])
+  @@index([status, createdAt])
+  @@map("telegram_delivery_logs")
 }
