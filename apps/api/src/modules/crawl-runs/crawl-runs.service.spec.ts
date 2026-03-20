@@ -1,5 +1,6 @@
 import {
   BindingStatus,
+  CrawlMode,
   CrawlRunStatus,
   CrawlTriggerType,
   CredentialSource,
@@ -112,11 +113,13 @@ describe('CrawlJobsService and CrawlRunsService', () => {
     const queuedRun = await crawlRunsService.createQueuedRun({
       bindingId: binding.id,
       crawlJobId,
+      crawlProfileId: binding.crawlProfiles[0]?.id,
       triggerType: CrawlTriggerType.SCHEDULED,
     });
 
     expect(queuedRun.status).toBe(CrawlRunStatus.QUEUED);
     expect(queuedRun.crawlJobId).toBe(crawlJobId);
+    expect(queuedRun.crawlProfileId).toBe(binding.crawlProfiles[0]?.id ?? null);
 
     const startedAt = new Date('2026-03-19T01:05:00.000Z');
     const runningRun = await crawlRunsService.markRunning(
@@ -172,6 +175,7 @@ describe('CrawlJobsService and CrawlRunsService', () => {
     const queuedRun = await crawlRunsService.createQueuedRun({
       bindingId: binding.id,
       crawlJobId: binding.crawlJob!.id,
+      crawlProfileId: binding.crawlProfiles[0]?.id,
       triggerType: CrawlTriggerType.MANUAL,
     });
     const startedAt = new Date('2026-03-19T01:05:00.000Z');
@@ -209,6 +213,7 @@ describe('CrawlJobsService and CrawlRunsService', () => {
     expect(claimedRuns).toHaveLength(1);
     expect(claimedRuns[0]?.bindingId).toBe(binding.id);
     expect(claimedRuns[0]?.crawlJobId).toBe(binding.crawlJob!.id);
+    expect(claimedRuns[0]?.crawlProfileId).toBeTruthy();
     expect(claimedRuns[0]?.status).toBe(CrawlRunStatus.QUEUED);
 
     const laterClaim = await crawlJobsService.claimDueJobs({ now, limit: 1 });
@@ -253,9 +258,21 @@ describe('CrawlJobsService and CrawlRunsService', () => {
             nextRunAt: input.nextRunAt,
           },
         },
+        crawlProfiles: {
+          create: [
+            {
+              mode: CrawlMode.RECOMMENDED,
+              enabled: input.crawlEnabled,
+              intervalMinutes: 30,
+              maxPosts: 20,
+              nextRunAt: input.nextRunAt,
+            },
+          ],
+        },
       },
       include: {
         crawlJob: true,
+        crawlProfiles: true,
       },
     });
   }

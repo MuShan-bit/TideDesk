@@ -1,5 +1,6 @@
 import {
   BindingStatus,
+  CrawlMode,
   CrawlRunStatus,
   CrawlTriggerType,
 } from '@prisma/client';
@@ -56,6 +57,7 @@ describe('CrawlJobsScheduler', () => {
       id: 'run_1',
       bindingId: 'binding_1',
       crawlJobId: 'job_1',
+      crawlProfileId: 'profile_1',
       triggerType: CrawlTriggerType.SCHEDULED,
       status: CrawlRunStatus.QUEUED,
       binding: {
@@ -87,12 +89,27 @@ describe('CrawlJobsScheduler', () => {
         createdAt: now,
         updatedAt: now,
       },
+      crawlProfile: {
+        id: 'profile_1',
+        bindingId: 'binding_1',
+        mode: CrawlMode.RECOMMENDED,
+        enabled: true,
+        intervalMinutes: 15,
+        queryText: null,
+        region: null,
+        language: null,
+        maxPosts: 20,
+        lastRunAt: null,
+        nextRunAt: new Date('2026-03-19T04:59:00.000Z'),
+        createdAt: now,
+        updatedAt: now,
+      },
     };
     const processedRun = {
       ...claimedRun,
       status: CrawlRunStatus.SUCCESS,
-      crawlJob: {
-        ...claimedRun.crawlJob,
+      crawlProfile: {
+        ...claimedRun.crawlProfile,
         nextRunAt: new Date('2026-03-19T05:15:00.000Z'),
       },
     };
@@ -117,6 +134,8 @@ describe('CrawlJobsScheduler', () => {
         {
           runId: 'run_1',
           jobId: 'job_1',
+          profileId: 'profile_1',
+          profileMode: CrawlMode.RECOMMENDED,
           bindingId: 'binding_1',
           bindingUserId: 'user_1',
           username: 'scheduler_due',
@@ -135,6 +154,8 @@ describe('CrawlJobsScheduler', () => {
           {
             runId: 'run_1',
             jobId: 'job_1',
+            profileId: 'profile_1',
+            profileMode: CrawlMode.RECOMMENDED,
             bindingId: 'binding_1',
             bindingUserId: 'user_1',
             username: 'scheduler_due',

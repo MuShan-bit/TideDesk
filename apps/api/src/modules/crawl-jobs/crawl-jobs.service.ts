@@ -1,5 +1,6 @@
 import {
   BindingStatus,
+  CrawlMode,
   CrawlRunStatus,
   CrawlTriggerType,
   type Prisma,
@@ -26,7 +27,8 @@ type ClaimDueCrawlJobsOptions = {
 
 type ClaimableCrawlJobRow = {
   bindingId: string;
-  jobId: string;
+  jobId: string | null;
+  profileId: string;
 };
 
 @Injectable()
@@ -68,29 +70,33 @@ export class CrawlJobsService {
     } = options;
 
     return this.prisma.$transaction(async (tx) => {
+      await this.backfillMissingDefaultProfiles(tx);
+
       const claimableJobs = await tx.$queryRaw<ClaimableCrawlJobRow[]>`
         SELECT
-          cj.id AS "jobId",
-          cj.binding_id AS "bindingId"
-        FROM crawl_jobs cj
-        INNER JOIN x_account_bindings xab ON xab.id = cj.binding_id
+          cp.id AS "profileId",
+          cp.binding_id AS "bindingId",
+          cj.id AS "jobId"
+        FROM crawl_profiles cp
+        INNER JOIN x_account_bindings xab ON xab.id = cp.binding_id
+        LEFT JOIN crawl_jobs cj ON cj.binding_id = cp.binding_id
         WHERE
-          cj.enabled = TRUE
-          AND cj.next_run_at IS NOT NULL
-          AND cj.next_run_at <= ${now}
+          cp.enabled = TRUE
+          AND cp.next_run_at IS NOT NULL
+          AND cp.next_run_at <= ${now}
           AND xab.crawl_enabled = TRUE
           AND xab.status = 'ACTIVE'
-          AND pg_try_advisory_xact_lock(hashtext(cj.binding_id))
+          AND pg_try_advisory_xact_lock(hashtext(cp.binding_id))
           AND NOT EXISTS (
             SELECT 1
             FROM crawl_runs cr
             WHERE
-              cr.binding_id = cj.binding_id
+              cr.binding_id = cp.binding_id
               AND cr.status IN ('QUEUED', 'RUNNING')
           )
-        ORDER BY cj.next_run_at ASC
+        ORDER BY cp.next_run_at ASC, cp.created_at ASC
         LIMIT ${limit}
-        FOR UPDATE OF cj SKIP LOCKED
+        FOR UPDATE OF cp SKIP LOCKED
       `;
 
       return this.createClaimedRuns(tx, claimableJobs, triggerType);
@@ -102,24 +108,31 @@ export class CrawlJobsService {
     triggerType: CrawlTriggerType = CrawlTriggerType.MANUAL,
   ) {
     return this.prisma.$transaction(async (tx) => {
+      await this.backfillMissingDefaultProfiles(tx, bindingId);
+
       const claimableJobs = await tx.$queryRaw<ClaimableCrawlJobRow[]>`
         SELECT
-          cj.id AS "jobId",
-          cj.binding_id AS "bindingId"
-        FROM crawl_jobs cj
-        INNER JOIN x_account_bindings xab ON xab.id = cj.binding_id
+          cp.id AS "profileId",
+          cp.binding_id AS "bindingId",
+          cj.id AS "jobId"
+        FROM crawl_profiles cp
+        INNER JOIN x_account_bindings xab ON xab.id = cp.binding_id
+        LEFT JOIN crawl_jobs cj ON cj.binding_id = cp.binding_id
         WHERE
-          cj.binding_id = ${bindingId}
+          cp.binding_id = ${bindingId}
+          AND cp.mode = 'RECOMMENDED'
           AND xab.status = 'ACTIVE'
-          AND pg_try_advisory_xact_lock(hashtext(cj.binding_id))
+          AND pg_try_advisory_xact_lock(hashtext(cp.binding_id))
           AND NOT EXISTS (
             SELECT 1
             FROM crawl_runs cr
             WHERE
-              cr.binding_id = cj.binding_id
+              cr.binding_id = cp.binding_id
               AND cr.status IN ('QUEUED', 'RUNNING')
           )
-        FOR UPDATE OF cj SKIP LOCKED
+        ORDER BY cp.created_at ASC
+        LIMIT 1
+        FOR UPDATE OF cp SKIP LOCKED
       `;
 
       return this.createClaimedRuns(tx, claimableJobs, triggerType);
@@ -154,6 +167,7 @@ export class CrawlJobsService {
         data: {
           bindingId: job.bindingId,
           crawlJobId: job.jobId,
+          crawlProfileId: job.profileId,
           triggerType,
           status: CrawlRunStatus.QUEUED,
         },
@@ -174,10 +188,51 @@ export class CrawlJobsService {
       include: {
         binding: true,
         crawlJob: true,
+        crawlProfile: true,
       },
       orderBy: {
         createdAt: 'asc',
       },
     });
+  }
+
+  private async backfillMissingDefaultProfiles(
+    tx: Prisma.TransactionClient,
+    bindingId?: string,
+  ) {
+    const bindings = await tx.xAccountBinding.findMany({
+      where: {
+        ...(bindingId ? { id: bindingId } : {}),
+        crawlJob: {
+          isNot: null,
+        },
+        crawlProfiles: {
+          none: {
+            mode: CrawlMode.RECOMMENDED,
+          },
+        },
+      },
+      include: {
+        crawlJob: true,
+      },
+    });
+
+    for (const binding of bindings) {
+      if (!binding.crawlJob) {
+        continue;
+      }
+
+      await tx.crawlProfile.create({
+        data: {
+          bindingId: binding.id,
+          mode: CrawlMode.RECOMMENDED,
+          enabled: binding.crawlEnabled && binding.crawlJob.enabled,
+          intervalMinutes: binding.crawlJob.intervalMinutes,
+          maxPosts: 20,
+          lastRunAt: binding.crawlJob.lastRunAt,
+          nextRunAt: binding.crawlJob.nextRunAt ?? binding.nextCrawlAt,
+        },
+      });
+    }
   }
 }

@@ -954,6 +954,7 @@ describe('AppController (e2e)', () => {
         const payload = body as {
           bindingId: string;
           crawlJobId: string;
+          crawlProfileId: string | null;
           fetchedCount: number;
           newCount: number;
           skippedCount: number;
@@ -965,6 +966,7 @@ describe('AppController (e2e)', () => {
         expect(payload.status).toBe('SUCCESS');
         expect(payload.triggerType).toBe(CrawlTriggerType.MANUAL);
         expect(payload.crawlJobId).toBeTruthy();
+        expect(payload.crawlProfileId).toBeTruthy();
         expect(payload.fetchedCount).toBe(2);
         expect(payload.newCount).toBe(2);
         expect(payload.skippedCount).toBe(0);
@@ -1041,6 +1043,9 @@ describe('AppController (e2e)', () => {
       .expect(201);
 
     const binding = createResponse.body as {
+      crawlProfiles: Array<{
+        id: string;
+      }>;
       crawlJob: {
         id: string;
       };
@@ -1051,6 +1056,7 @@ describe('AppController (e2e)', () => {
       data: {
         bindingId: binding.id,
         crawlJobId: binding.crawlJob.id,
+        crawlProfileId: binding.crawlProfiles[0]?.id ?? null,
         triggerType: CrawlTriggerType.MANUAL,
         status: CrawlRunStatus.QUEUED,
       },
@@ -1099,6 +1105,9 @@ describe('AppController (e2e)', () => {
       .expect(201);
 
     const binding = createResponse.body as {
+      crawlProfiles: Array<{
+        id: string;
+      }>;
       crawlJob: {
         id: string;
       };
@@ -1109,6 +1118,7 @@ describe('AppController (e2e)', () => {
       data: {
         bindingId: binding.id,
         crawlJobId: binding.crawlJob.id,
+        crawlProfileId: binding.crawlProfiles[0]?.id ?? null,
         triggerType: CrawlTriggerType.SCHEDULED,
         status: CrawlRunStatus.RUNNING,
         startedAt: new Date('2026-03-19T06:00:00.000Z'),

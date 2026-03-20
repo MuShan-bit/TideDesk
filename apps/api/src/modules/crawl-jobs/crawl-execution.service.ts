@@ -1,4 +1,9 @@
-import { BindingStatus, CrawlRunStatus, type Prisma } from '@prisma/client';
+import {
+  BindingStatus,
+  CrawlMode,
+  CrawlRunStatus,
+  type Prisma,
+} from '@prisma/client';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ArchivesService } from '../archives/archives.service';
 import { convertNormalizedPostToRichText } from '../archives/rich-text.converter';
@@ -43,10 +48,8 @@ export class CrawlExecutionService {
     queuedRun: CrawlExecutionRun,
     processedAt = new Date(),
   ) {
-    if (!queuedRun.binding || !queuedRun.crawlJob) {
-      throw new NotFoundException(
-        'Crawl run is missing binding or crawl job context',
-      );
+    if (!queuedRun.binding) {
+      throw new NotFoundException('Crawl run is missing binding context');
     }
 
     if (queuedRun.status !== CrawlRunStatus.QUEUED) {
@@ -71,11 +74,14 @@ export class CrawlExecutionService {
     }
 
     const binding = runningRun.binding;
+    const crawlProfile = runningRun.crawlProfile;
+    const crawlMode = crawlProfile?.mode ?? CrawlMode.RECOMMENDED;
     const now = processedAt;
     const logContext = {
       userId: binding.userId,
       bindingId: binding.id,
       crawlRunId: runningRun.id,
+      crawlProfileId: crawlProfile?.id ?? null,
     } as const;
 
     this.logger.log('crawl_run_started', {
@@ -87,16 +93,22 @@ export class CrawlExecutionService {
       const credentialPayload = this.credentialCryptoService.decrypt(
         binding.authPayloadEncrypted,
       );
-      const rawFeed =
-        await this.feedCrawlerAdapter.fetchRecommendedFeed(credentialPayload);
-      const normalizedPosts =
-        await this.feedCrawlerAdapter.normalizePosts(rawFeed);
+      const rawFeed = await this.fetchFeedForProfile(
+        crawlMode,
+        credentialPayload,
+      );
+      const normalizedPosts = await this.feedCrawlerAdapter.normalizePosts(
+        rawFeed,
+      );
+      const postsToArchive = crawlProfile?.maxPosts
+        ? normalizedPosts.slice(0, crawlProfile.maxPosts)
+        : normalizedPosts;
       let newCount = 0;
       let skippedCount = 0;
       let failedCount = 0;
       let errorMessage: string | null = null;
 
-      for (const post of normalizedPosts) {
+      for (const post of postsToArchive) {
         try {
           const richTextJson = convertNormalizedPostToRichText(post);
           const renderedHtml = renderRichTextToHtml(richTextJson);
@@ -181,9 +193,11 @@ export class CrawlExecutionService {
         }
       }
 
-      const nextRunAt = binding.crawlEnabled
-        ? new Date(now.getTime() + binding.crawlIntervalMinutes * 60 * 1000)
-        : null;
+      const nextRunAt = this.buildNextRunAtForProfile(
+        crawlProfile?.intervalMinutes ?? binding.crawlIntervalMinutes,
+        binding.crawlEnabled && (crawlProfile?.enabled ?? true),
+        now,
+      );
       const completedStatus =
         failedCount > 0
           ? newCount + skippedCount > 0
@@ -191,32 +205,53 @@ export class CrawlExecutionService {
             : CrawlRunStatus.FAILED
           : CrawlRunStatus.SUCCESS;
 
-      await this.prisma.$transaction([
+      const successUpdates: Prisma.PrismaPromise<unknown>[] = [
         this.prisma.xAccountBinding.update({
           where: { id: binding.id },
           data: {
             status: BindingStatus.ACTIVE,
             lastCrawledAt: now,
             lastErrorMessage: errorMessage,
-            nextCrawlAt: nextRunAt,
+            nextCrawlAt: this.shouldSyncLegacySchedule(crawlMode)
+              ? nextRunAt
+              : binding.nextCrawlAt,
           },
         }),
-        this.prisma.crawlJob.update({
-          where: { id: queuedRun.crawlJob.id },
-          data: {
-            enabled: binding.crawlEnabled,
-            lastRunAt: now,
-            nextRunAt,
-          },
-        }),
-      ]);
+      ];
+
+      if (crawlProfile) {
+        successUpdates.push(
+          this.prisma.crawlProfile.update({
+            where: { id: crawlProfile.id },
+            data: {
+              lastRunAt: now,
+              nextRunAt,
+            },
+          }),
+        );
+      }
+
+      if (queuedRun.crawlJob && this.shouldSyncLegacySchedule(crawlMode)) {
+        successUpdates.push(
+          this.prisma.crawlJob.update({
+            where: { id: queuedRun.crawlJob.id },
+            data: {
+              enabled: binding.crawlEnabled,
+              lastRunAt: now,
+              nextRunAt,
+            },
+          }),
+        );
+      }
+
+      await this.prisma.$transaction(successUpdates);
 
       const completedRun = await this.crawlRunsService.markCompleted(
         queuedRun.id,
         {
           status: completedStatus,
           finishedAt: now,
-          fetchedCount: normalizedPosts.length,
+          fetchedCount: postsToArchive.length,
           newCount,
           skippedCount,
           failedCount,
@@ -227,7 +262,7 @@ export class CrawlExecutionService {
       this.logger.log('crawl_run_completed', {
         ...logContext,
         status: completedStatus,
-        fetchedCount: normalizedPosts.length,
+        fetchedCount: postsToArchive.length,
         newCount,
         skippedCount,
         failedCount,
@@ -238,30 +273,68 @@ export class CrawlExecutionService {
       const message =
         error instanceof Error ? error.message : 'Unknown crawl worker error';
       const isAuthError = error instanceof CrawlerAuthError;
-      const nextRunAt =
-        !isAuthError && binding.crawlEnabled
-          ? new Date(now.getTime() + binding.crawlIntervalMinutes * 60 * 1000)
-          : null;
+      const nextRunAt = this.buildNextRunAtForProfile(
+        crawlProfile?.intervalMinutes ?? binding.crawlIntervalMinutes,
+        !isAuthError && binding.crawlEnabled && (crawlProfile?.enabled ?? true),
+        now,
+      );
 
-      await this.prisma.$transaction([
+      const failureUpdates: Prisma.PrismaPromise<unknown>[] = [
         this.prisma.xAccountBinding.update({
           where: { id: binding.id },
           data: {
             status: isAuthError ? BindingStatus.INVALID : binding.status,
             lastErrorMessage: message,
-            nextCrawlAt: nextRunAt,
+            nextCrawlAt:
+              isAuthError || this.shouldSyncLegacySchedule(crawlMode)
+                ? nextRunAt
+                : binding.nextCrawlAt,
             crawlEnabled: isAuthError ? false : binding.crawlEnabled,
           },
         }),
-        this.prisma.crawlJob.update({
-          where: { id: queuedRun.crawlJob.id },
-          data: {
-            enabled: isAuthError ? false : binding.crawlEnabled,
-            lastRunAt: now,
-            nextRunAt,
-          },
-        }),
-      ]);
+      ];
+
+      if (isAuthError) {
+        failureUpdates.push(
+          this.prisma.crawlProfile.updateMany({
+            where: {
+              bindingId: binding.id,
+            },
+            data: {
+              enabled: false,
+              nextRunAt: null,
+            },
+          }),
+        );
+      } else if (crawlProfile) {
+        failureUpdates.push(
+          this.prisma.crawlProfile.update({
+            where: { id: crawlProfile.id },
+            data: {
+              lastRunAt: now,
+              nextRunAt,
+            },
+          }),
+        );
+      }
+
+      if (
+        queuedRun.crawlJob &&
+        (isAuthError || this.shouldSyncLegacySchedule(crawlMode))
+      ) {
+        failureUpdates.push(
+          this.prisma.crawlJob.update({
+            where: { id: queuedRun.crawlJob.id },
+            data: {
+              enabled: isAuthError ? false : binding.crawlEnabled,
+              lastRunAt: now,
+              nextRunAt,
+            },
+          }),
+        );
+      }
+
+      await this.prisma.$transaction(failureUpdates);
 
       this.logger.error('crawl_run_failed', {
         ...logContext,
@@ -275,6 +348,32 @@ export class CrawlExecutionService {
         errorMessage: message,
       });
     }
+  }
+
+  private async fetchFeedForProfile(mode: CrawlMode, payload: string) {
+    switch (mode) {
+      case CrawlMode.RECOMMENDED:
+        return this.feedCrawlerAdapter.fetchRecommendedFeed(payload);
+      case CrawlMode.HOT:
+      case CrawlMode.SEARCH:
+        throw new Error(`Crawl mode ${mode} is not implemented yet`);
+    }
+  }
+
+  private buildNextRunAtForProfile(
+    intervalMinutes: number,
+    enabled: boolean,
+    now: Date,
+  ) {
+    if (!enabled) {
+      return null;
+    }
+
+    return new Date(now.getTime() + intervalMinutes * 60 * 1000);
+  }
+
+  private shouldSyncLegacySchedule(mode: CrawlMode) {
+    return mode === CrawlMode.RECOMMENDED;
   }
 
   private toInputJsonValue(value: unknown) {

@@ -9,7 +9,9 @@ import { CrawlJobsService } from './crawl-jobs.service';
 type DueCrawlJobSnapshot = {
   bindingId: string;
   bindingUserId: string;
-  jobId: string;
+  jobId: string | null;
+  profileId: string | null;
+  profileMode: string | null;
   nextRunAt: string | null;
   runId: string;
   status: CrawlRunStatus;
@@ -47,11 +49,16 @@ export class CrawlJobsScheduler {
 
     const jobs: DueCrawlJobSnapshot[] = processedRuns.map((run) => ({
       runId: run.id,
-      jobId: run.crawlJobId ?? '',
+      jobId: run.crawlJobId ?? null,
+      profileId: run.crawlProfileId ?? null,
+      profileMode: run.crawlProfile?.mode ?? null,
       bindingId: run.bindingId,
       bindingUserId: run.binding.userId,
       username: run.binding.username,
-      nextRunAt: run.crawlJob?.nextRunAt?.toISOString() ?? null,
+      nextRunAt:
+        run.crawlProfile?.nextRunAt?.toISOString() ??
+        run.crawlJob?.nextRunAt?.toISOString() ??
+        null,
       triggerType: run.triggerType,
       status: run.status,
     }));

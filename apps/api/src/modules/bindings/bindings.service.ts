@@ -331,6 +331,11 @@ export class BindingsService {
       },
       include: {
         crawlJob: true,
+        crawlProfiles: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
     });
 
@@ -344,9 +349,11 @@ export class BindingsService {
       );
     }
 
-    if (!binding.crawlJob) {
+    if (
+      !binding.crawlProfiles.some((profile) => profile.mode === CrawlMode.RECOMMENDED)
+    ) {
       throw new ConflictException(
-        'Binding is missing crawl job configuration and cannot be triggered',
+        'Binding is missing crawl profile configuration and cannot be triggered',
       );
     }
 

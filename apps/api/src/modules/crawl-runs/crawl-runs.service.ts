@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 type CreateCrawlRunInput = {
   bindingId: string;
   crawlJobId?: string | null;
+  crawlProfileId?: string | null;
   triggerType: CrawlTriggerType;
 };
 
@@ -27,6 +28,7 @@ export const crawlRunExecutionArgs = {
   include: {
     binding: true,
     crawlJob: true,
+    crawlProfile: true,
   },
 } satisfies Prisma.CrawlRunDefaultArgs;
 
@@ -34,6 +36,7 @@ const crawlRunDetailArgs = {
   include: {
     binding: true,
     crawlJob: true,
+    crawlProfile: true,
     runPosts: {
       orderBy: {
         createdAt: 'asc',
@@ -58,12 +61,14 @@ export class CrawlRunsService {
       data: {
         bindingId: input.bindingId,
         crawlJobId: input.crawlJobId ?? null,
+        crawlProfileId: input.crawlProfileId ?? null,
         triggerType: input.triggerType,
         status: CrawlRunStatus.QUEUED,
       },
       include: {
         binding: true,
         crawlJob: true,
+        crawlProfile: true,
       },
     });
   }
@@ -139,6 +144,7 @@ export class CrawlRunsService {
       include: {
         binding: true,
         crawlJob: true,
+        crawlProfile: true,
         runPosts: true,
       },
     });
@@ -158,6 +164,7 @@ export class CrawlRunsService {
         include: {
           binding: true,
           crawlJob: true,
+          crawlProfile: true,
         },
         orderBy: {
           createdAt: 'desc',

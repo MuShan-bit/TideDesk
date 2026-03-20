@@ -1,5 +1,6 @@
 import {
   BindingStatus,
+  CrawlMode,
   CrawlRunStatus,
   CrawlTriggerType,
   CredentialSource,
@@ -79,15 +80,28 @@ describe('CrawlExecutionService', () => {
             nextRunAt: new Date('2026-03-19T12:00:00.000Z'),
           },
         },
+        crawlProfiles: {
+          create: [
+            {
+              mode: CrawlMode.RECOMMENDED,
+              enabled: true,
+              intervalMinutes: 30,
+              maxPosts: 20,
+              nextRunAt: new Date('2026-03-19T12:00:00.000Z'),
+            },
+          ],
+        },
       },
       include: {
         crawlJob: true,
+        crawlProfiles: true,
       },
     });
 
     const run = await crawlRunsService.createQueuedRun({
       bindingId: binding.id,
       crawlJobId: binding.crawlJob!.id,
+      crawlProfileId: binding.crawlProfiles[0]?.id,
       triggerType: CrawlTriggerType.MANUAL,
     });
 
@@ -120,9 +134,13 @@ describe('CrawlExecutionService', () => {
     const storedBinding = await prisma.xAccountBinding.findUnique({
       where: { id: binding.id },
     });
+    const storedProfile = await prisma.crawlProfile.findUnique({
+      where: { id: binding.crawlProfiles[0]!.id },
+    });
 
     expect(storedBinding?.lastCrawledAt).not.toBeNull();
     expect(storedBinding?.lastErrorMessage).toBeNull();
+    expect(storedProfile?.lastRunAt).not.toBeNull();
     expect(logSpy).toHaveBeenNthCalledWith(
       1,
       JSON.stringify({
@@ -130,6 +148,7 @@ describe('CrawlExecutionService', () => {
         userId: 'worker_owner',
         bindingId: binding.id,
         crawlRunId: run.id,
+        crawlProfileId: binding.crawlProfiles[0]!.id,
         triggerType: CrawlTriggerType.MANUAL,
       }),
     );
@@ -140,6 +159,7 @@ describe('CrawlExecutionService', () => {
         userId: 'worker_owner',
         bindingId: binding.id,
         crawlRunId: run.id,
+        crawlProfileId: binding.crawlProfiles[0]!.id,
         status: CrawlRunStatus.SUCCESS,
         fetchedCount: 2,
         newCount: 2,
