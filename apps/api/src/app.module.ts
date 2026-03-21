@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { envValidationSchema } from './config/env.validation';
+import { AiConfigModule } from './modules/ai-config/ai-config.module';
 import { ArchivesModule } from './modules/archives/archives.module';
 import { BindingsModule } from './modules/bindings/bindings.module';
 import { CrawlJobsModule } from './modules/crawl-jobs/crawl-jobs.module';
@@ -24,6 +25,7 @@ import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
     PrismaModule,
     HealthModule,
     IdentityModule,
+    AiConfigModule,
     ArchivesModule,
     BindingsModule,
     CrawlJobsModule,

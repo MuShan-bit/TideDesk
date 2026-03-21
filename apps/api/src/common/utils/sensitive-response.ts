@@ -1,5 +1,7 @@
 const sensitiveResponseKeys = new Set([
   'authPayloadEncrypted',
+  'apiKeyEncrypted',
+  'apiKey',
   'capturedPayloadEncrypted',
   'passwordHash',
   'authToken',

@@ -6,6 +6,7 @@ describe('redactSensitiveResponse', () => {
     const payload = {
       id: 'binding-001',
       authPayloadEncrypted: 'encrypted-binding-payload',
+      apiKeyEncrypted: 'encrypted-provider-api-key',
       cookies: [
         {
           name: 'auth_token',
@@ -17,6 +18,7 @@ describe('redactSensitiveResponse', () => {
         id: 'binding-001',
         capturedPayloadEncrypted: 'encrypted-browser-session-payload',
         authToken: 'auth-token',
+        apiKey: 'raw-api-key',
         username: 'demo_user',
       },
       items: [
