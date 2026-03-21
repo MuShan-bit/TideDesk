@@ -15,7 +15,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getMessages, type Locale } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
 
 export type TaxonomyOption = {
   color: string | null;
@@ -37,7 +36,6 @@ type ArchiveTaxonomyEditorProps = {
   locale: Locale;
   primaryCategory: TaxonomyOption | null;
   primaryCategoryLocked: boolean;
-  primaryCategorySource: "MANUAL" | "AI" | "RULE" | null;
   tagAssignments: ArchiveTagAssignment[];
   tagAssignmentsLocked: boolean;
   tags: TaxonomyOption[];
@@ -45,33 +43,19 @@ type ArchiveTaxonomyEditorProps = {
 
 const initialState: ArchiveTaxonomyActionState = {};
 
-function getSourceBadgeClassName(source: ArchiveTagAssignment["source"]) {
-  return {
-    MANUAL:
-      "bg-[#2d4d3f] text-white dark:bg-[#d8e2db] dark:text-[#18201b]",
-    AI: "bg-[#f5efe4] text-[#7f5a26] dark:bg-[#3d3124] dark:text-[#f2c58c]",
-    RULE: "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-white/80",
-  }[source];
-}
-
-function renderTagChips(
-  assignments: ArchiveTagAssignment[],
-  emptyText: string,
-  localeMessages: ReturnType<typeof getMessages>,
-) {
-  if (assignments.length === 0) {
+function renderTagChips(tags: TaxonomyOption[], emptyText: string) {
+  if (tags.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyText}</p>;
   }
 
   return (
     <div className="flex flex-wrap gap-2">
-      {assignments.map((assignment) => (
+      {tags.map((tag) => (
         <Badge
-          key={assignment.id}
-          className={cn("rounded-full", getSourceBadgeClassName(assignment.source))}
+          key={tag.id}
+          className="rounded-full bg-[#eef4f0] text-[#2d4d3f] dark:bg-[#223228] dark:text-[#d8e2db]"
         >
-          {assignment.tag.name} ·{" "}
-          {localeMessages.enums.taxonomySource[assignment.source]}
+          {tag.name}
         </Badge>
       ))}
     </div>
@@ -85,7 +69,6 @@ export function ArchiveTaxonomyEditor({
   locale,
   primaryCategory,
   primaryCategoryLocked,
-  primaryCategorySource,
   tagAssignments,
   tagAssignmentsLocked,
   tags,
@@ -95,18 +78,13 @@ export function ArchiveTaxonomyEditor({
     updateArchiveTaxonomyAction,
     initialState,
   );
-  const manualAssignments = tagAssignments.filter(
-    (assignment) => assignment.source === "MANUAL",
+  const visibleTagAssignments = Array.from(
+    new Map(
+      tagAssignments.map((assignment) => [assignment.tag.id, assignment]),
+    ).values(),
   );
-  const aiAssignments = tagAssignments.filter(
-    (assignment) => assignment.source === "AI",
-  );
-  const ruleAssignments = tagAssignments.filter(
-    (assignment) => assignment.source === "RULE",
-  );
-  const manualTagIdSet = new Set(
-    manualAssignments.map((assignment) => assignment.tag.id),
-  );
+  const currentTags = visibleTagAssignments.map((assignment) => assignment.tag);
+  const currentTagIdSet = new Set(currentTags.map((tag) => tag.id));
 
   return (
     <Card className="rounded-[2rem] border-border/70 bg-white/92 shadow-[0_24px_80px_-40px_rgba(45,77,63,0.24)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
@@ -134,19 +112,9 @@ export function ArchiveTaxonomyEditor({
                   {messages.archiveDetail.noPrimaryCategory}
                 </p>
               )}
-              {primaryCategorySource ? (
-                <Badge
-                  className={cn(
-                    "rounded-full",
-                    getSourceBadgeClassName(primaryCategorySource),
-                  )}
-                >
-                  {messages.enums.taxonomySource[primaryCategorySource]}
-                </Badge>
-              ) : null}
               {primaryCategoryLocked ? (
                 <Badge className="rounded-full border border-[#2d4d3f]/15 bg-[#f1f6f3] text-[#2d4d3f] dark:border-[#d8e2db]/20 dark:bg-[#1c2520] dark:text-[#d8e2db]">
-                  {messages.archiveDetail.manualLockBadge}
+                  {messages.archiveDetail.lockBadge}
                 </Badge>
               ) : null}
             </div>
@@ -155,41 +123,15 @@ export function ArchiveTaxonomyEditor({
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                {messages.archiveDetail.manualTagsLabel}
+                {messages.archiveDetail.currentTagsLabel}
               </p>
               {tagAssignmentsLocked ? (
                 <Badge className="rounded-full border border-[#2d4d3f]/15 bg-[#f1f6f3] text-[#2d4d3f] dark:border-[#d8e2db]/20 dark:bg-[#1c2520] dark:text-[#d8e2db]">
-                  {messages.archiveDetail.manualLockBadge}
+                  {messages.archiveDetail.lockBadge}
                 </Badge>
               ) : null}
             </div>
-            {renderTagChips(
-              manualAssignments,
-              messages.archiveDetail.noManualTags,
-              messages,
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-              {messages.archiveDetail.aiTagsLabel}
-            </p>
-            {renderTagChips(
-              aiAssignments,
-              messages.archiveDetail.noAiTags,
-              messages,
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-              {messages.archiveDetail.ruleTagsLabel}
-            </p>
-            {renderTagChips(
-              ruleAssignments,
-              messages.archiveDetail.noRuleTags,
-              messages,
-            )}
+            {renderTagChips(currentTags, messages.archiveDetail.noTags)}
           </div>
         </div>
 
@@ -242,7 +184,7 @@ export function ArchiveTaxonomyEditor({
                   >
                     <input
                       className="size-4 rounded border-border/70 text-[#2d4d3f] focus:ring-[#2d4d3f] dark:border-white/20 dark:bg-white/10 dark:text-[#d8e2db]"
-                      defaultChecked={manualTagIdSet.has(tag.id)}
+                      defaultChecked={currentTagIdSet.has(tag.id)}
                       name="tagIds"
                       type="checkbox"
                       value={tag.id}

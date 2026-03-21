@@ -129,4 +129,62 @@ describe('TaxonomyService', () => {
       }),
     ).resolves.toHaveLength(2);
   });
+
+  it('reuses existing tags and creates missing tags for AI classification results', async () => {
+    const existingTag = await taxonomyService.createTag('taxonomy_owner', {
+      name: 'OpenAI',
+      color: '#10b981',
+    });
+
+    const ensuredTags = await taxonomyService.ensureTagsForUser(
+      'taxonomy_owner',
+      [
+        {
+          name: 'OpenAI',
+          slug: 'openai',
+        },
+        {
+          name: 'Inference Ops',
+        },
+        {
+          name: 'Inference Ops',
+          slug: 'inference-ops',
+        },
+      ],
+    );
+
+    expect(ensuredTags).toEqual([
+      expect.objectContaining({
+        id: existingTag.id,
+        slug: 'openai',
+      }),
+      expect.objectContaining({
+        name: 'Inference Ops',
+        slug: 'inference-ops',
+      }),
+      expect.objectContaining({
+        name: 'Inference Ops',
+        slug: 'inference-ops',
+      }),
+    ]);
+
+    await expect(
+      prisma.tag.findMany({
+        where: {
+          userId: 'taxonomy_owner',
+        },
+        orderBy: {
+          slug: 'asc',
+        },
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        slug: 'inference-ops',
+      }),
+      expect.objectContaining({
+        id: existingTag.id,
+        slug: 'openai',
+      }),
+    ]);
+  });
 });

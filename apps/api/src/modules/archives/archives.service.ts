@@ -336,7 +336,8 @@ export class ArchivesService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      const archivedPostUpdateData: Prisma.ArchivedPostUncheckedUpdateInput = {};
+      const archivedPostUpdateData: Prisma.ArchivedPostUncheckedUpdateInput =
+        {};
 
       if (primaryCategoryId !== undefined) {
         archivedPostUpdateData.primaryCategoryId = primaryCategoryId;
@@ -363,7 +364,6 @@ export class ArchivesService {
         await tx.archivedPostTag.deleteMany({
           where: {
             archivedPostId,
-            source: TaxonomySource.MANUAL,
           },
         });
 

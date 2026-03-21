@@ -1,11 +1,7 @@
-import {
-  MediaType,
-  PostType,
-  RelationType,
-  type Prisma,
-} from '@prisma/client';
+import { MediaType, PostType, RelationType, type Prisma } from '@prisma/client';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { AiGatewayRequest } from '../ai-gateway/ai-gateway.types';
+import { normalizeTaxonomySlug } from '../taxonomy/taxonomy-slug';
 
 export type PostClassificationCategoryOption = {
   description?: string | null;
@@ -63,7 +59,10 @@ export type ParsedPostClassificationResult = {
   primaryCategorySlug: string | null;
   reasoning: string | null;
   summary: string;
-  tagSlugs: string[];
+  tagCandidates: Array<{
+    name: string;
+    slug: string;
+  }>;
 };
 
 type ParsedOutputCandidate = Record<string, unknown>;
@@ -76,9 +75,7 @@ const DEFAULT_CONFIDENCE = 0.5;
 
 @Injectable()
 export class PostClassificationService {
-  buildAiRequest(
-    input: BuildPostClassificationPromptInput,
-  ): AiGatewayRequest {
+  buildAiRequest(input: BuildPostClassificationPromptInput): AiGatewayRequest {
     const prompt = this.buildPrompt(input);
 
     return {
@@ -115,7 +112,8 @@ export class PostClassificationService {
     const systemPrompt = [
       'You classify archived X posts for an editorial workspace.',
       'Choose at most one primary category and up to eight tags.',
-      'You must only use category slugs and tag slugs listed in the prompt.',
+      'You must only use category slugs listed in the prompt.',
+      'Tags should reuse listed tag slugs when possible, but may propose new tag names when needed.',
       'If no category is a good fit, return null for primaryCategorySlug.',
       'Return only a JSON object that follows the response schema exactly.',
       'Keep the summary concise, factual, and suitable for downstream archive search.',
@@ -138,10 +136,12 @@ export class PostClassificationService {
       '',
       'Output rules:',
       '1. primaryCategorySlug must be one of the category slugs above or null.',
-      '2. tagSlugs must contain only listed tag slugs and should be ordered by relevance.',
-      `3. summary must be between ${MIN_SUMMARY_LENGTH} and ${MAX_SUMMARY_LENGTH} characters after trimming.`,
-      '4. reasoning should briefly explain the category and tag choices.',
-      '5. Return JSON only. Do not wrap the result in markdown fences.',
+      '2. tags should be ordered by relevance and contain up to eight items.',
+      '3. For existing tags, return the exact catalog slug in tags[].slug.',
+      '4. For new tags, provide tags[].name and you may omit tags[].slug.',
+      `5. summary must be between ${MIN_SUMMARY_LENGTH} and ${MAX_SUMMARY_LENGTH} characters after trimming.`,
+      '6. reasoning should briefly explain the category and tag choices.',
+      '7. Return JSON only. Do not wrap the result in markdown fences.',
     ].join('\n');
 
     return {
@@ -155,7 +155,7 @@ export class PostClassificationService {
     rawOutput: string,
     options: {
       availableCategorySlugs: string[];
-      availableTagSlugs: string[];
+      availableTags: PostClassificationTagOption[];
     },
   ): ParsedPostClassificationResult {
     const parsedCandidate = this.parseJsonCandidate(rawOutput);
@@ -163,9 +163,9 @@ export class PostClassificationService {
       parsedCandidate,
       new Set(options.availableCategorySlugs),
     );
-    const tagSlugs = this.normalizeTagSlugs(
+    const tagCandidates = this.normalizeTagCandidates(
       parsedCandidate,
-      new Set(options.availableTagSlugs),
+      options.availableTags,
     );
     const summary = this.normalizeSummary(parsedCandidate);
     const confidence = this.normalizeConfidence(parsedCandidate);
@@ -173,7 +173,7 @@ export class PostClassificationService {
 
     return {
       primaryCategorySlug,
-      tagSlugs,
+      tagCandidates,
       summary,
       confidence,
       reasoning,
@@ -191,7 +191,9 @@ export class PostClassificationService {
       language: post.language ?? null,
       sourceCreatedAt: post.sourceCreatedAt,
       rawText: this.trimText(post.rawText, MAX_POST_TEXT_LENGTH),
-      hashtags: [...new Set(post.hashtags.map((item) => item.trim()).filter(Boolean))],
+      hashtags: [
+        ...new Set(post.hashtags.map((item) => item.trim()).filter(Boolean)),
+      ],
       media: post.media.map((item) => ({
         mediaType: item.mediaType,
         width: item.width ?? null,
@@ -211,7 +213,12 @@ export class PostClassificationService {
   private buildResponseSchema() {
     return {
       primaryCategorySlug: 'string | null',
-      tagSlugs: ['string'],
+      tags: [
+        {
+          name: 'string',
+          slug: 'string | null',
+        },
+      ],
       summary: 'string',
       confidence: 'number (0..1)',
       reasoning: 'string | null',
@@ -239,9 +246,7 @@ export class PostClassificationService {
       return '- No tags are currently available.';
     }
 
-    return tags
-      .map((tag) => `- ${tag.slug}: ${tag.name}`)
-      .join('\n');
+    return tags.map((tag) => `- ${tag.slug}: ${tag.name}`).join('\n');
   }
 
   private parseJsonCandidate(rawOutput: string): ParsedOutputCandidate {
@@ -315,31 +320,106 @@ export class PostClassificationService {
     return allowedCategorySlugs.has(selectedValue) ? selectedValue : null;
   }
 
-  private normalizeTagSlugs(
+  private normalizeTagCandidates(
     payload: ParsedOutputCandidate,
-    allowedTagSlugs: Set<string>,
+    availableTags: PostClassificationTagOption[],
   ) {
+    const existingTagBySlug = new Map(
+      availableTags.map((tag) => [tag.slug, tag] as const),
+    );
+    const existingTagByNormalizedName = new Map(
+      availableTags.map(
+        (tag) => [this.tryNormalizeTaxonomySlug(tag.name), tag] as const,
+      ),
+    );
     const rawValues = Array.isArray(payload.tagSlugs)
       ? payload.tagSlugs
       : Array.isArray(payload.tags)
         ? payload.tags
         : [];
     const normalized = rawValues
-      .map((item) => {
-        if (typeof item === 'string') {
-          return item.trim();
-        }
+      .map((item) =>
+        this.normalizeTagCandidate(
+          item,
+          existingTagBySlug,
+          existingTagByNormalizedName,
+        ),
+      )
+      .filter(
+        (
+          item,
+        ): item is ParsedPostClassificationResult['tagCandidates'][number] =>
+          item !== null,
+      );
+    const deduped = [];
+    const seenKeys = new Set<string>();
 
-        if (this.isRecord(item)) {
-          return this.normalizeOptionalString(item.slug ?? item.tagSlug);
-        }
+    for (const item of normalized) {
+      if (seenKeys.has(item.slug)) {
+        continue;
+      }
 
-        return null;
-      })
-      .filter((item): item is string => Boolean(item))
-      .filter((item) => allowedTagSlugs.has(item));
+      seenKeys.add(item.slug);
+      deduped.push(item);
 
-    return [...new Set(normalized)].slice(0, MAX_TAGS);
+      if (deduped.length >= MAX_TAGS) {
+        break;
+      }
+    }
+
+    return deduped;
+  }
+
+  private normalizeTagCandidate(
+    item: unknown,
+    existingTagBySlug: Map<string, PostClassificationTagOption>,
+    existingTagByNormalizedName: Map<
+      string | null,
+      PostClassificationTagOption
+    >,
+  ) {
+    let rawName: string | null = null;
+    let rawSlug: string | null = null;
+
+    if (typeof item === 'string') {
+      rawName = this.normalizeOptionalString(item);
+      rawSlug = rawName;
+    } else if (this.isRecord(item)) {
+      rawName =
+        this.normalizeOptionalString(item.name) ??
+        this.normalizeOptionalString(item.label) ??
+        this.normalizeOptionalString(item.tagName) ??
+        null;
+      rawSlug =
+        this.normalizeOptionalString(item.slug) ??
+        this.normalizeOptionalString(item.tagSlug) ??
+        rawName;
+    }
+
+    const normalizedSlug = this.tryNormalizeTaxonomySlug(rawSlug);
+    const normalizedName = this.tryNormalizeTaxonomySlug(rawName);
+    const existingTag =
+      (normalizedSlug ? existingTagBySlug.get(normalizedSlug) : null) ??
+      (normalizedName
+        ? existingTagByNormalizedName.get(normalizedName)
+        : null) ??
+      null;
+
+    if (existingTag) {
+      return {
+        name: existingTag.name,
+        slug: existingTag.slug,
+      };
+    }
+
+    if (!normalizedSlug) {
+      return null;
+    }
+
+    return {
+      name: rawName ?? rawSlug ?? normalizedSlug,
+      slug: normalizedSlug,
+    };
   }
 
   private normalizeSummary(payload: ParsedOutputCandidate) {
@@ -353,7 +433,10 @@ export class PostClassificationService {
       );
     }
 
-    if (value.length < MIN_SUMMARY_LENGTH || value.length > MAX_SUMMARY_LENGTH) {
+    if (
+      value.length < MIN_SUMMARY_LENGTH ||
+      value.length > MAX_SUMMARY_LENGTH
+    ) {
       throw new BadRequestException(
         `AI classification summary must be ${MIN_SUMMARY_LENGTH}-${MAX_SUMMARY_LENGTH} characters`,
       );
@@ -420,5 +503,17 @@ export class PostClassificationService {
 
   private isRecord(value: unknown): value is Prisma.JsonObject {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private tryNormalizeTaxonomySlug(value: string | null) {
+    if (!value) {
+      return null;
+    }
+
+    try {
+      return normalizeTaxonomySlug(value);
+    } catch {
+      return null;
+    }
   }
 }

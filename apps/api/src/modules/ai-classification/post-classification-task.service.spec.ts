@@ -120,6 +120,7 @@ describe('PostClassificationTaskService', () => {
     getArchivedPostDetailForUser: jest.Mock;
   };
   let taxonomyService: {
+    ensureTagsForUser: jest.Mock;
     listCategories: jest.Mock;
     listTags: jest.Mock;
   };
@@ -145,12 +146,10 @@ describe('PostClassificationTaskService', () => {
         update: jest.fn(),
       },
       archivedPost: {
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({
-            primaryCategoryLocked: false,
-            tagAssignmentsLocked: false,
-          }),
+        findUnique: jest.fn().mockResolvedValue({
+          primaryCategoryLocked: false,
+          tagAssignmentsLocked: false,
+        }),
         update: jest.fn(),
       },
       archivedPostTag: {
@@ -164,6 +163,20 @@ describe('PostClassificationTaskService', () => {
         .mockResolvedValue(createArchivedPostRecord()),
     };
     taxonomyService = {
+      ensureTagsForUser: jest.fn().mockResolvedValue([
+        {
+          id: 'tag-openai',
+          name: 'OpenAI',
+          slug: 'openai',
+          color: null,
+        },
+        {
+          id: 'tag-agents',
+          name: 'Agents',
+          slug: 'agents',
+          color: null,
+        },
+      ]),
       listCategories: jest.fn().mockResolvedValue([
         {
           id: 'category-ai',
@@ -280,7 +293,16 @@ describe('PostClassificationTaskService', () => {
     });
     postClassificationService.parseModelOutput.mockReturnValue({
       primaryCategorySlug: 'ai-signals',
-      tagSlugs: ['openai', 'agents'],
+      tagCandidates: [
+        {
+          name: 'OpenAI',
+          slug: 'openai',
+        },
+        {
+          name: 'Agents',
+          slug: 'agents',
+        },
+      ],
       summary: 'A concise AI summary for archive search.',
       confidence: 0.88,
       reasoning: 'The post focuses on OpenAI agents.',
@@ -356,10 +378,19 @@ describe('PostClassificationTaskService', () => {
         tagAssignmentsLocked: true,
       },
     });
+    expect(taxonomyService.ensureTagsForUser).toHaveBeenCalledWith('ai_owner', [
+      {
+        name: 'OpenAI',
+        slug: 'openai',
+      },
+      {
+        name: 'Agents',
+        slug: 'agents',
+      },
+    ]);
     expect(prisma.archivedPostTag.deleteMany).toHaveBeenCalledWith({
       where: {
         archivedPostId: 'archive-001',
-        source: 'AI',
       },
     });
     expect(prisma.archivedPostTag.createMany).toHaveBeenCalledWith({
@@ -450,7 +481,16 @@ describe('PostClassificationTaskService', () => {
     });
     postClassificationService.parseModelOutput.mockReturnValue({
       primaryCategorySlug: 'ai-signals',
-      tagSlugs: ['openai', 'agents'],
+      tagCandidates: [
+        {
+          name: 'OpenAI',
+          slug: 'openai',
+        },
+        {
+          name: 'Agents',
+          slug: 'agents',
+        },
+      ],
       summary: 'Locked archives still refresh the AI summary.',
       confidence: 0.91,
       reasoning: 'The post still matches AI signals.',
@@ -483,6 +523,7 @@ describe('PostClassificationTaskService', () => {
         aiSummary: 'Locked archives still refresh the AI summary.',
       },
     });
+    expect(taxonomyService.ensureTagsForUser).not.toHaveBeenCalled();
     expect(prisma.archivedPostTag.deleteMany).not.toHaveBeenCalled();
     expect(prisma.archivedPostTag.createMany).not.toHaveBeenCalled();
   });
@@ -490,9 +531,9 @@ describe('PostClassificationTaskService', () => {
   it('rejects missing or non-runnable task records', async () => {
     prisma.aITaskRecord.findFirst.mockResolvedValueOnce(null);
 
-    await expect(service.executeTask('ai_owner', 'missing-task')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.executeTask('ai_owner', 'missing-task'),
+    ).rejects.toBeInstanceOf(NotFoundException);
 
     prisma.aITaskRecord.findFirst.mockResolvedValueOnce({
       id: 'task-002',
@@ -503,9 +544,9 @@ describe('PostClassificationTaskService', () => {
       status: AITaskStatus.SUCCESS,
     });
 
-    await expect(service.executeTask('ai_owner', 'task-002')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.executeTask('ai_owner', 'task-002'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('supports manual single and batch reruns', async () => {

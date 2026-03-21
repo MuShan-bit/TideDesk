@@ -405,7 +405,7 @@ describe('ArchivesService', () => {
     expect(byAnyTag.items).toHaveLength(2);
   });
 
-  it('updates archive taxonomy with manual category and tags while preserving AI tag sources', async () => {
+  it('updates archive taxonomy with a single final tag set that replaces prior AI tags', async () => {
     const binding = await createBinding('archive_taxonomy_editor');
     const aiCategory = await prisma.category.create({
       data: {
@@ -485,14 +485,9 @@ describe('ArchivesService', () => {
     expect(updated.primaryCategorySource).toBe(TaxonomySource.MANUAL);
     expect(updated.primaryCategoryLocked).toBe(true);
     expect(updated.tagAssignmentsLocked).toBe(true);
+    expect(updated.tagAssignments).toHaveLength(2);
     expect(updated.tagAssignments).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          source: TaxonomySource.AI,
-          tag: expect.objectContaining({
-            id: aiTag.id,
-          }),
-        }),
         expect.objectContaining({
           source: TaxonomySource.MANUAL,
           tag: expect.objectContaining({
@@ -573,14 +568,7 @@ describe('ArchivesService', () => {
     expect(updated.primaryCategorySource).toBeNull();
     expect(updated.primaryCategoryLocked).toBe(true);
     expect(updated.tagAssignmentsLocked).toBe(true);
-    expect(updated.tagAssignments).toEqual([
-      expect.objectContaining({
-        source: TaxonomySource.AI,
-        tag: expect.objectContaining({
-          id: aiTag.id,
-        }),
-      }),
-    ]);
+    expect(updated.tagAssignments).toEqual([]);
   });
 
   it('falls back to the existing archive when concurrent writes hit the unique constraint', async () => {

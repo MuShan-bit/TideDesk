@@ -50,11 +50,15 @@ export class PostClassificationTaskService {
     return model !== null;
   }
 
-  async enqueueArchivedPostClassification(userId: string, archivedPostId: string) {
-    const archivedPost = await this.archivesService.getArchivedPostDetailForUser(
-      userId,
-      archivedPostId,
-    );
+  async enqueueArchivedPostClassification(
+    userId: string,
+    archivedPostId: string,
+  ) {
+    const archivedPost =
+      await this.archivesService.getArchivedPostDetailForUser(
+        userId,
+        archivedPostId,
+      );
 
     return this.prisma.aITaskRecord.create({
       data: {
@@ -96,10 +100,11 @@ export class PostClassificationTaskService {
       );
     }
 
-    const archivedPost = await this.archivesService.getArchivedPostDetailForUser(
-      userId,
-      taskRecord.targetId,
-    );
+    const archivedPost =
+      await this.archivesService.getArchivedPostDetailForUser(
+        userId,
+        taskRecord.targetId,
+      );
     const [categories, tags] = await Promise.all([
       this.taxonomyService.listCategories(userId),
       this.taxonomyService.listTags(userId),
@@ -130,10 +135,11 @@ export class PostClassificationTaskService {
           availableCategorySlugs: promptInput.availableCategories.map(
             (category) => category.slug,
           ),
-          availableTagSlugs: promptInput.availableTags.map((tag) => tag.slug),
+          availableTags: promptInput.availableTags,
         },
       );
       await this.applyClassificationResultToArchive(
+        userId,
         archivedPost.id,
         promptInput,
         parsedResult,
@@ -185,7 +191,10 @@ export class PostClassificationTaskService {
     const results = await Promise.all(
       uniqueArchivedPostIds.map(async (archivedPostId) => {
         try {
-          const taskRecord = await this.enqueueAndExecute(userId, archivedPostId);
+          const taskRecord = await this.enqueueAndExecute(
+            userId,
+            archivedPostId,
+          );
 
           return {
             archivedPostId,
@@ -209,7 +218,8 @@ export class PostClassificationTaskService {
 
     return {
       requestedCount: uniqueArchivedPostIds.length,
-      succeededCount: results.filter((item) => item.status === 'SUCCESS').length,
+      succeededCount: results.filter((item) => item.status === 'SUCCESS')
+        .length,
       failedCount: results.filter((item) => item.status === 'FAILED').length,
       items: results,
     };
@@ -309,6 +319,7 @@ export class PostClassificationTaskService {
   }
 
   private async applyClassificationResultToArchive(
+    userId: string,
     archivedPostId: string,
     promptInput: ReturnType<PostClassificationTaskService['buildPromptInput']>,
     parsedResult: ReturnType<PostClassificationService['parseModelOutput']>,
@@ -317,25 +328,29 @@ export class PostClassificationTaskService {
       promptInput.availableCategories.find(
         (category) => category.slug === parsedResult.primaryCategorySlug,
       )?.id ?? null;
-    const tagIds = promptInput.availableTags
-      .filter((tag) => parsedResult.tagSlugs.includes(tag.slug))
-      .map((tag) => tag.id);
+    const archivedPost = await this.prisma.archivedPost.findUnique({
+      where: {
+        id: archivedPostId,
+      },
+      select: {
+        primaryCategoryLocked: true,
+        tagAssignmentsLocked: true,
+      },
+    });
+
+    if (!archivedPost) {
+      throw new NotFoundException('Archived post not found');
+    }
+
+    const resolvedTags = archivedPost.tagAssignmentsLocked
+      ? []
+      : await this.taxonomyService.ensureTagsForUser(
+          userId,
+          parsedResult.tagCandidates,
+        );
+    const tagIds = resolvedTags.map((tag) => tag.id);
 
     await this.prisma.$transaction(async (tx) => {
-      const archivedPost = await tx.archivedPost.findUnique({
-        where: {
-          id: archivedPostId,
-        },
-        select: {
-          primaryCategoryLocked: true,
-          tagAssignmentsLocked: true,
-        },
-      });
-
-      if (!archivedPost) {
-        throw new NotFoundException('Archived post not found');
-      }
-
       const archivedPostUpdateData: Prisma.ArchivedPostUncheckedUpdateInput = {
         aiSummary: parsedResult.summary,
       };
@@ -361,7 +376,6 @@ export class PostClassificationTaskService {
       await tx.archivedPostTag.deleteMany({
         where: {
           archivedPostId,
-          source: 'AI',
         },
       });
 

@@ -101,21 +101,20 @@ describe('PostClassificationService', () => {
         },
       },
     });
-    expect(request.messages[0]?.content).toContain(
-      'Return only a JSON object',
-    );
+    expect(request.messages[0]?.content).toContain('Return only a JSON object');
     expect(request.messages[1]?.content).toContain('ai-signals');
     expect(request.messages[1]?.content).toContain('"primaryCategorySlug"');
+    expect(request.messages[1]?.content).toContain('"tags"');
     expect(request.messages[1]?.content).toContain('OpenAI just launched');
   });
 
-  it('parses valid model output and normalizes fenced JSON responses', () => {
+  it('parses valid model output and retains reusable or new tag candidates', () => {
     const result = service.parseModelOutput(
       [
         '```json',
         '{',
         '  "primaryCategorySlug": "ai-signals",',
-        '  "tagSlugs": ["openai", "agents", "agents", "unknown"],',
+        '  "tagSlugs": ["openai", "agents", "agents", "Inference Ops"],',
         '  "summary": "OpenAI shared a new agent workflow and GPU efficiency update for production teams.",',
         '  "confidence": "84%",',
         '  "reasoning": "The post is mainly about AI agents and model operations."',
@@ -124,13 +123,26 @@ describe('PostClassificationService', () => {
       ].join('\n'),
       {
         availableCategorySlugs: ['ai-signals', 'infra'],
-        availableTagSlugs: ['openai', 'agents', 'gpu'],
+        availableTags: createPromptInput().availableTags,
       },
     );
 
     expect(result).toEqual({
       primaryCategorySlug: 'ai-signals',
-      tagSlugs: ['openai', 'agents'],
+      tagCandidates: [
+        {
+          name: 'OpenAI',
+          slug: 'openai',
+        },
+        {
+          name: 'Agents',
+          slug: 'agents',
+        },
+        {
+          name: 'Inference Ops',
+          slug: 'inference-ops',
+        },
+      ],
       summary:
         'OpenAI shared a new agent workflow and GPU efficiency update for production teams.',
       confidence: 0.84,
@@ -152,13 +164,22 @@ describe('PostClassificationService', () => {
       }),
       {
         availableCategorySlugs: ['ai-signals', 'infra'],
-        availableTagSlugs: ['openai', 'agents', 'gpu'],
+        availableTags: createPromptInput().availableTags,
       },
     );
 
     expect(result).toEqual({
       primaryCategorySlug: null,
-      tagSlugs: ['gpu', 'agents'],
+      tagCandidates: [
+        {
+          name: 'GPU',
+          slug: 'gpu',
+        },
+        {
+          name: 'Agents',
+          slug: 'agents',
+        },
+      ],
       summary:
         'The post compares GPU efficiency and agent orchestration tradeoffs in deployment.',
       confidence: 0.62,
@@ -170,7 +191,13 @@ describe('PostClassificationService', () => {
     expect(() =>
       service.parseModelOutput('not json', {
         availableCategorySlugs: ['ai-signals'],
-        availableTagSlugs: ['openai'],
+        availableTags: [
+          {
+            id: 'tag-openai',
+            name: 'OpenAI',
+            slug: 'openai',
+          },
+        ],
       }),
     ).toThrow(BadRequestException);
 
@@ -183,7 +210,13 @@ describe('PostClassificationService', () => {
         }),
         {
           availableCategorySlugs: ['ai-signals'],
-          availableTagSlugs: ['openai'],
+          availableTags: [
+            {
+              id: 'tag-openai',
+              name: 'OpenAI',
+              slug: 'openai',
+            },
+          ],
         },
       ),
     ).toThrow('missing a summary');

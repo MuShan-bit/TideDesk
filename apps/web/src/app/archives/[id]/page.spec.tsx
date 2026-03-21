@@ -127,7 +127,11 @@ describe("ArchiveDetailPage", () => {
         },
       ]);
 
-    render(await ArchiveDetailPage({ params: Promise.resolve({ id: "archive-001" }) }));
+    render(
+      await ArchiveDetailPage({
+        params: Promise.resolve({ id: "archive-001" }),
+      }),
+    );
 
     expect(screen.getByRole("link", { name: "返回列表" })).toHaveClass(
       "dark:bg-white/8",
@@ -135,9 +139,9 @@ describe("ArchiveDetailPage", () => {
     expect(screen.getByRole("link", { name: "打开原帖" })).toHaveClass(
       "dark:bg-[#d8e2db]",
     );
-    expect(screen.getByText("Archive body text.").closest("article")).toHaveClass(
-      "dark:bg-[#161b17]",
-    );
+    expect(
+      screen.getByText("Archive body text.").closest("article"),
+    ).toHaveClass("dark:bg-[#161b17]");
     expect(screen.getByRole("link", { name: "查看本次执行记录" })).toHaveClass(
       "dark:bg-white/10",
     );
@@ -149,8 +153,8 @@ describe("ArchiveDetailPage", () => {
     expect(within(mediaCard).queryByRole("img")).not.toBeInTheDocument();
     expect(mediaCard.querySelector("video")).toBeNull();
     expect(screen.getByText("分类与标签")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "保存人工分类与标签" }),
-    ).toHaveClass("dark:bg-[#d8e2db]");
+    expect(screen.getByRole("button", { name: "保存分类与标签" })).toHaveClass(
+      "dark:bg-[#d8e2db]",
+    );
   });
 });

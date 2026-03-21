@@ -10,8 +10,18 @@ import { CreateTagDto } from './dto/create-tag.dto';
 import { ListTaxonomyQueryDto } from './dto/list-taxonomy-query.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
+import { normalizeTaxonomySlug } from './taxonomy-slug';
 
-type TaxonomyListOptions = Pick<ListTaxonomyQueryDto, 'includeInactive' | 'keyword'>;
+type TaxonomyListOptions = Pick<
+  ListTaxonomyQueryDto,
+  'includeInactive' | 'keyword'
+>;
+
+export type EnsureTagCandidate = {
+  color?: string | null;
+  name: string;
+  slug?: string | null;
+};
 
 @Injectable()
 export class TaxonomyService {
@@ -35,7 +45,7 @@ export class TaxonomyService {
         data: {
           userId,
           name: dto.name,
-          slug: this.normalizeSlug(dto.slug ?? dto.name),
+          slug: normalizeTaxonomySlug(dto.slug ?? dto.name),
           description: dto.description ?? null,
           color: dto.color ?? null,
           isActive: dto.isActive ?? true,
@@ -47,7 +57,11 @@ export class TaxonomyService {
     }
   }
 
-  async updateCategory(userId: string, categoryId: string, dto: UpdateCategoryDto) {
+  async updateCategory(
+    userId: string,
+    categoryId: string,
+    dto: UpdateCategoryDto,
+  ) {
     const category = await this.findCategoryOrThrow(userId, categoryId);
 
     this.assertEditable(category.isSystem, 'Category');
@@ -59,7 +73,7 @@ export class TaxonomyService {
     }
 
     if (dto.slug !== undefined) {
-      data.slug = this.normalizeSlug(dto.slug);
+      data.slug = normalizeTaxonomySlug(dto.slug);
     }
 
     if (dto.description !== undefined) {
@@ -118,7 +132,7 @@ export class TaxonomyService {
         data: {
           userId,
           name: dto.name,
-          slug: this.normalizeSlug(dto.slug ?? dto.name),
+          slug: normalizeTaxonomySlug(dto.slug ?? dto.name),
           color: dto.color ?? null,
           isActive: dto.isActive ?? true,
         },
@@ -140,7 +154,7 @@ export class TaxonomyService {
     }
 
     if (dto.slug !== undefined) {
-      data.slug = this.normalizeSlug(dto.slug);
+      data.slug = normalizeTaxonomySlug(dto.slug);
     }
 
     if (dto.color !== undefined) {
@@ -176,6 +190,87 @@ export class TaxonomyService {
         isActive: false,
       },
     });
+  }
+
+  async ensureTagsForUser(userId: string, candidates: EnsureTagCandidate[]) {
+    const normalizedCandidates = candidates
+      .map((candidate) => this.normalizeEnsureTagCandidate(candidate))
+      .filter(
+        (
+          candidate,
+        ): candidate is {
+          color: string | null;
+          name: string;
+          slug: string;
+        } => candidate !== null,
+      );
+
+    if (normalizedCandidates.length === 0) {
+      return [];
+    }
+
+    const uniqueSlugs = [
+      ...new Set(normalizedCandidates.map((item) => item.slug)),
+    ];
+    const tagsBySlug = new Map(
+      (
+        await this.prisma.tag.findMany({
+          where: {
+            userId,
+            slug: {
+              in: uniqueSlugs,
+            },
+          },
+        })
+      ).map((tag) => [tag.slug, tag] as const),
+    );
+    const resolvedTags = [];
+
+    for (const candidate of normalizedCandidates) {
+      const existingTag = tagsBySlug.get(candidate.slug);
+
+      if (existingTag) {
+        resolvedTags.push(existingTag);
+        continue;
+      }
+
+      try {
+        const createdTag = await this.prisma.tag.create({
+          data: {
+            userId,
+            name: candidate.name,
+            slug: candidate.slug,
+            color: candidate.color,
+            isActive: true,
+          },
+        });
+
+        tagsBySlug.set(createdTag.slug, createdTag);
+        resolvedTags.push(createdTag);
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          const concurrentTag = await this.prisma.tag.findFirst({
+            where: {
+              userId,
+              slug: candidate.slug,
+            },
+          });
+
+          if (concurrentTag) {
+            tagsBySlug.set(concurrentTag.slug, concurrentTag);
+            resolvedTags.push(concurrentTag);
+            continue;
+          }
+        }
+
+        this.rethrowTaxonomyConflict(error, 'Tag');
+      }
+    }
+
+    return resolvedTags;
   }
 
   private buildCategoryWhere(
@@ -294,21 +389,18 @@ export class TaxonomyService {
     }
   }
 
-  private normalizeSlug(value: string) {
-    const normalized = value
-      .trim()
-      .normalize('NFKC')
-      .toLowerCase()
-      .replace(/[\s_]+/g, '-')
-      .replace(/[^\p{L}\p{N}-]+/gu, '')
-      .replace(/-{2,}/g, '-')
-      .replace(/^-+|-+$/g, '');
+  private normalizeEnsureTagCandidate(candidate: EnsureTagCandidate) {
+    const name = candidate.name.trim() || candidate.slug?.trim() || '';
 
-    if (!normalized) {
-      throw new BadRequestException('Taxonomy slug cannot be empty');
+    if (!name) {
+      return null;
     }
 
-    return normalized;
+    return {
+      name,
+      slug: normalizeTaxonomySlug(candidate.slug ?? name),
+      color: candidate.color ?? null,
+    };
   }
 
   private rethrowTaxonomyConflict(error: unknown, entityName: string): never {

@@ -325,7 +325,6 @@ export default async function ArchiveDetailPage({
                 locale={locale}
                 primaryCategory={archive.primaryCategory}
                 primaryCategoryLocked={archive.primaryCategoryLocked}
-                primaryCategorySource={archive.primaryCategorySource}
                 tagAssignments={archive.tagAssignments}
                 tagAssignmentsLocked={archive.tagAssignmentsLocked}
                 tags={taxonomyOptions?.tags ?? []}

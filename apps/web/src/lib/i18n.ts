@@ -567,18 +567,14 @@ type Messages = {
     taxonomyTitle: string;
     taxonomyDescription: string;
     currentCategoryLabel: string;
+    currentTagsLabel: string;
     noPrimaryCategory: string;
-    manualTagsLabel: string;
-    aiTagsLabel: string;
-    ruleTagsLabel: string;
-    noManualTags: string;
-    noAiTags: string;
-    noRuleTags: string;
+    noTags: string;
     primaryCategoryLabel: string;
     chooseCategory: string;
     tagsFieldLabel: string;
     taxonomyEditorHint: string;
-    manualLockBadge: string;
+    lockBadge: string;
     noTagOptions: string;
     taxonomyLockHint: string;
     taxonomyLoadError: string;
@@ -1457,26 +1453,22 @@ const messages: Record<Locale, Messages> = {
       targetAuthor: "目标作者：@{username}",
       taxonomyTitle: "分类与标签",
       taxonomyDescription:
-        "在这里维护人工主分类和多标签，同时保留 AI 或规则来源，方便后续筛选和报告汇总。",
+        "在这里维护归档帖子的主分类与多标签结果，AI 自动打标和人工调整会共同沉淀为同一套可编辑结果。",
       currentCategoryLabel: "当前主分类",
+      currentTagsLabel: "当前标签",
       noPrimaryCategory: "尚未设置主分类",
-      manualTagsLabel: "人工标签",
-      aiTagsLabel: "AI 标签",
-      ruleTagsLabel: "规则标签",
-      noManualTags: "还没有人工标签",
-      noAiTags: "还没有 AI 标签",
-      noRuleTags: "还没有规则标签",
-      primaryCategoryLabel: "人工主分类",
+      noTags: "还没有标签",
+      primaryCategoryLabel: "主分类",
       chooseCategory: "不设置主分类",
-      tagsFieldLabel: "人工标签选择",
+      tagsFieldLabel: "标签选择",
       taxonomyEditorHint:
-        "勾选后会写入 `MANUAL` 来源标签；已有 AI 或规则标签会继续保留在摘要里。",
-      manualLockBadge: "人工锁定",
+        "这里编辑的是当前归档的最终标签集合。AI 自动创建的标签也会出现在同一套列表里，可直接修改或删除。",
+      lockBadge: "已锁定",
       noTagOptions: "当前还没有可选标签，请先在分类标签页中创建标签。",
       taxonomyLockHint:
-        "保存后，主分类与人工标签集合会进入锁定状态，后续 AI 重跑默认不会覆盖这两个字段。",
+        "保存后，当前分类和标签集合会进入锁定状态，后续 AI 重跑默认不会覆盖它们，直到你再次手动调整。",
       taxonomyLoadError: "分类与标签选项加载失败。",
-      saveTaxonomy: "保存人工分类与标签",
+      saveTaxonomy: "保存分类与标签",
       saveTaxonomyPending: "正在保存分类与标签...",
     },
     runs: {
@@ -2231,7 +2223,8 @@ const messages: Record<Locale, Messages> = {
       windowLimitTitle: "Window rate limit",
       windowLimitDescription:
         "{calls} / {limit} requests used within the current {seconds}-second window.",
-      windowRemainingDescription: "{count} requests remain in the current window.",
+      windowRemainingDescription:
+        "{count} requests remain in the current window.",
       dailyBudgetTitle: "Daily token budget",
       dailyBudgetDescription: "{used} / {limit} tokens used today.",
       dailyBudgetRemainingDescription: "{count} tokens remain today.",
@@ -2396,27 +2389,23 @@ const messages: Record<Locale, Messages> = {
       targetAuthor: "Target author: @{username}",
       taxonomyTitle: "Category and tags",
       taxonomyDescription:
-        "Manage manual categories and multi-tags here while keeping AI and rule sources visible for later filtering and reporting.",
+        "Manage the primary category and shared tag set for this archive. AI-generated tags and manual edits both converge into the same editable result.",
       currentCategoryLabel: "Current primary category",
+      currentTagsLabel: "Current tags",
       noPrimaryCategory: "No primary category set",
-      manualTagsLabel: "Manual tags",
-      aiTagsLabel: "AI tags",
-      ruleTagsLabel: "Rule tags",
-      noManualTags: "No manual tags yet",
-      noAiTags: "No AI tags yet",
-      noRuleTags: "No rule tags yet",
-      primaryCategoryLabel: "Manual primary category",
+      noTags: "No tags yet",
+      primaryCategoryLabel: "Primary category",
       chooseCategory: "No primary category",
-      tagsFieldLabel: "Manual tag selection",
+      tagsFieldLabel: "Tag selection",
       taxonomyEditorHint:
-        "Checked items are stored as `MANUAL` tags. Existing AI or rule tags remain visible in the summary.",
-      manualLockBadge: "Manual lock",
+        "You are editing the final tag set for this archive. Tags created by AI appear in the same shared pool and can be changed or removed here.",
+      lockBadge: "Locked",
       noTagOptions:
         "No tag options are available yet. Create tags from the taxonomy page first.",
       taxonomyLockHint:
-        "After saving, the primary category and manual tag set become locked, so later AI reruns will not overwrite them by default.",
+        "After saving, the current category and tag set become locked so later AI reruns will not overwrite them by default until you edit them again.",
       taxonomyLoadError: "Failed to load taxonomy options.",
-      saveTaxonomy: "Save manual category and tags",
+      saveTaxonomy: "Save category and tags",
       saveTaxonomyPending: "Saving category and tags...",
     },
     runs: {
