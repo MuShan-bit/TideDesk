@@ -638,9 +638,10 @@
       依赖：`T1502`、`T1401`。
       备注：已新增 `PostClassificationService`，统一生成帖子分类的系统 Prompt、用户 Prompt、响应 Schema 与 AI Gateway 请求；同时实现对 JSON / fenced JSON 输出的稳健解析，支持主分类、标签、摘要、置信度与解释字段的归一化，为后续执行器与自动触发链路提供可复用协议层。
 
-- [ ] `T1602` `P1` 新增 AI 任务记录与执行器。
+- [x] `T1602` `P1` 新增 AI 任务记录与执行器。
       完成标准：AI 分类任务具备 `PENDING/RUNNING/SUCCESS/FAILED` 状态管理。
       依赖：`T1501`、`T1601`。
+      备注：已新增 `PostClassificationTaskService`，支持为归档帖子创建 `PENDING` 分类任务，并在执行时流转为 `RUNNING -> SUCCESS / FAILED`；执行过程中会读取归档与分类标签目录、调用 AI Gateway、解析结构化输出，并把模型选择、Token 消耗、成本估算与解析结果写回 `ai_task_records`。
 
 - [ ] `T1603` `P1` 在新帖子归档后触发自动 AI 分类。
       完成标准：新归档帖子落库后自动生成分类与标签结果。
