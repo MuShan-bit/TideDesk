@@ -13,6 +13,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
 
 @Module({
@@ -35,6 +36,7 @@ import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
     CrawlJobsModule,
     CrawlRunsModule,
     DashboardModule,
+    ReportsModule,
     TaxonomyModule,
   ],
 })
