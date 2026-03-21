@@ -458,7 +458,7 @@ function CategorySection({
       <CardContent className="space-y-4">
         <ActionFeedback state={disableState} />
         {categories.length > 0 ? (
-          <div className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-[#fcfaf5] dark:border-white/10 dark:bg-white/8">
+          <div className="overflow-hidden border border-border/70 bg-[#fcfaf5] dark:border-white/10 dark:bg-white/8">
             <Table>
               <TableHeader className="bg-white/70 dark:bg-white/6 [&_tr]:border-border/60 dark:[&_tr]:border-white/10">
                 <TableRow className="hover:bg-transparent">
@@ -614,7 +614,7 @@ function TagSection({
       <CardContent className="space-y-4">
         <ActionFeedback state={disableState} />
         {tags.length > 0 ? (
-          <div className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-[#fcfaf5] dark:border-white/10 dark:bg-white/8">
+          <div className="overflow-hidden border border-border/70 bg-[#fcfaf5] dark:border-white/10 dark:bg-white/8">
             <Table>
               <TableHeader className="bg-white/70 dark:bg-white/6 [&_tr]:border-border/60 dark:[&_tr]:border-white/10">
                 <TableRow className="hover:bg-transparent">
@@ -768,7 +768,7 @@ export function TaxonomyConsole({
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="space-y-6">
         <CategorySection
           categories={categories}
           disableState={categoryDisableState}
