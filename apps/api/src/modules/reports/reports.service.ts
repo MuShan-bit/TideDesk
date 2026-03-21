@@ -80,6 +80,7 @@ type ListReportsOptions = {
 };
 
 type UpdateReportInput = {
+  sourcePosts?: CreateReportSourcePostInput[];
   renderedHtml?: string | null;
   richTextJson?: Prisma.InputJsonValue;
   status?: ReportStatus;
@@ -235,6 +236,17 @@ export class ReportsService {
     }
 
     const data: Prisma.ReportUncheckedUpdateInput = {};
+    const sourcePosts =
+      input.sourcePosts !== undefined
+        ? this.normalizeSourcePosts(input.sourcePosts)
+        : undefined;
+
+    if (sourcePosts) {
+      await this.ensureSourcePostsAvailable(
+        userId,
+        sourcePosts.map((item) => item.archivedPostId),
+      );
+    }
 
     if (input.title !== undefined) {
       const title = input.title.trim();
@@ -262,12 +274,33 @@ export class ReportsService {
       data.summaryJson = input.summaryJson;
     }
 
-    return this.prisma.report.update({
-      where: {
-        id: report.id,
-      },
-      data,
-      include: reportDetailInclude,
+    return this.prisma.$transaction(async (tx) => {
+      if (sourcePosts !== undefined) {
+        await tx.reportSourcePost.deleteMany({
+          where: {
+            reportId: report.id,
+          },
+        });
+
+        if (sourcePosts.length > 0) {
+          await tx.reportSourcePost.createMany({
+            data: sourcePosts.map((item) => ({
+              reportId: report.id,
+              archivedPostId: item.archivedPostId,
+              weightScore: item.weightScore,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      return tx.report.update({
+        where: {
+          id: report.id,
+        },
+        data,
+        include: reportDetailInclude,
+      });
     });
   }
 

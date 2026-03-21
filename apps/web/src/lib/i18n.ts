@@ -17,6 +17,7 @@ type Messages = {
       dashboard: string;
       bindings: string;
       strategies: string;
+      reports: string;
       ai: string;
       taxonomy: string;
       archives: string;
@@ -607,6 +608,88 @@ type Messages = {
     noErrorSummary: string;
     backToBindings: string;
   };
+  reports: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    badge: string;
+    generateTitle: string;
+    generateDescription: string;
+    generateBadge: string;
+    generateAction: string;
+    generating: string;
+    filterTitle: string;
+    filterDescription: string;
+    noBindingsHint: string;
+    noCategoriesHint: string;
+    noTagsHint: string;
+    allReportTypes: string;
+    allStatuses: string;
+    applyFilters: string;
+    clearFilters: string;
+    errorTitle: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    emptyAction: string;
+    createdAtLabel: string;
+    updatedAtLabel: string;
+    periodLabel: string;
+    sourcePostsLabel: string;
+    reportIdLabel: string;
+    summaryLabel: string;
+    noSummary: string;
+    viewDetail: string;
+    form: {
+      reportTypeLabel: string;
+      statusLabel: string;
+      periodStartLabel: string;
+      periodEndLabel: string;
+      bindingFilterLabel: string;
+      modeFilterLabel: string;
+      categoryFilterLabel: string;
+      tagFilterLabel: string;
+    };
+  };
+  reportDetail: {
+    eyebrow: string;
+    titleFallback: string;
+    descriptionReady: string;
+    descriptionLoading: string;
+    errorTitle: string;
+    errorAction: string;
+    periodLabel: string;
+    createdAtLabel: string;
+    updatedAtLabel: string;
+    summaryTitle: string;
+    noSummary: string;
+    sourcePostsTitle: string;
+    sourcePostsDescription: string;
+    sourcePostLabel: string;
+    viewArchive: string;
+    openSourcePost: string;
+    emptySourcePostsTitle: string;
+    emptySourcePostsDescription: string;
+    contextTitle: string;
+    contextDescription: string;
+    sourcePostsCountLabel: string;
+    sourcePostsCount: string;
+    editorTitle: string;
+    editorDescription: string;
+    titleLabel: string;
+    bodyLabel: string;
+    bodyPlaceholder: string;
+    bodyHint: string;
+    save: string;
+    saving: string;
+    regenerateTitle: string;
+    regenerateDescription: string;
+    regenerate: string;
+    regenerating: string;
+    publishTitle: string;
+    publishDescription: string;
+    publishPendingHint: string;
+    publishAction: string;
+  };
   runDetail: {
     eyebrow: string;
     titleFallback: string;
@@ -690,6 +773,8 @@ type Messages = {
       "PENDING" | "RUNNING" | "SUCCESS" | "FAILED" | "CANCELLED",
       string
     >;
+    reportType: Record<"WEEKLY" | "MONTHLY", string>;
+    reportStatus: Record<"DRAFT" | "READY" | "FAILED", string>;
   };
   actions: {
     login: {
@@ -774,6 +859,20 @@ type Messages = {
       modelDefaultUpdated: string;
       providerTested: string;
     };
+    reports: {
+      missingReportType: string;
+      missingPeriodStart: string;
+      missingPeriodEnd: string;
+      invalidPeriodRange: string;
+      missingReportId: string;
+      missingReportTitle: string;
+      missingBodyText: string;
+      generateValidationFailed: string;
+      updateValidationFailed: string;
+      regenerateValidationFailed: string;
+      reportUpdated: string;
+      reportRegenerated: string;
+    };
     api: {
       unauthorized: string;
       requestFailed: string;
@@ -813,6 +912,7 @@ const messages: Record<Locale, Messages> = {
         dashboard: "仪表盘",
         bindings: "绑定",
         strategies: "策略",
+        reports: "报告",
         ai: "AI 模型",
         taxonomy: "分类标签",
         archives: "归档",
@@ -1504,6 +1604,100 @@ const messages: Record<Locale, Messages> = {
       noErrorSummary: "当前记录没有错误摘要",
       backToBindings: "返回绑定页",
     },
+    reports: {
+      eyebrow: "报告中心",
+      title: "报告中心",
+      description:
+        "按周期汇总归档帖子，生成周报或月报，并在这里统一查看、编辑与后续发布准备。",
+      badge: "{count} 份报告",
+      generateTitle: "生成新报告",
+      generateDescription:
+        "选择统计周期和过滤条件后，系统会基于归档内容调用 AI 生成结构化报告草稿。",
+      generateBadge: "AI Summary",
+      generateAction: "生成报告",
+      generating: "生成中...",
+      filterTitle: "筛选条件",
+      filterDescription:
+        "可以按绑定账号、抓取模式、分类和标签限定报告范围，也可以在列表中按周期与状态筛选历史报告。",
+      noBindingsHint: "还没有可用于汇总的绑定账号。",
+      noCategoriesHint: "当前没有启用中的分类可用于筛选。",
+      noTagsHint: "当前没有启用中的标签可用于筛选。",
+      allReportTypes: "全部周期",
+      allStatuses: "全部状态",
+      applyFilters: "应用筛选",
+      clearFilters: "清空筛选",
+      errorTitle: "报告列表暂时不可用",
+      emptyTitle: "还没有生成过报告",
+      emptyDescription:
+        "先选择一个时间范围生成周报或月报，系统会把 AI 输出的标题、摘要和正文沉淀在这里。",
+      emptyAction: "立即生成报告",
+      createdAtLabel: "创建时间",
+      updatedAtLabel: "最近更新",
+      periodLabel: "统计周期",
+      sourcePostsLabel: "来源帖子",
+      reportIdLabel: "报告 ID",
+      summaryLabel: "摘要",
+      noSummary: "当前报告还没有可展示的摘要。",
+      viewDetail: "查看详情",
+      form: {
+        reportTypeLabel: "报告周期",
+        statusLabel: "报告状态",
+        periodStartLabel: "起始日期",
+        periodEndLabel: "结束日期",
+        bindingFilterLabel: "绑定账号",
+        modeFilterLabel: "抓取模式",
+        categoryFilterLabel: "分类",
+        tagFilterLabel: "标签",
+      },
+    },
+    reportDetail: {
+      eyebrow: "报告详情",
+      titleFallback: "报告详情",
+      descriptionReady:
+        "这里展示 AI 生成的报告正文、来源帖子、上下文信息，以及后续人工编辑入口。",
+      descriptionLoading: "报告详情正在准备中。",
+      errorTitle: "报告详情暂时不可用",
+      errorAction: "返回报告中心",
+      periodLabel: "统计周期",
+      createdAtLabel: "创建时间",
+      updatedAtLabel: "最近更新",
+      summaryTitle: "报告摘要",
+      noSummary: "当前报告还没有摘要。",
+      sourcePostsTitle: "来源帖子",
+      sourcePostsDescription:
+        "这些归档帖子参与了本次报告聚合，你可以继续回看归档详情或打开原帖来源。",
+      sourcePostLabel: "来源帖子",
+      viewArchive: "查看归档",
+      openSourcePost: "查看来源帖子",
+      emptySourcePostsTitle: "当前报告没有关联来源帖子",
+      emptySourcePostsDescription:
+        "如果这是一次失败生成或数据被清理，来源帖子列表可能为空。",
+      contextTitle: "报告上下文",
+      contextDescription:
+        "这里记录报告的周期、来源帖子数量和创建更新时间，便于判断这份报告的新鲜度。",
+      sourcePostsCountLabel: "来源帖子数量",
+      sourcePostsCount: "{count} 条帖子",
+      editorTitle: "人工编辑",
+      editorDescription:
+        "你可以在 AI 结果基础上继续调整标题和正文，保存后会更新当前报告内容。",
+      titleLabel: "报告标题",
+      bodyLabel: "报告正文",
+      bodyPlaceholder: "在这里补充或修改报告正文。",
+      bodyHint: "当前编辑器使用纯文本输入，保存后会自动转换为平台内的富文本文档。",
+      save: "保存修改",
+      saving: "保存中...",
+      regenerateTitle: "重新生成",
+      regenerateDescription:
+        "基于当前报告的原始周期和过滤条件重新调用 AI 生成内容，适合在更换模型或更新归档后重跑。",
+      regenerate: "重新生成报告",
+      regenerating: "重新生成中...",
+      publishTitle: "发布草稿",
+      publishDescription:
+        "这里将承接后续的一键发布流程，把报告整理为面向外部平台的发布草稿。",
+      publishPendingHint:
+        "当前版本先完成报告查看、编辑和重生成能力。发布草稿与多平台投放将在后续 TODO 中继续实现。",
+      publishAction: "发起发布草稿",
+    },
     runDetail: {
       eyebrow: "执行详情",
       titleFallback: "执行详情",
@@ -1625,6 +1819,15 @@ const messages: Record<Locale, Messages> = {
         FAILED: "失败",
         CANCELLED: "已取消",
       },
+      reportType: {
+        WEEKLY: "周报",
+        MONTHLY: "月报",
+      },
+      reportStatus: {
+        DRAFT: "草稿",
+        READY: "已完成",
+        FAILED: "生成失败",
+      },
     },
     actions: {
       login: {
@@ -1712,6 +1915,20 @@ const messages: Record<Locale, Messages> = {
         modelDefaultUpdated: "默认任务模型已切换。",
         providerTested: "连接测试成功，模型 {model} 返回：{text}",
       },
+      reports: {
+        missingReportType: "请选择报告周期。",
+        missingPeriodStart: "请选择报告起始日期。",
+        missingPeriodEnd: "请选择报告结束日期。",
+        invalidPeriodRange: "结束日期不能早于起始日期。",
+        missingReportId: "缺少报告 ID。",
+        missingReportTitle: "请填写报告标题。",
+        missingBodyText: "请填写报告正文。",
+        generateValidationFailed: "报告生成参数校验失败。",
+        updateValidationFailed: "报告编辑内容校验失败。",
+        regenerateValidationFailed: "报告重生成校验失败。",
+        reportUpdated: "报告内容已保存。",
+        reportRegenerated: "报告已重新生成。",
+      },
       api: {
         unauthorized: "未登录或会话已失效。",
         requestFailed: "请求失败，请稍后重试。",
@@ -1731,6 +1948,7 @@ const messages: Record<Locale, Messages> = {
         dashboard: "Dashboard",
         bindings: "Bindings",
         strategies: "Strategies",
+        reports: "Reports",
         ai: "AI Models",
         taxonomy: "Taxonomy",
         archives: "Archives",
@@ -2446,6 +2664,101 @@ const messages: Record<Locale, Messages> = {
       noErrorSummary: "This run has no error summary",
       backToBindings: "Back to bindings",
     },
+    reports: {
+      eyebrow: "Report center",
+      title: "Reports",
+      description:
+        "Aggregate archived posts by time period, generate weekly or monthly AI reports, and manage review plus publishing prep from one place.",
+      badge: "{count} reports",
+      generateTitle: "Generate a new report",
+      generateDescription:
+        "Choose a reporting period and filters, then let the system build a structured AI draft from archived posts.",
+      generateBadge: "AI Summary",
+      generateAction: "Generate report",
+      generating: "Generating...",
+      filterTitle: "Filters",
+      filterDescription:
+        "Use bindings, crawl modes, categories, and tags to define the report scope, then filter historical reports by period and status.",
+      noBindingsHint: "No bound accounts are available for aggregation yet.",
+      noCategoriesHint: "There are no active categories available for filtering.",
+      noTagsHint: "There are no active tags available for filtering.",
+      allReportTypes: "All periods",
+      allStatuses: "All statuses",
+      applyFilters: "Apply filters",
+      clearFilters: "Clear filters",
+      errorTitle: "Report list is temporarily unavailable",
+      emptyTitle: "No reports yet",
+      emptyDescription:
+        "Generate your first weekly or monthly report to store AI-generated titles, summaries, and body content here.",
+      emptyAction: "Generate a report",
+      createdAtLabel: "Created",
+      updatedAtLabel: "Updated",
+      periodLabel: "Reporting period",
+      sourcePostsLabel: "Source posts",
+      reportIdLabel: "Report ID",
+      summaryLabel: "Summary",
+      noSummary: "No summary is available for this report yet.",
+      viewDetail: "View details",
+      form: {
+        reportTypeLabel: "Report period",
+        statusLabel: "Report status",
+        periodStartLabel: "Start date",
+        periodEndLabel: "End date",
+        bindingFilterLabel: "Bound accounts",
+        modeFilterLabel: "Crawl modes",
+        categoryFilterLabel: "Categories",
+        tagFilterLabel: "Tags",
+      },
+    },
+    reportDetail: {
+      eyebrow: "Report detail",
+      titleFallback: "Report detail",
+      descriptionReady:
+        "This page shows the AI-generated report body, source posts, context metadata, and manual editing tools.",
+      descriptionLoading: "Report details are loading.",
+      errorTitle: "Report detail is temporarily unavailable",
+      errorAction: "Back to reports",
+      periodLabel: "Reporting period",
+      createdAtLabel: "Created",
+      updatedAtLabel: "Updated",
+      summaryTitle: "Report summary",
+      noSummary: "No summary is available for this report.",
+      sourcePostsTitle: "Source posts",
+      sourcePostsDescription:
+        "These archived posts were used for report aggregation. You can continue into archive details or open the original source posts.",
+      sourcePostLabel: "Source post",
+      viewArchive: "View archive",
+      openSourcePost: "View source post",
+      emptySourcePostsTitle: "This report has no linked source posts",
+      emptySourcePostsDescription:
+        "The source list may be empty for failed generations or after related data has been cleaned up.",
+      contextTitle: "Report context",
+      contextDescription:
+        "Review the reporting period, source-post count, and creation timestamps to judge how fresh this report is.",
+      sourcePostsCountLabel: "Source post count",
+      sourcePostsCount: "{count} posts",
+      editorTitle: "Manual editing",
+      editorDescription:
+        "Adjust the AI-generated title and body here, then save the refined version back into the current report.",
+      titleLabel: "Report title",
+      bodyLabel: "Report body",
+      bodyPlaceholder: "Edit or expand the report body here.",
+      bodyHint:
+        "The current editor accepts plain text. It will be converted into the platform rich-text document format when saved.",
+      save: "Save changes",
+      saving: "Saving...",
+      regenerateTitle: "Regenerate",
+      regenerateDescription:
+        "Reuse the original report period and filters to call AI again. This is helpful after changing models or refreshing archived data.",
+      regenerate: "Regenerate report",
+      regenerating: "Regenerating...",
+      publishTitle: "Publishing draft",
+      publishDescription:
+        "This panel is reserved for the next publishing workflow that turns reports into channel-ready drafts.",
+      publishPendingHint:
+        "The current version focuses on viewing, editing, and regenerating reports. Publishing drafts and multi-channel delivery will be implemented in later TODO items.",
+      publishAction: "Create publishing draft",
+    },
     runDetail: {
       eyebrow: "Run detail",
       titleFallback: "Run detail",
@@ -2567,6 +2880,15 @@ const messages: Record<Locale, Messages> = {
         FAILED: "Failed",
         CANCELLED: "Cancelled",
       },
+      reportType: {
+        WEEKLY: "Weekly",
+        MONTHLY: "Monthly",
+      },
+      reportStatus: {
+        DRAFT: "Draft",
+        READY: "Ready",
+        FAILED: "Failed",
+      },
     },
     actions: {
       login: {
@@ -2659,6 +2981,20 @@ const messages: Record<Locale, Messages> = {
         modelDefaultUpdated: "Default task model updated.",
         providerTested:
           "Connection test succeeded. Model {model} replied with: {text}",
+      },
+      reports: {
+        missingReportType: "Please choose a report period.",
+        missingPeriodStart: "Please choose the report start date.",
+        missingPeriodEnd: "Please choose the report end date.",
+        invalidPeriodRange: "The end date cannot be earlier than the start date.",
+        missingReportId: "Missing report ID.",
+        missingReportTitle: "Please enter the report title.",
+        missingBodyText: "Please enter the report body.",
+        generateValidationFailed: "Report generation validation failed.",
+        updateValidationFailed: "Report update validation failed.",
+        regenerateValidationFailed: "Report regeneration validation failed.",
+        reportUpdated: "Report content has been saved.",
+        reportRegenerated: "Report has been regenerated.",
       },
       api: {
         unauthorized: "Not signed in or the session has expired.",
