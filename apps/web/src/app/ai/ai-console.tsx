@@ -11,7 +11,14 @@ import {
   updateModelAction,
   updateProviderAction,
 } from "./actions";
-import type { AiModelRecord, AiProviderRecord, AiTaskType } from "./ai-types";
+import type {
+  AiModelRecord,
+  AiProviderRecord,
+  AiTaskAuditRecord,
+  AiTaskStatus,
+  AiTaskType,
+  AiUsageSummaryRecord,
+} from "./ai-types";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +51,9 @@ type AiConsoleProps = {
   locale: Locale;
   models: AiModelRecord[];
   providers: AiProviderRecord[];
+  taskRecords: AiTaskAuditRecord[];
+  usageLoadError?: string | null;
+  usageSummary: AiUsageSummaryRecord | null;
 };
 
 type ProviderDialogState =
@@ -71,6 +81,32 @@ function formatParameters(value: Record<string, unknown> | null) {
   }
 
   return JSON.stringify(value, null, 2);
+}
+
+function formatNumberValue(value: number, locale: Locale) {
+  return new Intl.NumberFormat(getIntlLocale(locale)).format(value);
+}
+
+function formatPercentValue(value: number, locale: Locale) {
+  return new Intl.NumberFormat(getIntlLocale(locale), {
+    style: "percent",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatUsdValue(value: number, locale: Locale) {
+  const fractionDigits = value !== 0 && value < 0.01 ? 6 : 2;
+
+  return new Intl.NumberFormat(getIntlLocale(locale), {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: Math.min(fractionDigits, 2),
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
+function formatOptionalDecimalInput(value: number | null | undefined) {
+  return value === null || value === undefined ? "" : String(value);
 }
 
 function ActionFeedback({ state }: { state: AiActionState }) {
@@ -140,6 +176,21 @@ function getStatusBadgeClassName(enabled: boolean) {
   return enabled
     ? "bg-[#eef4f0] text-[#2d4d3f] dark:bg-[#223228] dark:text-[#d8e2db]"
     : "bg-[#f5efe4] text-[#7f5a26] dark:bg-[#3d3124] dark:text-[#f2c58c]";
+}
+
+function getTaskStatusBadgeClassName(status: AiTaskStatus) {
+  switch (status) {
+    case "SUCCESS":
+      return "bg-[#eef4f0] text-[#2d4d3f] dark:bg-[#223228] dark:text-[#d8e2db]";
+    case "RUNNING":
+      return "bg-[#e9f0f5] text-[#274a67] dark:bg-[#203544] dark:text-[#d7e5ef]";
+    case "FAILED":
+      return "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-200";
+    case "CANCELLED":
+      return "bg-[#f3ecfb] text-[#5a3d84] dark:bg-[#31243e] dark:text-[#d9c7ef]";
+    default:
+      return "bg-[#f5efe4] text-[#7f5a26] dark:bg-[#3d3124] dark:text-[#f2c58c]";
+  }
 }
 
 function ProviderDialogForm({
@@ -487,6 +538,47 @@ function ModelDialogForm({
               </div>
             </div>
 
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <FieldLabel htmlFor="model-input-token-price">
+                  {messages.ai.inputTokenPriceLabel}
+                </FieldLabel>
+                <Input
+                  id="model-input-token-price"
+                  name="inputTokenPriceUsd"
+                  type="number"
+                  min="0"
+                  step="0.000001"
+                  defaultValue={formatOptionalDecimalInput(
+                    editingModel?.inputTokenPriceUsd,
+                  )}
+                  placeholder="0.001500"
+                  className="h-11 rounded-2xl border-border/70 bg-white px-4 dark:border-white/10 dark:bg-white/10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <FieldLabel htmlFor="model-output-token-price">
+                  {messages.ai.outputTokenPriceLabel}
+                </FieldLabel>
+                <Input
+                  id="model-output-token-price"
+                  name="outputTokenPriceUsd"
+                  type="number"
+                  min="0"
+                  step="0.000001"
+                  defaultValue={formatOptionalDecimalInput(
+                    editingModel?.outputTokenPriceUsd,
+                  )}
+                  placeholder="0.006000"
+                  className="h-11 rounded-2xl border-border/70 bg-white px-4 dark:border-white/10 dark:bg-white/10"
+                />
+              </div>
+            </div>
+            <p className="text-xs leading-5 text-muted-foreground">
+              {messages.ai.tokenPriceHint}
+            </p>
+
             <div className="space-y-2">
               <FieldLabel htmlFor="model-parameters">
                 {messages.ai.parametersLabel}
@@ -699,6 +791,18 @@ function ModelCard({
 }) {
   const messages = getMessages(locale);
   const parameterText = formatParameters(model.parametersJson);
+  const inputTokenPriceText =
+    model.inputTokenPriceUsd === null
+      ? messages.ai.noTokenPrice
+      : formatMessage(messages.ai.tokenPriceValue, {
+          value: formatUsdValue(model.inputTokenPriceUsd, locale),
+        });
+  const outputTokenPriceText =
+    model.outputTokenPriceUsd === null
+      ? messages.ai.noTokenPrice
+      : formatMessage(messages.ai.tokenPriceValue, {
+          value: formatUsdValue(model.outputTokenPriceUsd, locale),
+        });
 
   return (
     <div className="rounded-[1.75rem] border border-border/70 bg-[#fbfcfb] p-5 dark:border-white/10 dark:bg-white/6">
@@ -730,6 +834,10 @@ function ModelCard({
             <p>
               {model.provider.name} ·{" "}
               {messages.enums.aiProviderType[model.provider.providerType]}
+            </p>
+            <p>
+              {messages.ai.inputTokenPriceLabel}: {inputTokenPriceText} ·{" "}
+              {messages.ai.outputTokenPriceLabel}: {outputTokenPriceText}
             </p>
             <p>{formatDateTime(model.updatedAt, locale)}</p>
           </div>
@@ -788,11 +896,129 @@ function ModelCard({
   );
 }
 
+function UsageBreakdownList({
+  emptyLabel,
+  items,
+}: {
+  emptyLabel: string;
+  items: Array<{
+    id: string;
+    label: string;
+    meta: string;
+  }>;
+}) {
+  if (items.length === 0) {
+    return (
+      <p className="text-sm leading-6 text-muted-foreground">{emptyLabel}</p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((item) => (
+        <div
+          key={item.id}
+          className="rounded-[1.25rem] border border-border/60 bg-white/80 px-4 py-3 dark:border-white/8 dark:bg-white/4"
+        >
+          <p className="text-sm font-medium text-foreground">{item.label}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {item.meta}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TaskAuditRecordCard({
+  locale,
+  record,
+}: {
+  locale: Locale;
+  record: AiTaskAuditRecord;
+}) {
+  const messages = getMessages(locale);
+
+  return (
+    <div className="rounded-[1.5rem] border border-border/70 bg-[#fbfcfb] p-5 dark:border-white/10 dark:bg-white/6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <ModelTaskBadge locale={locale} taskType={record.taskType} />
+            <Badge
+              className={cn(
+                "rounded-full",
+                getTaskStatusBadgeClassName(record.status),
+              )}
+            >
+              {messages.enums.aiTaskStatus[record.status]}
+            </Badge>
+            {record.rateLimitScope ? (
+              <Badge className="rounded-full bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-200">
+                {messages.ai.rateLimitedBadge}
+              </Badge>
+            ) : null}
+          </div>
+          <div className="space-y-1 text-sm leading-6 text-muted-foreground">
+            <p className="text-base font-semibold text-foreground">
+              {record.model?.displayName ?? messages.ai.auditNoModel}
+            </p>
+            <p>
+              {record.provider?.name ?? messages.ai.auditNoProvider}
+              {record.provider
+                ? ` · ${messages.enums.aiProviderType[record.provider.providerType]}`
+                : ""}
+            </p>
+            <p>
+              {messages.ai.auditTargetLabel}: {record.targetType} /{" "}
+              {record.targetId}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-1 text-right text-sm leading-6 text-muted-foreground">
+          <p>
+            {messages.ai.auditTokensLabel}:{" "}
+            {formatNumberValue(record.totalTokens ?? 0, locale)}
+          </p>
+          <p>
+            {messages.ai.auditCostLabel}:{" "}
+            {record.estimatedCostUsd === null
+              ? messages.common.notRecorded
+              : formatUsdValue(record.estimatedCostUsd, locale)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2 text-sm leading-6 text-muted-foreground sm:grid-cols-2">
+        <p>
+          {messages.common.createdAt}: {formatDateTime(record.createdAt, locale)}
+        </p>
+        <p>
+          {messages.common.finishedAt}:{" "}
+          {record.finishedAt
+            ? formatDateTime(record.finishedAt, locale)
+            : messages.common.notRecorded}
+        </p>
+      </div>
+
+      {record.errorMessage ? (
+        <div className="mt-4 rounded-[1.25rem] bg-red-50 px-4 py-3 text-sm leading-6 text-red-700 dark:bg-red-950/30 dark:text-red-200">
+          {record.errorMessage}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function AiConsole({
   loadError,
   locale,
   models,
   providers,
+  taskRecords,
+  usageLoadError,
+  usageSummary,
 }: AiConsoleProps) {
   const messages = getMessages(locale);
   const [providerDialogState, setProviderDialogState] =
@@ -821,6 +1047,42 @@ export function AiConsole({
       defaultTaskCount,
     };
   }, [models, providers]);
+  const usageMetrics = useMemo(() => {
+    if (!usageSummary) {
+      return {
+        successRate: 0,
+        taskBreakdown: [],
+        providerBreakdown: [],
+      };
+    }
+
+    return {
+      successRate:
+        usageSummary.totalCalls > 0
+          ? usageSummary.successCalls / usageSummary.totalCalls
+          : 0,
+      taskBreakdown: usageSummary.byTaskType.slice(0, 4).map((item) => ({
+        id: item.taskType,
+        label: messages.enums.aiTaskType[item.taskType],
+        meta: formatMessage(messages.ai.breakdownMeta, {
+          calls: formatNumberValue(item.calls, locale),
+          tokens: formatNumberValue(item.totalTokens, locale),
+          cost: formatUsdValue(item.estimatedCostUsd, locale),
+        }),
+      })),
+      providerBreakdown: usageSummary.byProvider.slice(0, 4).map((item) => ({
+        id: item.providerConfigId,
+        label: `${item.providerName} · ${
+          messages.enums.aiProviderType[item.providerType]
+        }`,
+        meta: formatMessage(messages.ai.breakdownMeta, {
+          calls: formatNumberValue(item.calls, locale),
+          tokens: formatNumberValue(item.totalTokens, locale),
+          cost: formatUsdValue(item.estimatedCostUsd, locale),
+        }),
+      })),
+    };
+  }, [locale, messages, usageSummary]);
 
   return (
     <div className="space-y-6">
@@ -837,6 +1099,7 @@ export function AiConsole({
       {defaultState.success || defaultState.error ? (
         <ActionFeedback state={defaultState} />
       ) : null}
+      {usageLoadError ? <ActionFeedback state={{ error: usageLoadError }} /> : null}
 
       <div className="grid gap-4 lg:grid-cols-4">
         <SummaryCard
@@ -859,6 +1122,178 @@ export function AiConsole({
           toneClassName="bg-[#f3ecfb] text-[#5a3d84] dark:bg-[#31243e] dark:text-[#d9c7ef]"
           value={String(summary.defaultTaskCount)}
         />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-4">
+        <SummaryCard
+          label={messages.ai.summary.totalCalls}
+          toneClassName="bg-[#eef4f0] text-[#2d4d3f] dark:bg-[#223228] dark:text-[#d8e2db]"
+          value={
+            usageSummary
+              ? formatNumberValue(usageSummary.totalCalls, locale)
+              : messages.common.notRecorded
+          }
+        />
+        <SummaryCard
+          label={messages.ai.summary.successRate}
+          toneClassName="bg-[#e9f0f5] text-[#274a67] dark:bg-[#203544] dark:text-[#d7e5ef]"
+          value={
+            usageSummary
+              ? formatPercentValue(usageMetrics.successRate, locale)
+              : messages.common.notRecorded
+          }
+        />
+        <SummaryCard
+          label={messages.ai.summary.totalTokens}
+          toneClassName="bg-[#f5efe4] text-[#7f5a26] dark:bg-[#3d3124] dark:text-[#f2c58c]"
+          value={
+            usageSummary
+              ? formatNumberValue(usageSummary.totalTokens, locale)
+              : messages.common.notRecorded
+          }
+        />
+        <SummaryCard
+          label={messages.ai.summary.totalCost}
+          toneClassName="bg-[#f3ecfb] text-[#5a3d84] dark:bg-[#31243e] dark:text-[#d9c7ef]"
+          value={
+            usageSummary
+              ? formatUsdValue(usageSummary.totalEstimatedCostUsd, locale)
+              : messages.common.notRecorded
+          }
+        />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <Card className="rounded-[2rem] border-border/70 bg-white/78 py-0 shadow-[0_24px_80px_-40px_rgba(87,62,22,0.35)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
+          <CardHeader className="border-b border-border/60 px-6 py-5 dark:border-white/8">
+            <div className="space-y-1">
+              <CardTitle className="text-xl">{messages.ai.usageTitle}</CardTitle>
+              <CardDescription className="max-w-xl leading-6">
+                {usageSummary
+                  ? formatMessage(messages.ai.usageDescription, {
+                      days: usageSummary.rangeDays,
+                    })
+                  : messages.ai.usageEmptyDescription}
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6 px-6 py-6">
+            {usageSummary ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-[1.5rem] border border-border/60 bg-white/80 px-4 py-4 dark:border-white/8 dark:bg-white/4">
+                    <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+                      {messages.ai.windowLimitTitle}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-foreground">
+                      {formatMessage(messages.ai.windowLimitDescription, {
+                        calls: formatNumberValue(
+                          usageSummary.limits.recentWindowCalls,
+                          locale,
+                        ),
+                        limit: formatNumberValue(
+                          usageSummary.limits.maxRequestsPerWindow,
+                          locale,
+                        ),
+                        seconds: formatNumberValue(
+                          usageSummary.limits.windowSeconds,
+                          locale,
+                        ),
+                      })}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      {formatMessage(messages.ai.windowRemainingDescription, {
+                        count: formatNumberValue(
+                          usageSummary.limits.remainingWindowRequests,
+                          locale,
+                        ),
+                      })}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[1.5rem] border border-border/60 bg-white/80 px-4 py-4 dark:border-white/8 dark:bg-white/4">
+                    <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+                      {messages.ai.dailyBudgetTitle}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-foreground">
+                      {formatMessage(messages.ai.dailyBudgetDescription, {
+                        used: formatNumberValue(
+                          usageSummary.limits.dailyTokenUsage,
+                          locale,
+                        ),
+                        limit: formatNumberValue(
+                          usageSummary.limits.dailyTokenLimit,
+                          locale,
+                        ),
+                      })}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      {formatMessage(messages.ai.dailyBudgetRemainingDescription, {
+                        count: formatNumberValue(
+                          usageSummary.limits.remainingDailyTokens,
+                          locale,
+                        ),
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-foreground">
+                      {messages.ai.taskBreakdownTitle}
+                    </p>
+                    <UsageBreakdownList
+                      emptyLabel={messages.ai.breakdownEmpty}
+                      items={usageMetrics.taskBreakdown}
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-foreground">
+                      {messages.ai.providerBreakdownTitle}
+                    </p>
+                    <UsageBreakdownList
+                      emptyLabel={messages.ai.breakdownEmpty}
+                      items={usageMetrics.providerBreakdown}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <EmptyState
+                title={messages.ai.usageEmptyTitle}
+                description={messages.ai.usageEmptyDescription}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-[2rem] border-border/70 bg-white/78 py-0 shadow-[0_24px_80px_-40px_rgba(87,62,22,0.35)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
+          <CardHeader className="border-b border-border/60 px-6 py-5 dark:border-white/8">
+            <div className="space-y-1">
+              <CardTitle className="text-xl">{messages.ai.auditTitle}</CardTitle>
+              <CardDescription className="max-w-xl leading-6">
+                {messages.ai.auditDescription}
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 px-6 py-6">
+            {taskRecords.length === 0 ? (
+              <EmptyState
+                title={messages.ai.auditEmptyTitle}
+                description={messages.ai.auditEmptyDescription}
+              />
+            ) : (
+              taskRecords.map((record) => (
+                <TaskAuditRecordCard
+                  key={record.id}
+                  locale={locale}
+                  record={record}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">

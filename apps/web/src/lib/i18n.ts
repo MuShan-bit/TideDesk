@@ -412,7 +412,36 @@ type Messages = {
       enabledProviders: string;
       modelCount: string;
       defaultTasks: string;
+      totalCalls: string;
+      successRate: string;
+      totalTokens: string;
+      totalCost: string;
     };
+    usageTitle: string;
+    usageDescription: string;
+    usageErrorDescription: string;
+    usageEmptyTitle: string;
+    usageEmptyDescription: string;
+    windowLimitTitle: string;
+    windowLimitDescription: string;
+    windowRemainingDescription: string;
+    dailyBudgetTitle: string;
+    dailyBudgetDescription: string;
+    dailyBudgetRemainingDescription: string;
+    taskBreakdownTitle: string;
+    providerBreakdownTitle: string;
+    breakdownMeta: string;
+    breakdownEmpty: string;
+    auditTitle: string;
+    auditDescription: string;
+    auditEmptyTitle: string;
+    auditEmptyDescription: string;
+    auditNoProvider: string;
+    auditNoModel: string;
+    auditTargetLabel: string;
+    auditTokensLabel: string;
+    auditCostLabel: string;
+    rateLimitedBadge: string;
     providersTitle: string;
     providersDescription: string;
     createProvider: string;
@@ -448,6 +477,11 @@ type Messages = {
     providerNameLabel: string;
     modelCodeLabel: string;
     modelDisplayNameLabel: string;
+    inputTokenPriceLabel: string;
+    outputTokenPriceLabel: string;
+    tokenPriceHint: string;
+    tokenPriceValue: string;
+    noTokenPrice: string;
     taskTypeLabel: string;
     parametersLabel: string;
     parametersHint: string;
@@ -644,6 +678,10 @@ type Messages = {
       "POST_CLASSIFY" | "REPORT_SUMMARY" | "DRAFT_REWRITE",
       string
     >;
+    aiTaskStatus: Record<
+      "PENDING" | "RUNNING" | "SUCCESS" | "FAILED" | "CANCELLED",
+      string
+    >;
   };
   actions: {
     login: {
@@ -717,6 +755,7 @@ type Messages = {
       missingDisplayName: string;
       missingTaskType: string;
       invalidParametersJson: string;
+      invalidTokenPrice: string;
       defaultModelRequiresEnabled: string;
       providerValidationFailed: string;
       providerCreated: string;
@@ -1232,7 +1271,42 @@ const messages: Record<Locale, Messages> = {
         enabledProviders: "已启用提供商",
         modelCount: "模型数量",
         defaultTasks: "默认任务模型",
+        totalCalls: "近 30 天调用量",
+        successRate: "成功率",
+        totalTokens: "Token 总量",
+        totalCost: "预估成本",
       },
+      usageTitle: "调用审计与成本",
+      usageDescription:
+        "聚合最近 {days} 天 AI 调用量、Token 消耗、成本预估与限流余量，帮助你判断当前网关容量。",
+      usageErrorDescription:
+        "AI 调用审计或成本统计暂时不可用，其余配置页面仍可继续使用。",
+      usageEmptyTitle: "还没有 AI 调用记录",
+      usageEmptyDescription:
+        "完成一次模型测试或实际 AI 任务后，这里会开始展示调用量、Token 消耗和成本预估。",
+      windowLimitTitle: "窗口限流",
+      windowLimitDescription:
+        "{seconds} 秒窗口内已使用 {calls} / {limit} 次请求。",
+      windowRemainingDescription: "当前窗口剩余 {count} 次请求。",
+      dailyBudgetTitle: "日 Token 预算",
+      dailyBudgetDescription: "今日已使用 {used} / {limit} Token。",
+      dailyBudgetRemainingDescription: "今日剩余 {count} Token。",
+      taskBreakdownTitle: "按任务类型",
+      providerBreakdownTitle: "按提供商",
+      breakdownMeta: "{calls} 次调用 · {tokens} Token · {cost}",
+      breakdownEmpty: "当前没有可展示的聚合明细。",
+      auditTitle: "最近调用审计",
+      auditDescription:
+        "每一次 AI 网关调用都会记录任务类型、模型、Token 消耗、成本估算与错误信息，便于后续排查与调优。",
+      auditEmptyTitle: "还没有审计记录",
+      auditEmptyDescription:
+        "当你测试模型连接或触发实际 AI 任务后，最近的调用记录会展示在这里。",
+      auditNoProvider: "未关联提供商",
+      auditNoModel: "未关联模型",
+      auditTargetLabel: "目标对象",
+      auditTokensLabel: "Token",
+      auditCostLabel: "成本",
+      rateLimitedBadge: "触发限流",
       providersTitle: "提供商配置",
       providersDescription:
         "维护 API Key、Base URL 和提供商类型。测试连接会优先使用该提供商下的默认模型或首个模型。",
@@ -1276,6 +1350,12 @@ const messages: Record<Locale, Messages> = {
       providerNameLabel: "提供商名称",
       modelCodeLabel: "模型编码",
       modelDisplayNameLabel: "显示名称",
+      inputTokenPriceLabel: "输入 Token 单价（USD / 1K）",
+      outputTokenPriceLabel: "输出 Token 单价（USD / 1K）",
+      tokenPriceHint:
+        "这两个字段用于估算成本。留空表示只记录 Token 用量，不做美元成本换算。",
+      tokenPriceValue: "{value} / 1K",
+      noTokenPrice: "未配置",
       taskTypeLabel: "任务类型",
       parametersLabel: "默认参数 JSON",
       parametersHint:
@@ -1521,6 +1601,13 @@ const messages: Record<Locale, Messages> = {
         REPORT_SUMMARY: "报告总结",
         DRAFT_REWRITE: "草稿改写",
       },
+      aiTaskStatus: {
+        PENDING: "待执行",
+        RUNNING: "执行中",
+        SUCCESS: "成功",
+        FAILED: "失败",
+        CANCELLED: "已取消",
+      },
     },
     actions: {
       login: {
@@ -1597,6 +1684,7 @@ const messages: Record<Locale, Messages> = {
         missingDisplayName: "请填写模型显示名。",
         missingTaskType: "请选择任务类型。",
         invalidParametersJson: "默认参数必须是合法的 JSON 对象。",
+        invalidTokenPrice: "Token 单价必须是大于等于 0 的数字。",
         defaultModelRequiresEnabled: "默认模型必须保持启用状态。",
         providerValidationFailed: "AI 提供商表单校验失败。",
         providerCreated: "AI 提供商已创建。",
@@ -2112,7 +2200,42 @@ const messages: Record<Locale, Messages> = {
         enabledProviders: "Enabled providers",
         modelCount: "Models",
         defaultTasks: "Task defaults",
+        totalCalls: "Calls (30d)",
+        successRate: "Success rate",
+        totalTokens: "Total tokens",
+        totalCost: "Estimated cost",
       },
+      usageTitle: "Usage and cost controls",
+      usageDescription:
+        "Aggregates AI traffic, token consumption, estimated cost, and remaining rate-limit headroom for the last {days} days.",
+      usageErrorDescription:
+        "AI usage analytics are temporarily unavailable, but provider and model settings can still be managed.",
+      usageEmptyTitle: "No AI usage yet",
+      usageEmptyDescription:
+        "Run a provider test or an actual AI task first, then usage, token, and cost analytics will appear here.",
+      windowLimitTitle: "Window rate limit",
+      windowLimitDescription:
+        "{calls} / {limit} requests used within the current {seconds}-second window.",
+      windowRemainingDescription: "{count} requests remain in the current window.",
+      dailyBudgetTitle: "Daily token budget",
+      dailyBudgetDescription: "{used} / {limit} tokens used today.",
+      dailyBudgetRemainingDescription: "{count} tokens remain today.",
+      taskBreakdownTitle: "By task type",
+      providerBreakdownTitle: "By provider",
+      breakdownMeta: "{calls} calls · {tokens} tokens · {cost}",
+      breakdownEmpty: "No aggregated usage details are available yet.",
+      auditTitle: "Recent audit trail",
+      auditDescription:
+        "Every AI gateway call records its task type, model, token usage, estimated cost, and error state for later troubleshooting.",
+      auditEmptyTitle: "No audit records yet",
+      auditEmptyDescription:
+        "After you test a provider or run an AI task, the most recent calls will appear here.",
+      auditNoProvider: "No provider linked",
+      auditNoModel: "No model linked",
+      auditTargetLabel: "Target",
+      auditTokensLabel: "Tokens",
+      auditCostLabel: "Cost",
+      rateLimitedBadge: "Rate limited",
       providersTitle: "Provider configs",
       providersDescription:
         "Store API keys, Base URLs, and provider types. Connectivity tests use the provider's default model or first available model.",
@@ -2157,6 +2280,12 @@ const messages: Record<Locale, Messages> = {
       providerNameLabel: "Provider name",
       modelCodeLabel: "Model code",
       modelDisplayNameLabel: "Display name",
+      inputTokenPriceLabel: "Input token price (USD / 1K)",
+      outputTokenPriceLabel: "Output token price (USD / 1K)",
+      tokenPriceHint:
+        "Optional pricing used for cost estimation. Leave blank to record token usage without converting to USD.",
+      tokenPriceValue: "{value} / 1K",
+      noTokenPrice: "Not configured",
       taskTypeLabel: "Task type",
       parametersLabel: "Default parameters JSON",
       parametersHint:
@@ -2404,6 +2533,13 @@ const messages: Record<Locale, Messages> = {
         REPORT_SUMMARY: "Report summary",
         DRAFT_REWRITE: "Draft rewrite",
       },
+      aiTaskStatus: {
+        PENDING: "Pending",
+        RUNNING: "Running",
+        SUCCESS: "Success",
+        FAILED: "Failed",
+        CANCELLED: "Cancelled",
+      },
     },
     actions: {
       login: {
@@ -2484,6 +2620,8 @@ const messages: Record<Locale, Messages> = {
         missingTaskType: "Please select a task type.",
         invalidParametersJson:
           "Default parameters must be a valid JSON object.",
+        invalidTokenPrice:
+          "Token pricing must be a number greater than or equal to 0.",
         defaultModelRequiresEnabled: "A default model must remain enabled.",
         providerValidationFailed: "AI provider form validation failed.",
         providerCreated: "AI provider created.",

@@ -4,12 +4,15 @@ import {
   IsBoolean,
   IsEnum,
   IsNotEmpty,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
+  Min,
 } from 'class-validator';
 import {
   toOptionalBoolean,
+  toOptionalNumber,
   trimRequiredString,
 } from './ai-config-dto.helpers';
 
@@ -49,4 +52,16 @@ export class UpdateAiModelDto {
   @IsOptional()
   @IsObject()
   parametersJson?: Record<string, unknown> | null;
+
+  @IsOptional()
+  @Transform(({ value }) => toOptionalNumber(value))
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(0)
+  inputTokenPriceUsd?: number | null;
+
+  @IsOptional()
+  @Transform(({ value }) => toOptionalNumber(value))
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(0)
+  outputTokenPriceUsd?: number | null;
 }

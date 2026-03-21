@@ -8,6 +8,11 @@ export type AiGatewayMessage = {
 };
 
 export type AiGatewayRequest = {
+  auditMetadata?: {
+    inputSnapshotJson?: Record<string, unknown> | null;
+    targetId?: string;
+    targetType?: string;
+  };
   maxAttempts?: number;
   messages: AiGatewayMessage[];
   modelConfigId?: string;
@@ -33,6 +38,7 @@ export type AiGatewayResult = {
   rawResponseJson: unknown;
   text: string;
   usage: AiGatewayUsage;
+  estimatedCostUsd: number | null;
 };
 
 export type AiAdapterRequest = {
@@ -58,4 +64,3 @@ export interface AiProviderAdapter {
   generateText(request: AiAdapterRequest): Promise<AiAdapterResult>;
   supports(providerType: AIProviderType): boolean;
 }
-

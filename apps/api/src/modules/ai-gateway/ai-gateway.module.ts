@@ -3,6 +3,7 @@ import { AiConfigModule } from '../ai-config/ai-config.module';
 import { CryptoModule } from '../crypto/crypto.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AnthropicAdapter } from './adapters/anthropic.adapter';
+import { AiUsageService } from './ai-usage.service';
 import { GeminiAdapter } from './adapters/gemini.adapter';
 import { AiGatewayController } from './ai-gateway.controller';
 import { OpenAiCompatibleAdapter } from './adapters/openai-compatible.adapter';
@@ -25,8 +26,9 @@ import { AI_PROVIDER_ADAPTERS } from './ai-gateway.types';
       ) => [anthropicAdapter, geminiAdapter, openAiCompatibleAdapter],
       inject: [AnthropicAdapter, GeminiAdapter, OpenAiCompatibleAdapter],
     },
+    AiUsageService,
     AiGatewayService,
   ],
-  exports: [AiGatewayService],
+  exports: [AiGatewayService, AiUsageService],
 })
 export class AiGatewayModule {}

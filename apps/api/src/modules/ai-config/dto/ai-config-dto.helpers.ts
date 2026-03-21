@@ -52,3 +52,20 @@ export function toOptionalBoolean(value: unknown) {
   return value;
 }
 
+export function toOptionalNumber(value: unknown) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+
+    return Number.isFinite(parsed) ? parsed : value;
+  }
+
+  return value;
+}

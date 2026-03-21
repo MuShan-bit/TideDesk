@@ -19,4 +19,24 @@ export const envValidationSchema = Joi.object({
     .min(60)
     .default(600),
   REAL_CRAWLER_MAX_POSTS: Joi.number().integer().min(1).max(100).default(20),
+  AI_PROVIDER_DEFAULT_TIMEOUT_MS: Joi.number()
+    .integer()
+    .min(1000)
+    .max(120000)
+    .default(30000),
+  AI_GATEWAY_RATE_LIMIT_WINDOW_SECONDS: Joi.number()
+    .integer()
+    .min(10)
+    .max(3600)
+    .default(60),
+  AI_GATEWAY_MAX_REQUESTS_PER_WINDOW: Joi.number()
+    .integer()
+    .min(1)
+    .max(500)
+    .default(20),
+  AI_GATEWAY_DAILY_TOKEN_LIMIT: Joi.number()
+    .integer()
+    .min(1000)
+    .max(100000000)
+    .default(2000000),
 });

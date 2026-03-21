@@ -44,6 +44,8 @@ function createModelRecord(
     parametersJson: {
       temperature: 0.2,
     },
+    inputTokenPriceUsd: null,
+    outputTokenPriceUsd: null,
     createdAt: new Date('2026-03-21T00:05:00.000Z'),
     updatedAt: new Date('2026-03-21T00:05:00.000Z'),
     provider,
@@ -54,6 +56,17 @@ function createModelRecord(
 describe('AiGatewayService', () => {
   let service: AiGatewayService;
   let credentialCryptoService: CredentialCryptoService;
+  let configService: ConfigService;
+  let aiUsageService: {
+    assertWithinLimits: jest.Mock;
+    calculateEstimatedCost: jest.Mock;
+    completeTaskRecord: jest.Mock;
+    createTaskRecord: jest.Mock;
+    failTaskRecord: jest.Mock;
+    getUsageSummary: jest.Mock;
+    listTaskRecords: jest.Mock;
+    recordRejectedTask: jest.Mock;
+  };
   let openAiAdapter: AiProviderAdapter;
   let anthropicAdapter: AiProviderAdapter;
   let geminiAdapter: AiProviderAdapter;
@@ -67,9 +80,30 @@ describe('AiGatewayService', () => {
   };
 
   beforeEach(() => {
-    credentialCryptoService = new CredentialCryptoService({
+    configService = {
+      get: jest.fn((key: string, defaultValue?: number) => {
+        if (key === 'AI_PROVIDER_DEFAULT_TIMEOUT_MS') {
+          return 30000;
+        }
+
+        return defaultValue;
+      }),
       getOrThrow: jest.fn(() => 'demo-encryption-secret-key-1234'),
-    } as unknown as ConfigService);
+    } as unknown as ConfigService;
+
+    credentialCryptoService = new CredentialCryptoService(configService);
+    aiUsageService = {
+      assertWithinLimits: jest.fn().mockResolvedValue(undefined),
+      calculateEstimatedCost: jest.fn(() => 0.00009),
+      completeTaskRecord: jest.fn().mockResolvedValue(undefined),
+      createTaskRecord: jest.fn().mockResolvedValue({
+        id: 'ai-task-001',
+      }),
+      failTaskRecord: jest.fn().mockResolvedValue(undefined),
+      getUsageSummary: jest.fn(),
+      listTaskRecords: jest.fn(),
+      recordRejectedTask: jest.fn().mockResolvedValue(undefined),
+    };
 
     openAiAdapter = {
       supports: jest.fn((providerType: AIProviderType) => {
@@ -137,7 +171,9 @@ describe('AiGatewayService', () => {
 
     service = new AiGatewayService(
       prisma as unknown as PrismaService,
+      configService,
       credentialCryptoService,
+      aiUsageService as never,
       [anthropicAdapter, geminiAdapter, openAiAdapter],
     );
   });
@@ -197,13 +233,25 @@ describe('AiGatewayService', () => {
         },
       ],
       responseFormat: 'json_object',
-      timeoutMs: undefined,
+      timeoutMs: 30000,
       maxAttempts: undefined,
       parameters: {
         temperature: 0.2,
         max_tokens: 256,
       },
     });
+    expect(aiUsageService.assertWithinLimits).toHaveBeenCalledWith(
+      'ai_owner',
+      AITaskType.POST_CLASSIFY,
+    );
+    expect(aiUsageService.createTaskRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'ai_owner',
+        taskType: AITaskType.POST_CLASSIFY,
+        providerConfigId: 'provider-001',
+        modelConfigId: 'model-001',
+      }),
+    );
     expect(result).toEqual({
       modelConfigId: 'model-001',
       providerConfigId: 'provider-001',
@@ -217,6 +265,7 @@ describe('AiGatewayService', () => {
         outputTokens: 10,
         totalTokens: 30,
       },
+      estimatedCostUsd: 0.00009,
       rawResponseJson: {
         id: 'chatcmpl-demo',
       },
@@ -398,5 +447,6 @@ describe('AiGatewayService', () => {
         timeoutMs: 15000,
       }),
     );
+    expect(aiUsageService.completeTaskRecord).toHaveBeenCalled();
   });
 });

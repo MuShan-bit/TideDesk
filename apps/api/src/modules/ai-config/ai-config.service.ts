@@ -200,6 +200,10 @@ export class AiConfigService {
           isDefault: dto.isDefault ?? false,
           enabled: dto.enabled ?? true,
           parametersJson: this.toParametersJsonInput(dto.parametersJson),
+          inputTokenPriceUsd: this.toOptionalDecimalInput(dto.inputTokenPriceUsd),
+          outputTokenPriceUsd: this.toOptionalDecimalInput(
+            dto.outputTokenPriceUsd,
+          ),
         },
         include: {
           provider: true,
@@ -275,6 +279,18 @@ export class AiConfigService {
 
       if (dto.parametersJson !== undefined) {
         data.parametersJson = this.toParametersJsonInput(dto.parametersJson);
+      }
+
+      if (dto.inputTokenPriceUsd !== undefined) {
+        data.inputTokenPriceUsd = this.toOptionalDecimalInput(
+          dto.inputTokenPriceUsd,
+        );
+      }
+
+      if (dto.outputTokenPriceUsd !== undefined) {
+        data.outputTokenPriceUsd = this.toOptionalDecimalInput(
+          dto.outputTokenPriceUsd,
+        );
       }
 
       const updated =
@@ -528,6 +544,28 @@ export class AiConfigService {
     return value as Prisma.InputJsonValue;
   }
 
+  private toOptionalDecimalInput(
+    value: number | null | undefined,
+  ): Prisma.Decimal | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    return new Prisma.Decimal(value);
+  }
+
+  private serializeDecimal(value: Prisma.Decimal | null | undefined) {
+    if (!value) {
+      return null;
+    }
+
+    return value.toNumber();
+  }
+
   private serializeProvider(provider: ProviderWithModels) {
     return {
       id: provider.id,
@@ -565,6 +603,8 @@ export class AiConfigService {
       isDefault: model.isDefault,
       enabled: model.enabled,
       parametersJson: model.parametersJson,
+      inputTokenPriceUsd: this.serializeDecimal(model.inputTokenPriceUsd),
+      outputTokenPriceUsd: this.serializeDecimal(model.outputTokenPriceUsd),
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       provider: this.serializeProviderSummary(model.provider),
@@ -581,6 +621,8 @@ export class AiConfigService {
       isDefault: model.isDefault,
       enabled: model.enabled,
       parametersJson: model.parametersJson,
+      inputTokenPriceUsd: this.serializeDecimal(model.inputTokenPriceUsd),
+      outputTokenPriceUsd: this.serializeDecimal(model.outputTokenPriceUsd),
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
     };

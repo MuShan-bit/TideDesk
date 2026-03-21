@@ -49,6 +49,24 @@ function getBooleanValue(formData: FormData, key: string, defaultValue = true) {
   return defaultValue;
 }
 
+function getNullableNumberValue(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  if (value === null || typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const parsed = Number(trimmed);
+
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+}
+
 function revalidateAiViews() {
   revalidatePath("/ai");
   revalidatePath("/settings/ai");
@@ -228,6 +246,20 @@ export async function createModelAction(
     }),
     enabled: z.boolean(),
     isDefault: z.boolean(),
+    inputTokenPriceUsd: z
+      .number({
+        message: messages.actions.ai.invalidTokenPrice,
+      })
+      .min(0, messages.actions.ai.invalidTokenPrice)
+      .nullable()
+      .optional(),
+    outputTokenPriceUsd: z
+      .number({
+        message: messages.actions.ai.invalidTokenPrice,
+      })
+      .min(0, messages.actions.ai.invalidTokenPrice)
+      .nullable()
+      .optional(),
   });
   const parsed = schema.safeParse({
     providerConfigId: getOptionalTextValue(formData, "providerConfigId") ?? "",
@@ -236,6 +268,11 @@ export async function createModelAction(
     taskType: getOptionalTextValue(formData, "taskType"),
     enabled,
     isDefault,
+    inputTokenPriceUsd: getNullableNumberValue(formData, "inputTokenPriceUsd"),
+    outputTokenPriceUsd: getNullableNumberValue(
+      formData,
+      "outputTokenPriceUsd",
+    ),
   });
 
   if (!parsed.success) {
@@ -313,6 +350,20 @@ export async function updateModelAction(
     }),
     enabled: z.boolean(),
     isDefault: z.boolean(),
+    inputTokenPriceUsd: z
+      .number({
+        message: messages.actions.ai.invalidTokenPrice,
+      })
+      .min(0, messages.actions.ai.invalidTokenPrice)
+      .nullable()
+      .optional(),
+    outputTokenPriceUsd: z
+      .number({
+        message: messages.actions.ai.invalidTokenPrice,
+      })
+      .min(0, messages.actions.ai.invalidTokenPrice)
+      .nullable()
+      .optional(),
   });
   const parsed = schema.safeParse({
     modelId: getOptionalTextValue(formData, "modelId") ?? "",
@@ -322,6 +373,11 @@ export async function updateModelAction(
     taskType: getOptionalTextValue(formData, "taskType"),
     enabled,
     isDefault,
+    inputTokenPriceUsd: getNullableNumberValue(formData, "inputTokenPriceUsd"),
+    outputTokenPriceUsd: getNullableNumberValue(
+      formData,
+      "outputTokenPriceUsd",
+    ),
   });
 
   if (!parsed.success) {
@@ -344,6 +400,8 @@ export async function updateModelAction(
         enabled: parsed.data.enabled,
         isDefault: parsed.data.isDefault,
         parametersJson: parsedParameters,
+        inputTokenPriceUsd: parsed.data.inputTokenPriceUsd,
+        outputTokenPriceUsd: parsed.data.outputTokenPriceUsd,
       }),
     });
 

@@ -1,6 +1,7 @@
 import {
   AIProviderType,
   AITaskType,
+  Prisma,
   type AIModelConfig,
   type AIProviderConfig,
 } from '@prisma/client';
@@ -42,6 +43,8 @@ function createModelRecord(
     parametersJson: {
       temperature: 0.2,
     },
+    inputTokenPriceUsd: null,
+    outputTokenPriceUsd: null,
     createdAt: new Date('2026-03-21T00:05:00.000Z'),
     updatedAt: new Date('2026-03-21T00:05:00.000Z'),
     ...overrides,
@@ -209,6 +212,8 @@ describe('AiConfigService', () => {
     const createdModel = {
       ...createModelRecord({
         providerConfigId: provider.id,
+        inputTokenPriceUsd: new Prisma.Decimal('0.0015'),
+        outputTokenPriceUsd: new Prisma.Decimal('0.006'),
       }),
       provider,
     };
@@ -282,6 +287,8 @@ describe('AiConfigService', () => {
       parametersJson: {
         temperature: 0.2,
       },
+      inputTokenPriceUsd: 0.0015,
+      outputTokenPriceUsd: 0.006,
     });
 
     expect(model.provider.id).toBe(provider.id);
@@ -289,11 +296,15 @@ describe('AiConfigService', () => {
     expect(model.parametersJson).toEqual({
       temperature: 0.2,
     });
+    expect(model.inputTokenPriceUsd).toBe(0.0015);
+    expect(model.outputTokenPriceUsd).toBe(0.006);
 
     const createArgs = prisma.aIModelConfig.create.mock.calls[0][0];
     expect(createArgs.data.parametersJson).toEqual({
       temperature: 0.2,
     });
+    expect(createArgs.data.inputTokenPriceUsd).toEqual(new Prisma.Decimal(0.0015));
+    expect(createArgs.data.outputTokenPriceUsd).toEqual(new Prisma.Decimal(0.006));
 
     const result = await service.updateModel('ai_owner', 'model-classifier', {
       providerConfigId: backupProvider.id,
