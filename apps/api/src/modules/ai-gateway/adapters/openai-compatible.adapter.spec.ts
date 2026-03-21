@@ -20,21 +20,25 @@ describe('OpenAiCompatibleAdapter', () => {
 
     fetchMock.mockResolvedValue({
       ok: true,
-      json: async () => ({
-        choices: [
-          {
-            finish_reason: 'stop',
-            message: {
-              content: 'hello world',
-            },
-          },
-        ],
-        usage: {
-          prompt_tokens: 12,
-          completion_tokens: 9,
-          total_tokens: 21,
-        },
+      headers: new Headers({
+        'content-type': 'application/json',
       }),
+      text: async () =>
+        JSON.stringify({
+          choices: [
+            {
+              finish_reason: 'stop',
+              message: {
+                content: 'hello world',
+              },
+            },
+          ],
+          usage: {
+            prompt_tokens: 12,
+            completion_tokens: 9,
+            total_tokens: 21,
+          },
+        }),
     } as Response);
 
     const result = await adapter.generateText({
@@ -122,16 +126,20 @@ describe('OpenAiCompatibleAdapter', () => {
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          choices: [
-            {
-              finish_reason: 'stop',
-              message: {
-                content: [{ type: 'output_text', text: 'retry success' }],
-              },
-            },
-          ],
+        headers: new Headers({
+          'content-type': 'application/json',
         }),
+        text: async () =>
+          JSON.stringify({
+            choices: [
+              {
+                finish_reason: 'stop',
+                message: {
+                  content: [{ type: 'output_text', text: 'retry success' }],
+                },
+              },
+            ],
+          }),
       } as Response);
 
     await expect(
@@ -159,11 +167,12 @@ describe('OpenAiCompatibleAdapter', () => {
     fetchMock.mockResolvedValueOnce({
       ok: false,
       status: 400,
-      text: async () => JSON.stringify({
-        error: {
-          message: 'bad request',
-        },
-      }),
+      text: async () =>
+        JSON.stringify({
+          error: {
+            message: 'bad request',
+          },
+        }),
     } as Response);
 
     await expect(
@@ -182,5 +191,33 @@ describe('OpenAiCompatibleAdapter', () => {
       }),
     ).rejects.toBeInstanceOf(BadGatewayException);
   });
-});
 
+  it('surfaces a clearer error when the provider returns html instead of json', async () => {
+    const fetchMock = jest.mocked(global.fetch);
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      headers: new Headers({
+        'content-type': 'text/html; charset=utf-8',
+      }),
+      text: async () => '<!doctype html><html><body>OpenRouter</body></html>',
+    } as Response);
+
+    await expect(
+      adapter.generateText({
+        providerType: AIProviderType.OPENAI_COMPATIBLE,
+        baseUrl: 'https://openrouter.ai',
+        apiKey: 'sk-test',
+        modelCode: 'openrouter/auto',
+        messages: [
+          {
+            role: 'user',
+            content: 'Ping',
+          },
+        ],
+      }),
+    ).rejects.toThrow(
+      'AI provider returned HTML instead of JSON. Check whether the provider baseUrl points to the API root.',
+    );
+  });
+});

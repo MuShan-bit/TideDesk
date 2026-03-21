@@ -78,7 +78,11 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
           throw new BadGatewayException(errorMessage);
         }
 
-        const payload = (await response.json()) as OpenAiCompatibleResponse;
+        const payload = this.parseSuccessPayload(
+          await response.text(),
+          response.headers.get('content-type'),
+          url,
+        );
         const firstChoice = payload.choices?.[0];
         const text = this.extractContent(firstChoice?.message?.content);
 
@@ -124,7 +128,7 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
   ) {
     const rawBaseUrl =
       providerType === AIProviderType.OPENAI
-        ? configuredBaseUrl ?? 'https://api.openai.com/v1'
+        ? (configuredBaseUrl ?? 'https://api.openai.com/v1')
         : configuredBaseUrl;
 
     if (!rawBaseUrl) {
@@ -180,6 +184,37 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
     return payload;
   }
 
+  private parseSuccessPayload(
+    payloadText: string,
+    contentType: string | null,
+    requestUrl: string,
+  ) {
+    if (!payloadText) {
+      throw new BadGatewayException('AI provider returned an empty response');
+    }
+
+    try {
+      return JSON.parse(payloadText) as OpenAiCompatibleResponse;
+    } catch {
+      const normalizedContentType = (contentType ?? '').toLowerCase();
+      const snippet = payloadText.replace(/\s+/g, ' ').trim().slice(0, 120);
+
+      if (
+        normalizedContentType.includes('text/html') ||
+        /^\s*<!doctype html/i.test(payloadText) ||
+        /^\s*<html/i.test(payloadText)
+      ) {
+        throw new BadGatewayException(
+          `AI provider returned HTML instead of JSON. Check whether the provider baseUrl points to the API root. Request URL: ${requestUrl}. Response snippet: ${snippet}`,
+        );
+      }
+
+      throw new BadGatewayException(
+        `AI provider returned a non-JSON response. Check the provider baseUrl and upstream service. Request URL: ${requestUrl}. Response snippet: ${snippet}`,
+      );
+    }
+  }
+
   private shouldRetry(status: number) {
     return status === 408 || status === 429 || status >= 500;
   }
@@ -188,4 +223,3 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
     return !(error instanceof BadGatewayException);
   }
 }
-
