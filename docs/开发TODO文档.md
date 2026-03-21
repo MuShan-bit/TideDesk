@@ -633,9 +633,10 @@
 
 ### 15.5 AI 自动分类与标签
 
-- [ ] `T1601` `P1` 定义帖子自动分类 Prompt 与结构化输出协议。
+- [x] `T1601` `P1` 定义帖子自动分类 Prompt 与结构化输出协议。
       完成标准：模型输出可稳定解析为主分类、标签、摘要、置信度。
       依赖：`T1502`、`T1401`。
+      备注：已新增 `PostClassificationService`，统一生成帖子分类的系统 Prompt、用户 Prompt、响应 Schema 与 AI Gateway 请求；同时实现对 JSON / fenced JSON 输出的稳健解析，支持主分类、标签、摘要、置信度与解释字段的归一化，为后续执行器与自动触发链路提供可复用协议层。
 
 - [ ] `T1602` `P1` 新增 AI 任务记录与执行器。
       完成标准：AI 分类任务具备 `PENDING/RUNNING/SUCCESS/FAILED` 状态管理。
