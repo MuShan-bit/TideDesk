@@ -36,8 +36,10 @@ type ArchiveTaxonomyEditorProps = {
   loadError?: string | null;
   locale: Locale;
   primaryCategory: TaxonomyOption | null;
+  primaryCategoryLocked: boolean;
   primaryCategorySource: "MANUAL" | "AI" | "RULE" | null;
   tagAssignments: ArchiveTagAssignment[];
+  tagAssignmentsLocked: boolean;
   tags: TaxonomyOption[];
 };
 
@@ -82,8 +84,10 @@ export function ArchiveTaxonomyEditor({
   loadError,
   locale,
   primaryCategory,
+  primaryCategoryLocked,
   primaryCategorySource,
   tagAssignments,
+  tagAssignmentsLocked,
   tags,
 }: ArchiveTaxonomyEditorProps) {
   const messages = getMessages(locale);
@@ -140,13 +144,25 @@ export function ArchiveTaxonomyEditor({
                   {messages.enums.taxonomySource[primaryCategorySource]}
                 </Badge>
               ) : null}
+              {primaryCategoryLocked ? (
+                <Badge className="rounded-full border border-[#2d4d3f]/15 bg-[#f1f6f3] text-[#2d4d3f] dark:border-[#d8e2db]/20 dark:bg-[#1c2520] dark:text-[#d8e2db]">
+                  {messages.archiveDetail.manualLockBadge}
+                </Badge>
+              ) : null}
             </div>
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-              {messages.archiveDetail.manualTagsLabel}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                {messages.archiveDetail.manualTagsLabel}
+              </p>
+              {tagAssignmentsLocked ? (
+                <Badge className="rounded-full border border-[#2d4d3f]/15 bg-[#f1f6f3] text-[#2d4d3f] dark:border-[#d8e2db]/20 dark:bg-[#1c2520] dark:text-[#d8e2db]">
+                  {messages.archiveDetail.manualLockBadge}
+                </Badge>
+              ) : null}
+            </div>
             {renderTagChips(
               manualAssignments,
               messages.archiveDetail.noManualTags,
@@ -240,6 +256,9 @@ export function ArchiveTaxonomyEditor({
                 {messages.archiveDetail.noTagOptions}
               </div>
             )}
+            <p className="text-sm text-muted-foreground">
+              {messages.archiveDetail.taxonomyLockHint}
+            </p>
           </div>
 
           {state.error ? (

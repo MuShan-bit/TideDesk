@@ -573,7 +573,9 @@ type Messages = {
     chooseCategory: string;
     tagsFieldLabel: string;
     taxonomyEditorHint: string;
+    manualLockBadge: string;
     noTagOptions: string;
+    taxonomyLockHint: string;
     taxonomyLoadError: string;
     saveTaxonomy: string;
     saveTaxonomyPending: string;
@@ -1459,7 +1461,10 @@ const messages: Record<Locale, Messages> = {
       tagsFieldLabel: "人工标签选择",
       taxonomyEditorHint:
         "勾选后会写入 `MANUAL` 来源标签；已有 AI 或规则标签会继续保留在摘要里。",
+      manualLockBadge: "人工锁定",
       noTagOptions: "当前还没有可选标签，请先在分类标签页中创建标签。",
+      taxonomyLockHint:
+        "保存后，主分类与人工标签集合会进入锁定状态，后续 AI 重跑默认不会覆盖这两个字段。",
       taxonomyLoadError: "分类与标签选项加载失败。",
       saveTaxonomy: "保存人工分类与标签",
       saveTaxonomyPending: "正在保存分类与标签...",
@@ -2390,8 +2395,11 @@ const messages: Record<Locale, Messages> = {
       tagsFieldLabel: "Manual tag selection",
       taxonomyEditorHint:
         "Checked items are stored as `MANUAL` tags. Existing AI or rule tags remain visible in the summary.",
+      manualLockBadge: "Manual lock",
       noTagOptions:
         "No tag options are available yet. Create tags from the taxonomy page first.",
+      taxonomyLockHint:
+        "After saving, the primary category and manual tag set become locked, so later AI reruns will not overwrite them by default.",
       taxonomyLoadError: "Failed to load taxonomy options.",
       saveTaxonomy: "Save manual category and tags",
       saveTaxonomyPending: "Saving category and tags...",

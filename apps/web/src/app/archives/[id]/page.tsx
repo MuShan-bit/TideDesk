@@ -57,6 +57,8 @@ type ArchiveDetailResponse = {
   viewCount: string | null;
   primaryCategory: TaxonomyOption | null;
   primaryCategorySource: "MANUAL" | "AI" | "RULE" | null;
+  primaryCategoryLocked: boolean;
+  tagAssignmentsLocked: boolean;
   mediaItems: Array<{
     id: string;
     mediaType: "IMAGE" | "VIDEO" | "GIF";
@@ -322,8 +324,10 @@ export default async function ArchiveDetailPage({
                 loadError={taxonomyOptions?.error}
                 locale={locale}
                 primaryCategory={archive.primaryCategory}
+                primaryCategoryLocked={archive.primaryCategoryLocked}
                 primaryCategorySource={archive.primaryCategorySource}
                 tagAssignments={archive.tagAssignments}
+                tagAssignmentsLocked={archive.tagAssignmentsLocked}
                 tags={taxonomyOptions?.tags ?? []}
               />
             ) : null}

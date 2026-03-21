@@ -385,6 +385,8 @@ model ArchivedPost {
   archiveStatus      ArchiveStatus          @default(ACTIVE) @map("archive_status")
   primaryCategoryId  String?                @map("primary_category_id")
   primaryCategorySource TaxonomySource?     @map("primary_category_source")
+  primaryCategoryLocked Boolean             @default(false) @map("primary_category_locked")
+  tagAssignmentsLocked Boolean              @default(false) @map("tag_assignments_locked")
   aiSummary          String?                @map("ai_summary") @db.Text
   authorXUserId      String?                @map("author_x_user_id")
   authorUsername     String                 @map("author_username")

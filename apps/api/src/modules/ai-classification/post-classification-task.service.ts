@@ -322,16 +322,41 @@ export class PostClassificationTaskService {
       .map((tag) => tag.id);
 
     await this.prisma.$transaction(async (tx) => {
+      const archivedPost = await tx.archivedPost.findUnique({
+        where: {
+          id: archivedPostId,
+        },
+        select: {
+          primaryCategoryLocked: true,
+          tagAssignmentsLocked: true,
+        },
+      });
+
+      if (!archivedPost) {
+        throw new NotFoundException('Archived post not found');
+      }
+
+      const archivedPostUpdateData: Prisma.ArchivedPostUncheckedUpdateInput = {
+        aiSummary: parsedResult.summary,
+      };
+
+      if (!archivedPost.primaryCategoryLocked) {
+        archivedPostUpdateData.primaryCategoryId = primaryCategoryId;
+        archivedPostUpdateData.primaryCategorySource = primaryCategoryId
+          ? 'AI'
+          : null;
+      }
+
       await tx.archivedPost.update({
         where: {
           id: archivedPostId,
         },
-        data: {
-          primaryCategoryId,
-          primaryCategorySource: primaryCategoryId ? 'AI' : null,
-          aiSummary: parsedResult.summary,
-        },
+        data: archivedPostUpdateData,
       });
+
+      if (archivedPost.tagAssignmentsLocked) {
+        return;
+      }
 
       await tx.archivedPostTag.deleteMany({
         where: {

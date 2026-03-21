@@ -27,6 +27,8 @@ function createArchivedPostRecord() {
     archiveStatus: 'ACTIVE',
     primaryCategoryId: null,
     primaryCategorySource: null,
+    primaryCategoryLocked: false,
+    tagAssignmentsLocked: false,
     aiSummary: null,
     authorXUserId: 'x-user-001',
     authorUsername: 'demo_author',
@@ -106,6 +108,7 @@ describe('PostClassificationTaskService', () => {
       update: jest.Mock;
     };
     archivedPost: {
+      findUnique: jest.Mock;
       update: jest.Mock;
     };
     archivedPostTag: {
@@ -142,6 +145,12 @@ describe('PostClassificationTaskService', () => {
         update: jest.fn(),
       },
       archivedPost: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({
+            primaryCategoryLocked: false,
+            tagAssignmentsLocked: false,
+          }),
         update: jest.fn(),
       },
       archivedPostTag: {
@@ -338,6 +347,15 @@ describe('PostClassificationTaskService', () => {
         aiSummary: 'A concise AI summary for archive search.',
       },
     });
+    expect(prisma.archivedPost.findUnique).toHaveBeenCalledWith({
+      where: {
+        id: 'archive-001',
+      },
+      select: {
+        primaryCategoryLocked: true,
+        tagAssignmentsLocked: true,
+      },
+    });
     expect(prisma.archivedPostTag.deleteMany).toHaveBeenCalledWith({
       where: {
         archivedPostId: 'archive-001',
@@ -397,6 +415,76 @@ describe('PostClassificationTaskService', () => {
         errorMessage: 'Provider unavailable',
       }),
     });
+  });
+
+  it('keeps manually locked taxonomy fields unchanged during AI reruns', async () => {
+    prisma.aITaskRecord.findFirst.mockResolvedValue({
+      id: 'task-locked',
+      userId: 'ai_owner',
+      taskType: 'POST_CLASSIFY',
+      targetType: 'ARCHIVED_POST_CLASSIFICATION',
+      targetId: 'archive-001',
+      status: AITaskStatus.PENDING,
+    });
+    prisma.archivedPost.findUnique.mockResolvedValue({
+      primaryCategoryLocked: true,
+      tagAssignmentsLocked: true,
+    });
+    aiGatewayService.generateText.mockResolvedValue({
+      modelConfigId: 'model-001',
+      providerConfigId: 'provider-001',
+      providerType: 'OPENAI',
+      modelCode: 'gpt-5.2',
+      displayName: 'GPT-5.2',
+      text: '{"primaryCategorySlug":"ai-signals"}',
+      finishReason: 'stop',
+      usage: {
+        inputTokens: 120,
+        outputTokens: 60,
+        totalTokens: 180,
+      },
+      rawResponseJson: {
+        id: 'resp-locked',
+      },
+      estimatedCostUsd: 0.0018,
+    });
+    postClassificationService.parseModelOutput.mockReturnValue({
+      primaryCategorySlug: 'ai-signals',
+      tagSlugs: ['openai', 'agents'],
+      summary: 'Locked archives still refresh the AI summary.',
+      confidence: 0.91,
+      reasoning: 'The post still matches AI signals.',
+    });
+    prisma.aITaskRecord.update
+      .mockResolvedValueOnce({
+        id: 'task-locked',
+        status: AITaskStatus.RUNNING,
+      })
+      .mockResolvedValueOnce({
+        id: 'task-locked',
+        status: AITaskStatus.SUCCESS,
+      });
+    prisma.archivedPost.update.mockResolvedValue({
+      id: 'archive-001',
+    });
+
+    await expect(
+      service.executeTask('ai_owner', 'task-locked'),
+    ).resolves.toEqual({
+      id: 'task-locked',
+      status: AITaskStatus.SUCCESS,
+    });
+
+    expect(prisma.archivedPost.update).toHaveBeenCalledWith({
+      where: {
+        id: 'archive-001',
+      },
+      data: {
+        aiSummary: 'Locked archives still refresh the AI summary.',
+      },
+    });
+    expect(prisma.archivedPostTag.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.archivedPostTag.createMany).not.toHaveBeenCalled();
   });
 
   it('rejects missing or non-runnable task records', async () => {

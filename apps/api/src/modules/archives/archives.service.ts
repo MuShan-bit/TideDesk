@@ -336,17 +336,26 @@ export class ArchivesService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      const archivedPostUpdateData: Prisma.ArchivedPostUncheckedUpdateInput = {};
+
       if (primaryCategoryId !== undefined) {
+        archivedPostUpdateData.primaryCategoryId = primaryCategoryId;
+        archivedPostUpdateData.primaryCategorySource = primaryCategoryId
+          ? TaxonomySource.MANUAL
+          : null;
+        archivedPostUpdateData.primaryCategoryLocked = true;
+      }
+
+      if (tagIds !== undefined) {
+        archivedPostUpdateData.tagAssignmentsLocked = true;
+      }
+
+      if (Object.keys(archivedPostUpdateData).length > 0) {
         await tx.archivedPost.update({
           where: {
             id: archivedPostId,
           },
-          data: {
-            primaryCategoryId,
-            primaryCategorySource: primaryCategoryId
-              ? TaxonomySource.MANUAL
-              : null,
-          },
+          data: archivedPostUpdateData,
         });
       }
 

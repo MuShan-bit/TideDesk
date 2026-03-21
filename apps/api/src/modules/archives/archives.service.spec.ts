@@ -483,6 +483,8 @@ describe('ArchivesService', () => {
 
     expect(updated.primaryCategory?.id).toBe(manualCategory.id);
     expect(updated.primaryCategorySource).toBe(TaxonomySource.MANUAL);
+    expect(updated.primaryCategoryLocked).toBe(true);
+    expect(updated.tagAssignmentsLocked).toBe(true);
     expect(updated.tagAssignments).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -505,6 +507,80 @@ describe('ArchivesService', () => {
         }),
       ]),
     );
+  });
+
+  it('locks taxonomy fields even when manual edits clear the current values', async () => {
+    const binding = await createBinding('archive_taxonomy_clear');
+    const aiCategory = await prisma.category.create({
+      data: {
+        userId: 'archive_owner',
+        name: 'Signals',
+        slug: 'signals',
+        color: '#0891b2',
+      },
+    });
+    const aiTag = await prisma.tag.create({
+      data: {
+        userId: 'archive_owner',
+        name: 'Trend',
+        slug: 'trend',
+        color: '#2563eb',
+      },
+    });
+
+    const archivedPost = await archivesService.createArchivedPost({
+      bindingId: binding.id,
+      xPostId: 'post-taxonomy-clear',
+      postUrl:
+        'https://x.com/archive_taxonomy_clear/status/post-taxonomy-clear',
+      postType: PostType.POST,
+      author: {
+        username: 'archive_taxonomy_clear',
+      },
+      rawText: 'Manual clear should still prevent future AI overwrites',
+      richTextJson: { version: 1, blocks: [] },
+      rawPayloadJson: { id: 'post-taxonomy-clear' },
+      sourceCreatedAt: '2026-03-19T13:00:00.000Z',
+    });
+
+    await prisma.archivedPost.update({
+      where: {
+        id: archivedPost.id,
+      },
+      data: {
+        primaryCategoryId: aiCategory.id,
+        primaryCategorySource: TaxonomySource.AI,
+      },
+    });
+    await prisma.archivedPostTag.create({
+      data: {
+        archivedPostId: archivedPost.id,
+        tagId: aiTag.id,
+        source: TaxonomySource.AI,
+      },
+    });
+
+    const updated = await archivesService.updateArchivedPostTaxonomyForUser(
+      'archive_owner',
+      archivedPost.id,
+      {
+        primaryCategoryId: null,
+        tagIds: [],
+      },
+    );
+
+    expect(updated.primaryCategory).toBeNull();
+    expect(updated.primaryCategorySource).toBeNull();
+    expect(updated.primaryCategoryLocked).toBe(true);
+    expect(updated.tagAssignmentsLocked).toBe(true);
+    expect(updated.tagAssignments).toEqual([
+      expect.objectContaining({
+        source: TaxonomySource.AI,
+        tag: expect.objectContaining({
+          id: aiTag.id,
+        }),
+      }),
+    ]);
   });
 
   it('falls back to the existing archive when concurrent writes hit the unique constraint', async () => {

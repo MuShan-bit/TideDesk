@@ -65,6 +65,8 @@ describe("ArchiveDetailPage", () => {
           isActive: true,
         },
         primaryCategorySource: "AI",
+        primaryCategoryLocked: false,
+        tagAssignmentsLocked: false,
         mediaItems: [
           {
             id: "media-001",
