@@ -78,12 +78,14 @@ export async function generateReportAction(
     } satisfies ReportActionState;
   }
 
+  let report: ReportDetailRecord;
+
   try {
     const { periodStart, periodEnd } = normalizeDateRangeForApi(
       parsed.data.periodStartDate,
       parsed.data.periodEndDate,
     );
-    const report = await apiRequest<ReportDetailRecord>({
+    report = await apiRequest<ReportDetailRecord>({
       path: "/reports/generate",
       method: "POST",
       body: JSON.stringify({
@@ -96,10 +98,6 @@ export async function generateReportAction(
         modes: parsed.data.modes,
       }),
     });
-
-    revalidatePath("/reports");
-    revalidatePath(`/reports/${report.id}`);
-    redirect(`/reports/${report.id}`);
   } catch (error) {
     return {
       error: getApiErrorMessage(
@@ -108,6 +106,10 @@ export async function generateReportAction(
       ),
     } satisfies ReportActionState;
   }
+
+  revalidatePath("/reports");
+  revalidatePath(`/reports/${report.id}`);
+  redirect(`/reports/${report.id}`);
 }
 
 export async function updateReportAction(

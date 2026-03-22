@@ -49,19 +49,16 @@ export async function createPublishDraftFromReportAction(
     } satisfies PublishDraftActionState;
   }
 
+  let draft: Pick<PublishDraftDetailRecord, "id">;
+
   try {
-    const draft = await apiRequest<Pick<PublishDraftDetailRecord, "id">>({
+    draft = await apiRequest<Pick<PublishDraftDetailRecord, "id">>({
       path: "/publishing/drafts",
       method: "POST",
       body: JSON.stringify({
         reportId: parsed.data.reportId,
       }),
     });
-
-    revalidatePath("/reports");
-    revalidatePath(`/reports/${parsed.data.reportId}`);
-    revalidatePath(`/publishing/drafts/${draft.id}`);
-    redirect(`/publishing/drafts/${draft.id}`);
   } catch (error) {
     return {
       error: getApiErrorMessage(
@@ -70,6 +67,11 @@ export async function createPublishDraftFromReportAction(
       ),
     } satisfies PublishDraftActionState;
   }
+
+  revalidatePath("/reports");
+  revalidatePath(`/reports/${parsed.data.reportId}`);
+  revalidatePath(`/publishing/drafts/${draft.id}`);
+  redirect(`/publishing/drafts/${draft.id}`);
 }
 
 export async function createPublishDraftFromArchiveAction(
@@ -95,19 +97,16 @@ export async function createPublishDraftFromArchiveAction(
     } satisfies PublishDraftActionState;
   }
 
+  let draft: Pick<PublishDraftDetailRecord, "id">;
+
   try {
-    const draft = await apiRequest<Pick<PublishDraftDetailRecord, "id">>({
+    draft = await apiRequest<Pick<PublishDraftDetailRecord, "id">>({
       path: "/publishing/drafts",
       method: "POST",
       body: JSON.stringify({
         archivedPostIds: [parsed.data.archiveId],
       }),
     });
-
-    revalidatePath("/archives");
-    revalidatePath(`/archives/${parsed.data.archiveId}`);
-    revalidatePath(`/publishing/drafts/${draft.id}`);
-    redirect(`/publishing/drafts/${draft.id}`);
   } catch (error) {
     return {
       error: getApiErrorMessage(
@@ -116,6 +115,11 @@ export async function createPublishDraftFromArchiveAction(
       ),
     } satisfies PublishDraftActionState;
   }
+
+  revalidatePath("/archives");
+  revalidatePath(`/archives/${parsed.data.archiveId}`);
+  revalidatePath(`/publishing/drafts/${draft.id}`);
+  redirect(`/publishing/drafts/${draft.id}`);
 }
 
 export async function updatePublishDraftAction(
