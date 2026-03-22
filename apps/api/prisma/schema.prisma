@@ -685,6 +685,8 @@ model PublishChannelBinding {
   accountIdentifier    String?              @map("account_identifier")
   authPayloadEncrypted String               @map("auth_payload_encrypted") @db.Text
   status               PublishBindingStatus @default(PENDING)
+  lastValidatedAt      DateTime?            @map("last_validated_at")
+  lastValidationError  String?              @map("last_validation_error") @db.Text
   createdAt            DateTime             @default(now()) @map("created_at")
   updatedAt            DateTime             @updatedAt @map("updated_at")
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
