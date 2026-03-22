@@ -748,8 +748,33 @@ type Messages = {
     descriptionLoading: string;
     errorTitle: string;
     errorAction: string;
+    editorTitle: string;
+    editorDescription: string;
+    editorOptionsLoadError: string;
+    titleLabel: string;
     summaryTitle: string;
+    summaryLabel: string;
+    summaryPlaceholder: string;
     noSummary: string;
+    bodyLabel: string;
+    bodyPlaceholder: string;
+    bodyHint: string;
+    tagsLabel: string;
+    tagsHint: string;
+    chooseTags: string;
+    selectedTagsCount: string;
+    searchTagsPlaceholder: string;
+    noMatchingTags: string;
+    noTagOptions: string;
+    targetChannelsLabel: string;
+    targetChannelsHint: string;
+    chooseChannels: string;
+    selectedChannelsCount: string;
+    searchChannelsPlaceholder: string;
+    noMatchingChannels: string;
+    noChannelOptions: string;
+    save: string;
+    saving: string;
     sourceTitle: string;
     sourceDescription: string;
     sourceReportLabel: string;
@@ -977,15 +1002,19 @@ type Messages = {
       missingPublishPlatformType: string;
       missingPublishDisplayName: string;
       missingPublishCredentialPayload: string;
+      missingPublishDraftId: string;
       missingPublishDraftReportId: string;
       missingPublishDraftArchiveId: string;
+      missingPublishDraftTitle: string;
       publishChannelValidationFailed: string;
       publishDraftValidationFailed: string;
+      publishDraftUpdateFailed: string;
       publishChannelCreated: string;
       publishChannelUpdated: string;
       publishChannelRevalidated: string;
       publishChannelDisabled: string;
       publishDraftCreated: string;
+      publishDraftUpdated: string;
     };
     api: {
       unauthorized: string;
@@ -1884,8 +1913,36 @@ const messages: Record<Locale, Messages> = {
       descriptionLoading: "发布草稿详情正在准备中。",
       errorTitle: "发布草稿详情暂时不可用",
       errorAction: "返回报告中心",
+      editorTitle: "人工编辑",
+      editorDescription:
+        "在这里调整发布标题、摘要、正文，并选择要带上的标签与目标发布渠道。",
+      editorOptionsLoadError:
+        "标签或发布渠道选项加载失败，当前仍可编辑正文，但请稍后再检查可选项。",
+      titleLabel: "发布标题",
       summaryTitle: "草稿摘要",
+      summaryLabel: "摘要说明",
+      summaryPlaceholder: "为这份草稿补充一段简明摘要，便于后续发布和回看。",
       noSummary: "当前草稿还没有摘要，可以在后续编辑阶段补充。",
+      bodyLabel: "草稿正文",
+      bodyPlaceholder: "在这里继续整理最终要发布的正文内容。",
+      bodyHint: "当前使用纯文本编辑，保存后会自动转换为系统内的富文本文档。",
+      tagsLabel: "关联标签",
+      tagsHint: "为草稿补充主题标签，方便后续筛选、复用和发布前整理。",
+      chooseTags: "选择标签",
+      selectedTagsCount: "已选 {count} 个标签",
+      searchTagsPlaceholder: "搜索标签名称或 slug",
+      noMatchingTags: "没有匹配当前搜索词的标签。",
+      noTagOptions: "当前还没有可选标签，可以先到分类标签页创建。",
+      targetChannelsLabel: "目标渠道",
+      targetChannelsHint:
+        "选择后续准备投放的发布渠道。后续实际发布任务会基于这里的选择展开。",
+      chooseChannels: "选择渠道",
+      selectedChannelsCount: "已选 {count} 个渠道",
+      searchChannelsPlaceholder: "搜索渠道名、账号标识或平台",
+      noMatchingChannels: "没有匹配当前搜索词的发布渠道。",
+      noChannelOptions: "当前还没有可选发布渠道，可以先到绑定页完成渠道绑定。",
+      save: "保存草稿修改",
+      saving: "保存中...",
       sourceTitle: "草稿来源",
       sourceDescription:
         "这里记录本份草稿来自哪份报告、哪些归档帖子，方便回溯内容出处和继续补充素材。",
@@ -2182,15 +2239,19 @@ const messages: Record<Locale, Messages> = {
         missingPublishPlatformType: "请选择发布平台。",
         missingPublishDisplayName: "请填写渠道展示名称。",
         missingPublishCredentialPayload: "请填写渠道凭证 JSON。",
+        missingPublishDraftId: "缺少发布草稿 ID。",
         missingPublishDraftReportId: "缺少报告 ID。",
         missingPublishDraftArchiveId: "缺少归档 ID。",
+        missingPublishDraftTitle: "请填写发布草稿标题。",
         publishChannelValidationFailed: "发布渠道表单校验失败。",
         publishDraftValidationFailed: "发布草稿生成失败。",
+        publishDraftUpdateFailed: "发布草稿保存失败。",
         publishChannelCreated: "发布渠道已创建。",
         publishChannelUpdated: "发布渠道已更新。",
         publishChannelRevalidated: "发布渠道已重新校验。",
         publishChannelDisabled: "发布渠道已停用。",
         publishDraftCreated: "发布草稿已生成。",
+        publishDraftUpdated: "发布草稿已更新。",
       },
       api: {
         unauthorized: "未登录或会话已失效。",
@@ -3096,9 +3157,42 @@ const messages: Record<Locale, Messages> = {
       descriptionLoading: "Publishing draft details are loading.",
       errorTitle: "Publishing draft detail is temporarily unavailable",
       errorAction: "Back to reports",
+      editorTitle: "Manual editing",
+      editorDescription:
+        "Refine the publishing title, summary, body, tags, and target channels here before the actual delivery flow is connected.",
+      editorOptionsLoadError:
+        "Tag or channel options failed to load. You can still edit the draft body, but please retry later for selection data.",
+      titleLabel: "Publishing title",
       summaryTitle: "Draft summary",
+      summaryLabel: "Summary",
+      summaryPlaceholder:
+        "Add a short summary so the draft is easier to review and publish later.",
       noSummary:
         "This draft does not have a summary yet. You can add one during the editing stage.",
+      bodyLabel: "Draft body",
+      bodyPlaceholder: "Keep refining the final body content here.",
+      bodyHint:
+        "The editor currently uses plain text input and converts it back into the platform rich-text document on save.",
+      tagsLabel: "Related tags",
+      tagsHint:
+        "Attach topical tags so the draft can be filtered, reused, and reviewed more easily later.",
+      chooseTags: "Choose tags",
+      selectedTagsCount: "{count} tags selected",
+      searchTagsPlaceholder: "Search tag name or slug",
+      noMatchingTags: "No tags match the current search.",
+      noTagOptions: "There are no tags available yet. Create some in taxonomy first.",
+      targetChannelsLabel: "Target channels",
+      targetChannelsHint:
+        "Choose which publishing channels this draft is preparing for. Future delivery tasks will expand from this selection.",
+      chooseChannels: "Choose channels",
+      selectedChannelsCount: "{count} channels selected",
+      searchChannelsPlaceholder:
+        "Search by channel name, account identifier, or platform",
+      noMatchingChannels: "No publishing channels match the current search.",
+      noChannelOptions:
+        "There are no publishing channels available yet. Create one from the bindings workspace first.",
+      save: "Save draft changes",
+      saving: "Saving...",
       sourceTitle: "Draft sources",
       sourceDescription:
         "This section records which report and archived posts were used to assemble the current publishing draft.",
@@ -3404,16 +3498,20 @@ const messages: Record<Locale, Messages> = {
         missingPublishDisplayName: "Please enter the channel display name.",
         missingPublishCredentialPayload:
           "Please provide the channel credential JSON.",
+        missingPublishDraftId: "Missing publishing draft ID.",
         missingPublishDraftReportId: "Missing report ID.",
         missingPublishDraftArchiveId: "Missing archive ID.",
+        missingPublishDraftTitle: "Please enter the publishing draft title.",
         publishChannelValidationFailed:
           "Publishing channel form validation failed.",
         publishDraftValidationFailed: "Publishing draft creation failed.",
+        publishDraftUpdateFailed: "Publishing draft update failed.",
         publishChannelCreated: "Publishing channel created.",
         publishChannelUpdated: "Publishing channel updated.",
         publishChannelRevalidated: "Publishing channel revalidated.",
         publishChannelDisabled: "Publishing channel disabled.",
         publishDraftCreated: "Publishing draft created.",
+        publishDraftUpdated: "Publishing draft updated.",
       },
       api: {
         unauthorized: "Not signed in or the session has expired.",

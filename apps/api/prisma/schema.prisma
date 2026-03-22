@@ -551,6 +551,7 @@ model Tag {
   updatedAt        DateTime          @updatedAt @map("updated_at")
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   archivedPostTags ArchivedPostTag[]
+  publishDraftTags PublishDraftTag[]
 
   @@unique([userId, slug])
   @@index([userId, name])
@@ -691,6 +692,7 @@ model PublishChannelBinding {
   updatedAt            DateTime             @updatedAt @map("updated_at")
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   publishJobs          PublishJob[]
+  targetDrafts         PublishDraftTargetChannel[]
 
   @@index([userId, platformType, status])
   @@map("publish_channel_bindings")
@@ -710,9 +712,37 @@ model PublishDraft {
   updatedAt     DateTime               @updatedAt @map("updated_at")
   user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   publishJobs   PublishJob[]
+  draftTags     PublishDraftTag[]
+  targetChannels PublishDraftTargetChannel[]
 
   @@index([userId, status, createdAt])
   @@map("publish_drafts")
+}
+
+model PublishDraftTag {
+  id        String       @id @default(cuid())
+  draftId   String       @map("draft_id")
+  tagId     String       @map("tag_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+  draft     PublishDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  tag       Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([draftId, tagId])
+  @@index([tagId, createdAt])
+  @@map("publish_draft_tags")
+}
+
+model PublishDraftTargetChannel {
+  id               String                @id @default(cuid())
+  draftId          String                @map("draft_id")
+  channelBindingId String                @map("channel_binding_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  draft            PublishDraft          @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  channelBinding   PublishChannelBinding @relation(fields: [channelBindingId], references: [id], onDelete: Cascade)
+
+  @@unique([draftId, channelBindingId])
+  @@index([channelBindingId, createdAt])
+  @@map("publish_draft_target_channels")
 }
 
 model PublishJob {

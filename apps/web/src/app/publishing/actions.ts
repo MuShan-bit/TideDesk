@@ -9,12 +9,21 @@ import type { PublishDraftDetailRecord } from "./publish-draft-types";
 
 export type PublishDraftActionState = {
   error?: string;
+  success?: string;
 };
 
 function getOptionalTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : undefined;
+}
+
+function getStringArrayValue(formData: FormData, key: string) {
+  return formData
+    .getAll(key)
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
 }
 
 export async function createPublishDraftFromReportAction(
@@ -104,6 +113,73 @@ export async function createPublishDraftFromArchiveAction(
       error: getApiErrorMessage(
         error,
         messages.actions.publishing.publishDraftValidationFailed,
+      ),
+    } satisfies PublishDraftActionState;
+  }
+}
+
+export async function updatePublishDraftAction(
+  _previousState: PublishDraftActionState,
+  formData: FormData,
+): Promise<PublishDraftActionState> {
+  const { messages } = await getRequestMessages();
+  const schema = z.object({
+    draftId: z
+      .string()
+      .trim()
+      .min(1, messages.actions.publishing.missingPublishDraftId),
+    title: z
+      .string()
+      .trim()
+      .min(1, messages.actions.publishing.missingPublishDraftTitle),
+    summary: z.string().trim(),
+    bodyText: z.string().trim(),
+    tagIds: z.array(z.string().trim()),
+    targetChannelIds: z.array(z.string().trim()),
+  });
+  const parsed = schema.safeParse({
+    draftId: getOptionalTextValue(formData, "draftId"),
+    title: getOptionalTextValue(formData, "title"),
+    summary: getOptionalTextValue(formData, "summary") ?? "",
+    bodyText: getOptionalTextValue(formData, "bodyText") ?? "",
+    tagIds: getStringArrayValue(formData, "tagIds"),
+    targetChannelIds: getStringArrayValue(formData, "targetChannelIds"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error:
+        parsed.error.issues[0]?.message ??
+        messages.actions.publishing.publishDraftUpdateFailed,
+    } satisfies PublishDraftActionState;
+  }
+
+  try {
+    await apiRequest({
+      path: `/publishing/drafts/${parsed.data.draftId}`,
+      method: "PATCH",
+      body: JSON.stringify({
+        title: parsed.data.title,
+        summary: parsed.data.summary,
+        bodyText: parsed.data.bodyText,
+        tagIds: parsed.data.tagIds,
+        targetChannelIds: parsed.data.targetChannelIds,
+      }),
+    });
+
+    revalidatePath(`/publishing/drafts/${parsed.data.draftId}`);
+    revalidatePath("/bindings");
+    revalidatePath("/reports");
+    revalidatePath("/archives");
+
+    return {
+      success: messages.actions.publishing.publishDraftUpdated,
+    } satisfies PublishDraftActionState;
+  } catch (error) {
+    return {
+      error: getApiErrorMessage(
+        error,
+        messages.actions.publishing.publishDraftUpdateFailed,
       ),
     } satisfies PublishDraftActionState;
   }

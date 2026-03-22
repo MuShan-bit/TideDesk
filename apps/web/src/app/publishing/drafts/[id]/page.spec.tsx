@@ -32,60 +32,98 @@ jest.mock("next/navigation", () => ({
   notFound: jest.fn(),
 }));
 
+jest.mock("../../publish-draft-editor", () => ({
+  PublishDraftEditor: ({
+    draft,
+  }: {
+    draft: {
+      id: string;
+    };
+  }) => <div data-testid="publish-draft-editor">{draft.id}</div>,
+}));
+
 describe("PublishDraftDetailPage", () => {
   it("renders publish draft detail content and source sections", async () => {
     const apiRequestMock = jest.mocked(apiRequest);
 
-    apiRequestMock.mockResolvedValue({
-      id: "draft-001",
-      sourceType: "REPORT",
-      status: "DRAFT",
-      title: "AI 周报发布稿",
-      summary: "本周重点集中在多平台发布链路与内容归档。",
-      richTextJson: {
-        version: 1,
-        blocks: [
+    apiRequestMock
+      .mockResolvedValueOnce({
+        id: "draft-001",
+        sourceType: "REPORT",
+        status: "DRAFT",
+        title: "AI 周报发布稿",
+        summary: "本周重点集中在多平台发布链路与内容归档。",
+        richTextJson: {
+          version: 1,
+          blocks: [
+            {
+              type: "paragraph",
+              children: [{ type: "text", text: "发布稿正文。" }],
+            },
+          ],
+        },
+        renderedHtml: "<p>发布稿正文。</p>",
+        createdAt: "2026-03-22T01:00:00.000Z",
+        updatedAt: "2026-03-22T01:30:00.000Z",
+        sourceSnapshot: {
+          reportIds: ["report-001"],
+          archivedPostIds: ["archive-001"],
+        },
+        sourceReport: {
+          id: "report-001",
+          title: "AI 周报",
+          reportType: "WEEKLY",
+          periodStart: "2026-03-01T00:00:00.000Z",
+          periodEnd: "2026-03-08T00:00:00.000Z",
+          sourcePostsCount: 1,
+          summary: "报告摘要",
+        },
+        sourceArchives: [
           {
-            type: "paragraph",
-            children: [{ type: "text", text: "发布稿正文。" }],
+            id: "archive-001",
+            xPostId: "post-001",
+            postUrl: "https://x.com/demo/status/001",
+            rawText: "第一条来源帖子",
+            sourceCreatedAt: "2026-03-06T10:00:00.000Z",
+            authorUsername: "demo_author",
+            authorDisplayName: "Demo Author",
+            summary: null,
+            binding: {
+              id: "binding-001",
+              username: "demo_binding",
+              displayName: "Demo Binding",
+            },
           },
         ],
-      },
-      renderedHtml: "<p>发布稿正文。</p>",
-      createdAt: "2026-03-22T01:00:00.000Z",
-      updatedAt: "2026-03-22T01:30:00.000Z",
-      sourceSnapshot: {
-        reportIds: ["report-001"],
-        archivedPostIds: ["archive-001"],
-      },
-      sourceReport: {
-        id: "report-001",
-        title: "AI 周报",
-        reportType: "WEEKLY",
-        periodStart: "2026-03-01T00:00:00.000Z",
-        periodEnd: "2026-03-08T00:00:00.000Z",
-        sourcePostsCount: 1,
-        summary: "报告摘要",
-      },
-      sourceArchives: [
+        publishJobs: [],
+        tagAssignments: [],
+        targetChannels: [],
+      })
+      .mockResolvedValueOnce([
         {
-          id: "archive-001",
-          xPostId: "post-001",
-          postUrl: "https://x.com/demo/status/001",
-          rawText: "第一条来源帖子",
-          sourceCreatedAt: "2026-03-06T10:00:00.000Z",
-          authorUsername: "demo_author",
-          authorDisplayName: "Demo Author",
-          summary: null,
-          binding: {
-            id: "binding-001",
-            username: "demo_binding",
-            displayName: "Demo Binding",
-          },
+          id: "tag-001",
+          name: "OpenAI",
+          slug: "openai",
+          color: "#10b981",
+          isActive: true,
+          isSystem: false,
+          createdAt: "2026-03-21T00:00:00.000Z",
+          updatedAt: "2026-03-21T00:00:00.000Z",
         },
-      ],
-      publishJobs: [],
-    });
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "channel-001",
+          platformType: "WECHAT",
+          displayName: "微信公众号主号",
+          accountIdentifier: "gh_demo",
+          status: "ACTIVE",
+          lastValidatedAt: "2026-03-22T00:00:00.000Z",
+          lastValidationError: null,
+          createdAt: "2026-03-21T00:00:00.000Z",
+          updatedAt: "2026-03-22T00:00:00.000Z",
+        },
+      ]);
 
     const { container } = render(
       await PublishDraftDetailPage({
@@ -107,6 +145,9 @@ describe("PublishDraftDetailPage", () => {
     expect(screen.getByRole("link", { name: "查看来源归档" })).toHaveAttribute(
       "href",
       "/archives/archive-001",
+    );
+    expect(screen.getByTestId("publish-draft-editor")).toHaveTextContent(
+      "draft-001",
     );
     expect(screen.getByText("还没有发布任务")).toBeInTheDocument();
   });

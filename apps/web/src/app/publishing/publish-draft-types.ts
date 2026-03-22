@@ -88,4 +88,33 @@ export type PublishDraftDetailRecord = {
       status: PublishBindingStatusValue;
     };
   }>;
+  tagAssignments: Array<{
+    id: string;
+    createdAt: string;
+    tag: {
+      id: string;
+      name: string;
+      slug: string;
+      color: string | null;
+      isActive: boolean;
+      isSystem: boolean;
+      createdAt: string;
+      updatedAt: string;
+    };
+  }>;
+  targetChannels: Array<{
+    id: string;
+    createdAt: string;
+    channelBinding: {
+      id: string;
+      platformType: PublishPlatformTypeValue;
+      displayName: string;
+      accountIdentifier: string | null;
+      status: PublishBindingStatusValue;
+      lastValidatedAt: string | null;
+      lastValidationError: string | null;
+      createdAt: string;
+      updatedAt: string;
+    };
+  }>;
 };

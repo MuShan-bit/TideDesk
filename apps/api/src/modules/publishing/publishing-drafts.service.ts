@@ -10,8 +10,10 @@ import {
 } from '../archives/rich-text.converter';
 import { renderRichTextToHtml } from '../archives/rich-text.renderer';
 import { PrismaService } from '../prisma/prisma.service';
+import { buildReportRichTextFromPlainText } from '../reports/report-rich-text';
 import { CreatePublishDraftDto } from './dto/create-publish-draft.dto';
 import { ListPublishDraftsQueryDto } from './dto/list-publish-drafts-query.dto';
+import { UpdatePublishDraftDto } from './dto/update-publish-draft.dto';
 
 const DEFAULT_DRAFT_PAGE = 1;
 const DEFAULT_DRAFT_PAGE_SIZE = 20;
@@ -26,6 +28,14 @@ const publishDraftListInclude = {
 } satisfies Prisma.PublishDraftInclude;
 
 const publishDraftDetailInclude = {
+  draftTags: {
+    orderBy: {
+      createdAt: 'asc',
+    },
+    include: {
+      tag: true,
+    },
+  },
   publishJobs: {
     orderBy: {
       createdAt: 'desc',
@@ -38,6 +48,26 @@ const publishDraftDetailInclude = {
           displayName: true,
           accountIdentifier: true,
           status: true,
+        },
+      },
+    },
+  },
+  targetChannels: {
+    orderBy: {
+      createdAt: 'asc',
+    },
+    include: {
+      channelBinding: {
+        select: {
+          id: true,
+          platformType: true,
+          displayName: true,
+          accountIdentifier: true,
+          status: true,
+          lastValidatedAt: true,
+          lastValidationError: true,
+          createdAt: true,
+          updatedAt: true,
         },
       },
     },
@@ -195,6 +225,125 @@ export class PublishingDraftsService {
     return this.buildPublishDraftDetail(userId, createdDraft, sourceContext);
   }
 
+  async updatePublishDraft(
+    userId: string,
+    draftId: string,
+    dto: UpdatePublishDraftDto,
+  ) {
+    const draft = await this.findPublishDraftOrThrow(userId, draftId);
+    const normalizedTagIds =
+      dto.tagIds !== undefined ? this.normalizeStringArray(dto.tagIds) : undefined;
+    const normalizedTargetChannelIds =
+      dto.targetChannelIds !== undefined
+        ? this.normalizeStringArray(dto.targetChannelIds)
+        : undefined;
+
+    await Promise.all([
+      normalizedTagIds !== undefined
+        ? this.ensureTagIdsAvailable(userId, normalizedTagIds)
+        : Promise.resolve(),
+      normalizedTargetChannelIds !== undefined
+        ? this.ensureTargetChannelsAvailable(userId, normalizedTargetChannelIds)
+        : Promise.resolve(),
+    ]);
+
+    const updateData: Prisma.PublishDraftUpdateInput = {};
+
+    if (dto.title !== undefined) {
+      updateData.title = dto.title;
+    }
+
+    if (dto.summary !== undefined) {
+      updateData.summary =
+        dto.summary.trim().length > 0 ? dto.summary.trim() : null;
+    }
+
+    if (dto.bodyText !== undefined) {
+      const richTextPayload = buildReportRichTextFromPlainText(dto.bodyText);
+      updateData.richTextJson = richTextPayload.richTextJson;
+      updateData.renderedHtml = richTextPayload.renderedHtml;
+    }
+
+    if (
+      Object.keys(updateData).length === 0 &&
+      normalizedTagIds === undefined &&
+      normalizedTargetChannelIds === undefined
+    ) {
+      return this.buildPublishDraftDetail(userId, draft);
+    }
+
+    const updatedDraft = await this.prisma.$transaction(async (tx) => {
+      if (normalizedTagIds !== undefined) {
+        await tx.publishDraftTag.deleteMany({
+          where: {
+            draftId: draft.id,
+            ...(normalizedTagIds.length > 0
+              ? {
+                  tagId: {
+                    notIn: normalizedTagIds,
+                  },
+                }
+              : {}),
+          },
+        });
+
+        if (normalizedTagIds.length > 0) {
+          await tx.publishDraftTag.createMany({
+            data: normalizedTagIds.map((tagId) => ({
+              draftId: draft.id,
+              tagId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      if (normalizedTargetChannelIds !== undefined) {
+        await tx.publishDraftTargetChannel.deleteMany({
+          where: {
+            draftId: draft.id,
+            ...(normalizedTargetChannelIds.length > 0
+              ? {
+                  channelBindingId: {
+                    notIn: normalizedTargetChannelIds,
+                  },
+                }
+              : {}),
+          },
+        });
+
+        if (normalizedTargetChannelIds.length > 0) {
+          await tx.publishDraftTargetChannel.createMany({
+            data: normalizedTargetChannelIds.map((channelBindingId) => ({
+              draftId: draft.id,
+              channelBindingId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return tx.publishDraft.findUniqueOrThrow({
+          where: {
+            id: draft.id,
+          },
+          include: publishDraftDetailInclude,
+        });
+      }
+
+      return tx.publishDraft.update({
+        where: {
+          id: draft.id,
+        },
+        data: updateData,
+        include: publishDraftDetailInclude,
+      });
+    });
+
+    return this.buildPublishDraftDetail(userId, updatedDraft);
+  }
+
   private async buildPublishDraftDetail(
     userId: string,
     draft: PublishDraftDetailRecord,
@@ -203,9 +352,10 @@ export class PublishingDraftsService {
     const resolvedSourceContext =
       sourceContext ??
       (await this.resolveSourceContext(userId, draft.sourceIdsJson));
+    const { draftTags, targetChannels, ...draftPayload } = draft;
 
     return {
-      ...draft,
+      ...draftPayload,
       sourceArchives: resolvedSourceContext.archivedPosts.map((item) =>
         this.mapSourceArchive(item),
       ),
@@ -213,6 +363,16 @@ export class PublishingDraftsService {
         ? this.mapSourceReport(resolvedSourceContext.report)
         : null,
       sourceSnapshot: resolvedSourceContext.sourceSnapshot,
+      tagAssignments: draftTags.map((item) => ({
+        createdAt: item.createdAt,
+        id: item.id,
+        tag: item.tag,
+      })),
+      targetChannels: targetChannels.map((item) => ({
+        channelBinding: item.channelBinding,
+        createdAt: item.createdAt,
+        id: item.id,
+      })),
     };
   }
 
@@ -573,6 +733,57 @@ export class PublishingDraftsService {
     return archivedPostIds
       .map((item) => archiveMap.get(item))
       .filter((item): item is PublishDraftSourceArchive => Boolean(item));
+  }
+
+  private async ensureTagIdsAvailable(userId: string, tagIds: string[]) {
+    if (tagIds.length === 0) {
+      return;
+    }
+
+    const matchedTags = await this.prisma.tag.findMany({
+      where: {
+        id: {
+          in: tagIds,
+        },
+        userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (matchedTags.length !== tagIds.length) {
+      throw new BadRequestException(
+        'One or more selected tags are not available for the current user',
+      );
+    }
+  }
+
+  private async ensureTargetChannelsAvailable(
+    userId: string,
+    targetChannelIds: string[],
+  ) {
+    if (targetChannelIds.length === 0) {
+      return;
+    }
+
+    const matchedChannels = await this.prisma.publishChannelBinding.findMany({
+      where: {
+        id: {
+          in: targetChannelIds,
+        },
+        userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (matchedChannels.length !== targetChannelIds.length) {
+      throw new BadRequestException(
+        'One or more selected publish channels are not available for the current user',
+      );
+    }
   }
 
   private normalizeSourceSnapshot(

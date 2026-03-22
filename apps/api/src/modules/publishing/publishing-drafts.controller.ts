@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -13,6 +14,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { serializeForJson } from '../../common/utils/json-serializer';
 import { CreatePublishDraftDto } from './dto/create-publish-draft.dto';
 import { ListPublishDraftsQueryDto } from './dto/list-publish-drafts-query.dto';
+import { UpdatePublishDraftDto } from './dto/update-publish-draft.dto';
 import { PublishingDraftsService } from './publishing-drafts.service';
 
 @Controller('publishing/drafts')
@@ -49,6 +51,17 @@ export class PublishingDraftsController {
   ) {
     return this.publishingDraftsService
       .createPublishDraft(user.id, dto)
+      .then((payload) => serializeForJson(payload));
+  }
+
+  @Patch(':id')
+  updatePublishDraft(
+    @CurrentUser() user: RequestUser,
+    @Param('id') draftId: string,
+    @Body() dto: UpdatePublishDraftDto,
+  ) {
+    return this.publishingDraftsService
+      .updatePublishDraft(user.id, draftId, dto)
       .then((payload) => serializeForJson(payload));
   }
 }

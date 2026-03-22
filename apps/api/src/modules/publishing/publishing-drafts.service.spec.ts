@@ -2,7 +2,9 @@ import {
   BindingStatus,
   CredentialSource,
   PostType,
+  PublishBindingStatus,
   PublishDraftSourceType,
+  PublishPlatformType,
   ReportType,
   UserRole,
 } from '@prisma/client';
@@ -233,6 +235,79 @@ describe('PublishingDraftsService', () => {
         otherDraft.id,
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('updates publish draft title, summary, body, tags, and target channels', async () => {
+    const binding = await createBinding('publish_draft_owner', 'publish_editor');
+    const archive = await createArchive(binding.id, 'publish_editor', '001');
+    const firstTag = await prisma.tag.create({
+      data: {
+        userId: 'publish_draft_owner',
+        name: 'AI',
+        slug: 'ai',
+      },
+    });
+    const secondTag = await prisma.tag.create({
+      data: {
+        userId: 'publish_draft_owner',
+        name: 'Workflow',
+        slug: 'workflow',
+      },
+    });
+    const channel = await prisma.publishChannelBinding.create({
+      data: {
+        userId: 'publish_draft_owner',
+        platformType: PublishPlatformType.WECHAT,
+        displayName: '微信公众号主号',
+        accountIdentifier: 'gh_editor',
+        authPayloadEncrypted: 'encrypted-channel',
+        status: PublishBindingStatus.ACTIVE,
+      },
+    });
+    const draft = await publishingDraftsService.createPublishDraft(
+      'publish_draft_owner',
+      {
+        archivedPostIds: [archive.id],
+      },
+    );
+
+    const updatedDraft = await publishingDraftsService.updatePublishDraft(
+      'publish_draft_owner',
+      draft.id,
+      {
+        title: '新的发布标题',
+        summary: '新的发布摘要',
+        bodyText: '第一段正文\n\n第二段正文',
+        tagIds: [firstTag.id, secondTag.id],
+        targetChannelIds: [channel.id],
+      },
+    );
+
+    expect(updatedDraft.title).toBe('新的发布标题');
+    expect(updatedDraft.summary).toBe('新的发布摘要');
+    expect(String(updatedDraft.renderedHtml)).toContain('第一段正文');
+    expect(String(updatedDraft.renderedHtml)).toContain('第二段正文');
+    expect(updatedDraft.tagAssignments).toHaveLength(2);
+    expect(updatedDraft.tagAssignments.map((item) => item.tag.id)).toEqual([
+      firstTag.id,
+      secondTag.id,
+    ]);
+    expect(updatedDraft.targetChannels).toHaveLength(1);
+    expect(updatedDraft.targetChannels[0]?.channelBinding.id).toBe(channel.id);
+
+    const clearedDraft = await publishingDraftsService.updatePublishDraft(
+      'publish_draft_owner',
+      draft.id,
+      {
+        summary: '',
+        tagIds: [],
+        targetChannelIds: [],
+      },
+    );
+
+    expect(clearedDraft.summary).toBeNull();
+    expect(clearedDraft.tagAssignments).toHaveLength(0);
+    expect(clearedDraft.targetChannels).toHaveLength(0);
   });
 
   async function createBinding(userId: string, username: string) {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, FileText, SendHorizonal } from "lucide-react";
+import type { PublishChannelBindingRecord } from "@/app/bindings/publish-channel-types";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { PageHeader } from "@/components/page-header";
@@ -20,6 +21,8 @@ import {
 } from "@/lib/api-client";
 import { formatMessage, getIntlLocale, type Locale } from "@/lib/i18n";
 import { getRequestMessages } from "@/lib/request-locale";
+import type { TagRecord } from "@/app/taxonomy/taxonomy-types";
+import { PublishDraftEditor } from "../../publish-draft-editor";
 import type { PublishDraftDetailRecord } from "../../publish-draft-types";
 import {
   extractReportBodyText,
@@ -78,12 +81,45 @@ async function getPublishDraftDetail(id: string) {
   }
 }
 
+async function getPublishDraftEditorOptions() {
+  const { messages } = await getRequestMessages();
+
+  try {
+    const [availableTags, availableChannels] = await Promise.all([
+      apiRequest<TagRecord[]>({
+        path: "/taxonomy/tags",
+        method: "GET",
+      }),
+      apiRequest<PublishChannelBindingRecord[]>({
+        path: "/publishing/channels",
+        method: "GET",
+      }),
+    ]);
+
+    return {
+      availableChannels,
+      availableTags,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      availableChannels: [] as PublishChannelBindingRecord[],
+      availableTags: [] as TagRecord[],
+      error: getApiErrorMessage(
+        error,
+        messages.publishDraftDetail.editorOptionsLoadError,
+      ),
+    };
+  }
+}
+
 export default async function PublishDraftDetailPage({
   params,
 }: PublishDraftDetailPageProps) {
   const { locale, messages } = await getRequestMessages();
   const { id } = await params;
   const { draft, error } = await getPublishDraftDetail(id);
+  const editorOptions = draft ? await getPublishDraftEditorOptions() : null;
   const sourceHref = draft?.sourceReport
     ? `/reports/${draft.sourceReport.id}`
     : draft?.sourceArchives[0]
@@ -366,6 +402,16 @@ export default async function PublishDraftDetailPage({
                 </div>
               </CardContent>
             </Card>
+
+            {editorOptions ? (
+              <PublishDraftEditor
+                availableChannels={editorOptions.availableChannels}
+                availableTags={editorOptions.availableTags}
+                draft={draft}
+                editorOptionsError={editorOptions.error}
+                locale={locale}
+              />
+            ) : null}
 
             <Card className="rounded-[2rem] border-border/70 bg-white/92 shadow-[0_24px_80px_-40px_rgba(45,77,63,0.24)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
               <CardHeader>
