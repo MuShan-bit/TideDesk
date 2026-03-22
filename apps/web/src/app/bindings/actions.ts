@@ -40,7 +40,6 @@ const credentialSourceSchema = z.enum([
 ]);
 const crawlModeSchema = z.enum(["RECOMMENDED", "HOT", "SEARCH"]);
 const crawlScheduleKindSchema = z.enum(["INTERVAL", "CRON"]);
-
 function getOptionalTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
 
@@ -173,6 +172,59 @@ function createCrawlProfileOperationSchema(
       .string()
       .trim()
       .min(1, messages.actions.bindings.missingProfileId),
+  });
+}
+
+function createPublishChannelSchema(
+  messages: Awaited<ReturnType<typeof getRequestMessages>>["messages"],
+) {
+  const publishPlatformTypeSchema = z.enum(["WECHAT", "ZHIHU", "CSDN"], {
+    message: messages.actions.publishing.missingPublishPlatformType,
+  });
+
+  return z.object({
+    platformType: publishPlatformTypeSchema,
+    displayName: z
+      .string()
+      .trim()
+      .min(1, messages.actions.publishing.missingPublishDisplayName),
+    accountIdentifier: z
+      .string()
+      .trim()
+      .optional()
+      .transform((value) => value || undefined),
+    credentialPayload: z
+      .string()
+      .trim()
+      .min(1, messages.actions.publishing.missingPublishCredentialPayload),
+  });
+}
+
+function createPublishChannelOperationSchema(
+  messages: Awaited<ReturnType<typeof getRequestMessages>>["messages"],
+) {
+  return z.object({
+    publishChannelId: z
+      .string()
+      .trim()
+      .min(1, messages.actions.publishing.missingPublishChannelId),
+  });
+}
+
+function createUpdatePublishChannelSchema(
+  messages: Awaited<ReturnType<typeof getRequestMessages>>["messages"],
+) {
+  return z.object({
+    displayName: z
+      .string()
+      .trim()
+      .min(1, messages.actions.publishing.missingPublishDisplayName),
+    accountIdentifier: z.string().trim().optional(),
+    credentialPayload: z
+      .string()
+      .trim()
+      .optional()
+      .transform((value) => value || undefined),
   });
 }
 
@@ -706,5 +758,171 @@ export async function triggerCrawlProfileAction(
     } satisfies BindingActionState;
   } catch (error) {
     return buildManualCrawlErrorState(error, messages);
+  }
+}
+
+export async function createPublishChannelAction(
+  _previousState: BindingActionState,
+  formData: FormData,
+): Promise<BindingActionState> {
+  const { messages } = await getRequestMessages();
+  const publishChannelSchema = createPublishChannelSchema(messages);
+  const parsed = publishChannelSchema.safeParse({
+    platformType: getOptionalTextValue(formData, "platformType"),
+    displayName: getOptionalTextValue(formData, "displayName"),
+    accountIdentifier: getOptionalTextValue(formData, "accountIdentifier"),
+    credentialPayload: getOptionalTextValue(formData, "credentialPayload"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error:
+        parsed.error.issues[0]?.message ??
+        messages.actions.publishing.publishChannelValidationFailed,
+    } satisfies BindingActionState;
+  }
+
+  try {
+    await apiRequest({
+      path: "/publishing/channels",
+      method: "POST",
+      body: JSON.stringify(parsed.data),
+    });
+
+    revalidatePath("/bindings");
+
+    return {
+      success: messages.actions.publishing.publishChannelCreated,
+    } satisfies BindingActionState;
+  } catch (error) {
+    return {
+      error: getApiErrorMessage(error, messages.actions.api.requestFailed),
+    } satisfies BindingActionState;
+  }
+}
+
+export async function updatePublishChannelAction(
+  _previousState: BindingActionState,
+  formData: FormData,
+): Promise<BindingActionState> {
+  const { messages } = await getRequestMessages();
+  const operationSchema = createPublishChannelOperationSchema(messages);
+  const parsedOperation = operationSchema.safeParse({
+    publishChannelId: getOptionalTextValue(formData, "publishChannelId"),
+  });
+
+  if (!parsedOperation.success) {
+    return {
+      error:
+        parsedOperation.error.issues[0]?.message ??
+        messages.actions.publishing.missingPublishChannelId,
+    } satisfies BindingActionState;
+  }
+
+  const publishChannelSchema = createUpdatePublishChannelSchema(messages);
+  const parsed = publishChannelSchema.safeParse({
+    displayName: getOptionalTextValue(formData, "displayName"),
+    accountIdentifier: getOptionalTextValue(formData, "accountIdentifier"),
+    credentialPayload: getOptionalTextValue(formData, "credentialPayload"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error:
+        parsed.error.issues[0]?.message ??
+        messages.actions.publishing.publishChannelValidationFailed,
+    } satisfies BindingActionState;
+  }
+
+  try {
+    await apiRequest({
+      path: `/publishing/channels/${parsedOperation.data.publishChannelId}`,
+      method: "PATCH",
+      body: JSON.stringify(parsed.data),
+    });
+
+    revalidatePath("/bindings");
+
+    return {
+      success: messages.actions.publishing.publishChannelUpdated,
+    } satisfies BindingActionState;
+  } catch (error) {
+    return {
+      error: getApiErrorMessage(error, messages.actions.api.requestFailed),
+    } satisfies BindingActionState;
+  }
+}
+
+export async function revalidatePublishChannelAction(
+  _previousState: BindingActionState,
+  formData: FormData,
+): Promise<BindingActionState> {
+  const { messages } = await getRequestMessages();
+  const operationSchema = createPublishChannelOperationSchema(messages);
+  const parsed = operationSchema.safeParse({
+    publishChannelId: getOptionalTextValue(formData, "publishChannelId"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error:
+        parsed.error.issues[0]?.message ??
+        messages.actions.publishing.missingPublishChannelId,
+    } satisfies BindingActionState;
+  }
+
+  try {
+    await apiRequest({
+      path: `/publishing/channels/${parsed.data.publishChannelId}/revalidate`,
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+
+    revalidatePath("/bindings");
+
+    return {
+      success: messages.actions.publishing.publishChannelRevalidated,
+    } satisfies BindingActionState;
+  } catch (error) {
+    return {
+      error: getApiErrorMessage(error, messages.actions.api.requestFailed),
+    } satisfies BindingActionState;
+  }
+}
+
+export async function disablePublishChannelAction(
+  _previousState: BindingActionState,
+  formData: FormData,
+): Promise<BindingActionState> {
+  const { messages } = await getRequestMessages();
+  const operationSchema = createPublishChannelOperationSchema(messages);
+  const parsed = operationSchema.safeParse({
+    publishChannelId: getOptionalTextValue(formData, "publishChannelId"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error:
+        parsed.error.issues[0]?.message ??
+        messages.actions.publishing.missingPublishChannelId,
+    } satisfies BindingActionState;
+  }
+
+  try {
+    await apiRequest({
+      path: `/publishing/channels/${parsed.data.publishChannelId}/disable`,
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+
+    revalidatePath("/bindings");
+
+    return {
+      success: messages.actions.publishing.publishChannelDisabled,
+    } satisfies BindingActionState;
+  } catch (error) {
+    return {
+      error: getApiErrorMessage(error, messages.actions.api.requestFailed),
+    } satisfies BindingActionState;
   }
 }

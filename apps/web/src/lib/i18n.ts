@@ -264,6 +264,51 @@ type Messages = {
       displayName: string;
       credentialPayload: string;
     };
+    publishChannels: {
+      title: string;
+      description: string;
+      count: string;
+      listTitle: string;
+      listDescription: string;
+      newAction: string;
+      emptyTitle: string;
+      emptyDescription: string;
+      summaryTitle: string;
+      summaryDescription: string;
+      noSelectionTitle: string;
+      noSelectionDescription: string;
+      createTitle: string;
+      createDescription: string;
+      editTitle: string;
+      editDescription: string;
+      operationsTitle: string;
+      operationsDescription: string;
+      platformLabel: string;
+      displayNameLabel: string;
+      accountIdentifierLabel: string;
+      credentialPayloadLabel: string;
+      credentialPayloadHint: string;
+      credentialPayloadOptionalHint: string;
+      accountIdentifierEmpty: string;
+      lastValidatedAtLabel: string;
+      createdAtLabel: string;
+      updatedAtLabel: string;
+      lastValidationErrorLabel: string;
+      noValidationError: string;
+      saveCreate: string;
+      savingCreate: string;
+      saveUpdate: string;
+      savingUpdate: string;
+      revalidateAction: string;
+      revalidatingAction: string;
+      disableAction: string;
+      disablingAction: string;
+      placeholders: {
+        displayName: string;
+        accountIdentifier: string;
+        credentialPayload: string;
+      };
+    };
   };
   strategies: {
     eyebrow: string;
@@ -780,6 +825,11 @@ type Messages = {
     >;
     reportType: Record<"DAILY" | "WEEKLY" | "MONTHLY", string>;
     reportStatus: Record<"DRAFT" | "READY" | "FAILED", string>;
+    publishPlatformType: Record<"WECHAT" | "ZHIHU" | "CSDN", string>;
+    publishBindingStatus: Record<
+      "PENDING" | "ACTIVE" | "INVALID" | "DISABLED",
+      string
+    >;
   };
   actions: {
     login: {
@@ -878,6 +928,17 @@ type Messages = {
       invalidExportFormat: string;
       reportUpdated: string;
       reportRegenerated: string;
+    };
+    publishing: {
+      missingPublishChannelId: string;
+      missingPublishPlatformType: string;
+      missingPublishDisplayName: string;
+      missingPublishCredentialPayload: string;
+      publishChannelValidationFailed: string;
+      publishChannelCreated: string;
+      publishChannelUpdated: string;
+      publishChannelRevalidated: string;
+      publishChannelDisabled: string;
     };
     api: {
       unauthorized: string;
@@ -1212,6 +1273,62 @@ const messages: Record<Locale, Messages> = {
         displayName: "例如 OpenAI",
         credentialPayload:
           '例如 {"adapter":"real","cookies":[...],"username":"demo_x_user"}',
+      },
+      publishChannels: {
+        title: "发布渠道",
+        description:
+          "在同一工作区里管理微信公众号、知乎、CSDN 等外部发布渠道，为后续草稿发布和多平台投放做准备。",
+        count: "{count} 个渠道",
+        listTitle: "渠道列表",
+        listDescription:
+          "每个渠道都会显示平台类型、绑定状态和最近校验时间，便于你快速判断哪个渠道已经可用。",
+        newAction: "新建渠道",
+        emptyTitle: "还没有发布渠道",
+        emptyDescription:
+          "先创建一个微信公众号、知乎或 CSDN 渠道绑定，后续就可以把报告或归档内容发布出去。",
+        summaryTitle: "当前渠道摘要",
+        summaryDescription:
+          "这里集中显示所选发布渠道的标识、最近校验时间和最近一次校验错误。",
+        noSelectionTitle: "选择一个渠道查看详情",
+        noSelectionDescription:
+          "从左侧列表选择一个现有渠道，或者直接在右侧创建新的发布渠道绑定。",
+        createTitle: "创建发布渠道",
+        createDescription:
+          "录入平台类型、展示名称和凭证 JSON。系统会先做结构化校验，再保存到加密存储。",
+        editTitle: "编辑发布渠道",
+        editDescription:
+          "可以更新展示名称、账号标识，或重新录入新的凭证 JSON 来刷新校验状态。",
+        operationsTitle: "渠道操作",
+        operationsDescription:
+          "支持重新校验当前渠道凭证，或先将该渠道停用，避免被后续发布任务使用。",
+        platformLabel: "平台类型",
+        displayNameLabel: "展示名称",
+        accountIdentifierLabel: "账号标识",
+        credentialPayloadLabel: "凭证 JSON",
+        credentialPayloadHint:
+          "请输入平台凭证的 JSON 结构，例如 Cookie、Token、AppId 等字段。保存后会自动加密。",
+        credentialPayloadOptionalHint:
+          "留空表示沿用当前已保存凭证；如果要刷新登录态或 Token，再粘贴新的凭证 JSON。",
+        accountIdentifierEmpty: "未填写账号标识",
+        lastValidatedAtLabel: "最近校验",
+        createdAtLabel: "创建时间",
+        updatedAtLabel: "最近更新",
+        lastValidationErrorLabel: "最近校验结果",
+        noValidationError: "当前没有记录校验错误。",
+        saveCreate: "创建渠道",
+        savingCreate: "创建中...",
+        saveUpdate: "保存渠道",
+        savingUpdate: "保存中...",
+        revalidateAction: "重新校验渠道",
+        revalidatingAction: "校验中...",
+        disableAction: "停用渠道",
+        disablingAction: "停用中...",
+        placeholders: {
+          displayName: "例如 微信公众号主号 / 知乎专栏 / CSDN 博客",
+          accountIdentifier: "例如 gh_xxx、zhihu_column_demo、csdn_blog_demo",
+          credentialPayload:
+            '{\n  "cookie": "session=demo",\n  "account": "example_blog"\n}',
+        },
       },
     },
     strategies: {
@@ -1841,6 +1958,17 @@ const messages: Record<Locale, Messages> = {
         READY: "已完成",
         FAILED: "生成失败",
       },
+      publishPlatformType: {
+        WECHAT: "微信公众号",
+        ZHIHU: "知乎",
+        CSDN: "CSDN",
+      },
+      publishBindingStatus: {
+        PENDING: "待校验",
+        ACTIVE: "可用",
+        INVALID: "校验失败",
+        DISABLED: "已停用",
+      },
     },
     actions: {
       login: {
@@ -1942,6 +2070,17 @@ const messages: Record<Locale, Messages> = {
         invalidExportFormat: "不支持的导出格式。",
         reportUpdated: "报告内容已保存。",
         reportRegenerated: "报告已重新生成。",
+      },
+      publishing: {
+        missingPublishChannelId: "缺少发布渠道 ID。",
+        missingPublishPlatformType: "请选择发布平台。",
+        missingPublishDisplayName: "请填写渠道展示名称。",
+        missingPublishCredentialPayload: "请填写渠道凭证 JSON。",
+        publishChannelValidationFailed: "发布渠道表单校验失败。",
+        publishChannelCreated: "发布渠道已创建。",
+        publishChannelUpdated: "发布渠道已更新。",
+        publishChannelRevalidated: "发布渠道已重新校验。",
+        publishChannelDisabled: "发布渠道已停用。",
       },
       api: {
         unauthorized: "未登录或会话已失效。",
@@ -2268,6 +2407,62 @@ const messages: Record<Locale, Messages> = {
         displayName: "For example OpenAI",
         credentialPayload:
           'For example {"adapter":"real","cookies":[...],"username":"demo_x_user"}',
+      },
+      publishChannels: {
+        title: "Publishing channels",
+        description:
+          "Manage WeChat Official Accounts, Zhihu, CSDN, and other outbound publishing channels from the same workspace.",
+        count: "{count} channels",
+        listTitle: "Channel list",
+        listDescription:
+          "Each channel shows its platform, validation status, and most recent validation time so you can see which targets are ready.",
+        newAction: "New channel",
+        emptyTitle: "No publishing channels yet",
+        emptyDescription:
+          "Create a WeChat, Zhihu, or CSDN channel binding first so reports and archives can be published later.",
+        summaryTitle: "Current channel summary",
+        summaryDescription:
+          "Review the selected channel's identifier, last validation time, and most recent validation error in one place.",
+        noSelectionTitle: "Select a channel to view details",
+        noSelectionDescription:
+          "Choose an existing channel from the left, or create a new publishing channel binding from the right-side form.",
+        createTitle: "Create publishing channel",
+        createDescription:
+          "Provide the platform, display name, and credential JSON. The system performs structural validation before storing the encrypted payload.",
+        editTitle: "Edit publishing channel",
+        editDescription:
+          "Update the display name, account identifier, or paste a new credential JSON payload to refresh validation.",
+        operationsTitle: "Channel operations",
+        operationsDescription:
+          "Revalidate the current credential payload, or disable the channel so later publishing tasks skip it.",
+        platformLabel: "Platform",
+        displayNameLabel: "Display name",
+        accountIdentifierLabel: "Account identifier",
+        credentialPayloadLabel: "Credential JSON",
+        credentialPayloadHint:
+          "Provide a JSON object containing cookie, token, AppId, or other platform credentials. The payload is encrypted after save.",
+        credentialPayloadOptionalHint:
+          "Leave this blank to keep the current credential payload. Paste a new JSON payload only when you want to refresh auth.",
+        accountIdentifierEmpty: "No account identifier",
+        lastValidatedAtLabel: "Last validated",
+        createdAtLabel: "Created",
+        updatedAtLabel: "Updated",
+        lastValidationErrorLabel: "Latest validation result",
+        noValidationError: "No validation error is recorded.",
+        saveCreate: "Create channel",
+        savingCreate: "Creating...",
+        saveUpdate: "Save channel",
+        savingUpdate: "Saving...",
+        revalidateAction: "Revalidate channel",
+        revalidatingAction: "Validating...",
+        disableAction: "Disable channel",
+        disablingAction: "Disabling...",
+        placeholders: {
+          displayName: "For example WeChat main account / Zhihu column / CSDN blog",
+          accountIdentifier: "For example gh_xxx, zhihu_column_demo, csdn_blog_demo",
+          credentialPayload:
+            '{\n  "cookie": "session=demo",\n  "account": "example_blog"\n}',
+        },
       },
     },
     strategies: {
@@ -2910,6 +3105,17 @@ const messages: Record<Locale, Messages> = {
         READY: "Ready",
         FAILED: "Failed",
       },
+      publishPlatformType: {
+        WECHAT: "WeChat",
+        ZHIHU: "Zhihu",
+        CSDN: "CSDN",
+      },
+      publishBindingStatus: {
+        PENDING: "Pending",
+        ACTIVE: "Active",
+        INVALID: "Invalid",
+        DISABLED: "Disabled",
+      },
     },
     actions: {
       login: {
@@ -3017,6 +3223,19 @@ const messages: Record<Locale, Messages> = {
         invalidExportFormat: "Unsupported export format.",
         reportUpdated: "Report content has been saved.",
         reportRegenerated: "Report has been regenerated.",
+      },
+      publishing: {
+        missingPublishChannelId: "Missing publishing channel ID.",
+        missingPublishPlatformType: "Please choose a publishing platform.",
+        missingPublishDisplayName: "Please enter the channel display name.",
+        missingPublishCredentialPayload:
+          "Please provide the channel credential JSON.",
+        publishChannelValidationFailed:
+          "Publishing channel form validation failed.",
+        publishChannelCreated: "Publishing channel created.",
+        publishChannelUpdated: "Publishing channel updated.",
+        publishChannelRevalidated: "Publishing channel revalidated.",
+        publishChannelDisabled: "Publishing channel disabled.",
       },
       api: {
         unauthorized: "Not signed in or the session has expired.",
