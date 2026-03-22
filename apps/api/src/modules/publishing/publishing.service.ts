@@ -1,7 +1,6 @@
 import {
   Prisma,
   PublishBindingStatus,
-  PublishPlatformType,
 } from '@prisma/client';
 import {
   BadRequestException,
@@ -10,67 +9,18 @@ import {
 } from '@nestjs/common';
 import { CredentialCryptoService } from '../crypto/credential-crypto.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PublishingChannelAdapterRegistry } from './adapters/publishing-channel-adapter.registry';
 import { CreatePublishChannelBindingDto } from './dto/create-publish-channel-binding.dto';
 import { ListPublishChannelBindingsQueryDto } from './dto/list-publish-channel-bindings-query.dto';
 import { UpdatePublishChannelBindingDto } from './dto/update-publish-channel-binding.dto';
-
-type PublishCredentialPayload = Record<string, unknown>;
-
-type ValidationResult = {
-  inferredAccountIdentifier: string | null;
-  normalizedPayload: PublishCredentialPayload;
-  status: PublishBindingStatus;
-  validationError: string | null;
-};
-
-const PLATFORM_VALIDATION_RULES = {
-  WECHAT: {
-    label: '微信公众号',
-    identifierKeys: [
-      'accountIdentifier',
-      'biz',
-      'appId',
-      'accountId',
-      'username',
-    ],
-    requiredAnyKeys: ['appId', 'biz', 'cookie', 'accessToken'],
-  },
-  ZHIHU: {
-    label: '知乎',
-    identifierKeys: [
-      'accountIdentifier',
-      'username',
-      'account',
-      'accountId',
-      'handle',
-    ],
-    requiredAnyKeys: ['cookie', 'session', 'authorization', 'account'],
-  },
-  CSDN: {
-    label: 'CSDN',
-    identifierKeys: [
-      'accountIdentifier',
-      'username',
-      'blog',
-      'account',
-      'userToken',
-    ],
-    requiredAnyKeys: ['cookie', 'userToken', 'csrfToken', 'account'],
-  },
-} satisfies Record<
-  PublishPlatformType,
-  {
-    identifierKeys: string[];
-    label: string;
-    requiredAnyKeys: string[];
-  }
->;
 
 @Injectable()
 export class PublishingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly credentialCryptoService: CredentialCryptoService,
+    private readonly publishingChannelAdapterRegistry:
+      PublishingChannelAdapterRegistry,
   ) {}
 
   listPublishChannelBindings(
@@ -95,10 +45,12 @@ export class PublishingService {
     userId: string,
     dto: CreatePublishChannelBindingDto,
   ) {
-    const validation = this.validateCredentialPayload(
+    const adapter = this.publishingChannelAdapterRegistry.getAdapter(
       dto.platformType,
-      dto.credentialPayload,
     );
+    const validation = await adapter.validateCredential({
+      credentialPayload: dto.credentialPayload,
+    });
 
     return this.prisma.publishChannelBinding.create({
       data: {
@@ -142,10 +94,12 @@ export class PublishingService {
     }
 
     if (dto.credentialPayload !== undefined) {
-      const validation = this.validateCredentialPayload(
+      const adapter = this.publishingChannelAdapterRegistry.getAdapter(
         binding.platformType,
-        dto.credentialPayload,
       );
+      const validation = await adapter.validateCredential({
+        credentialPayload: dto.credentialPayload,
+      });
 
       data.authPayloadEncrypted = this.credentialCryptoService.encrypt(
         JSON.stringify(validation.normalizedPayload),
@@ -180,10 +134,12 @@ export class PublishingService {
       const decryptedPayload = this.credentialCryptoService.decrypt(
         binding.authPayloadEncrypted,
       );
-      const validation = this.validateCredentialPayload(
+      const adapter = this.publishingChannelAdapterRegistry.getAdapter(
         binding.platformType,
-        decryptedPayload,
       );
+      const validation = await adapter.validateCredential({
+        credentialPayload: decryptedPayload,
+      });
 
       return this.prisma.publishChannelBinding.update({
         where: { id: binding.id },
@@ -239,88 +195,6 @@ export class PublishingService {
     }
 
     return binding;
-  }
-
-  private validateCredentialPayload(
-    platformType: PublishPlatformType,
-    credentialPayload: string,
-  ): ValidationResult {
-    const normalizedPayload = this.parseCredentialPayload(credentialPayload);
-    const rule = PLATFORM_VALIDATION_RULES[platformType];
-    const matchedKey = rule.requiredAnyKeys.find((key) =>
-      this.hasUsableValue(normalizedPayload[key]),
-    );
-
-    return {
-      normalizedPayload,
-      inferredAccountIdentifier: this.inferAccountIdentifier(
-        normalizedPayload,
-        rule.identifierKeys,
-      ),
-      status: matchedKey
-        ? PublishBindingStatus.ACTIVE
-        : PublishBindingStatus.INVALID,
-      validationError: matchedKey
-        ? null
-        : `${rule.label}凭证缺少关键字段，请至少提供 ${rule.requiredAnyKeys.join(
-            ' / ',
-          )} 中的一项。`,
-    };
-  }
-
-  private parseCredentialPayload(payload: string): PublishCredentialPayload {
-    let parsed: unknown;
-
-    try {
-      parsed = JSON.parse(payload);
-    } catch {
-      throw new BadRequestException(
-        'Publish channel credential payload must be valid JSON',
-      );
-    }
-
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new BadRequestException(
-        'Publish channel credential payload must be a JSON object',
-      );
-    }
-
-    return parsed as PublishCredentialPayload;
-  }
-
-  private inferAccountIdentifier(
-    payload: PublishCredentialPayload,
-    keys: string[],
-  ) {
-    for (const key of keys) {
-      const value = payload[key];
-
-      if (typeof value === 'string' && value.trim().length > 0) {
-        return value.trim();
-      }
-    }
-
-    return null;
-  }
-
-  private hasUsableValue(value: unknown) {
-    if (typeof value === 'string') {
-      return value.trim().length > 0;
-    }
-
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return true;
-    }
-
-    if (Array.isArray(value)) {
-      return value.length > 0;
-    }
-
-    if (value && typeof value === 'object') {
-      return Object.keys(value).length > 0;
-    }
-
-    return false;
   }
 
   private resolveAccountIdentifier(
