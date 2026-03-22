@@ -1382,7 +1382,7 @@ const messages: Record<Locale, Messages> = {
         accountIdentifierLabel: "账号标识",
         credentialPayloadLabel: "凭证 JSON",
         credentialPayloadHint:
-          "请输入平台凭证的 JSON 结构，例如 Cookie、Token、AppId 等字段。保存后会自动加密。",
+          "请输入平台凭证的 JSON 结构。微信公众号真实发布建议填写 appId + appSecret，或直接填写 accessToken；也兼容 Cookie、Token 等字段。保存后会自动加密。",
         credentialPayloadOptionalHint:
           "留空表示沿用当前已保存凭证；如果要刷新登录态或 Token，再粘贴新的凭证 JSON。",
         accountIdentifierEmpty: "未填写账号标识",
@@ -1403,7 +1403,7 @@ const messages: Record<Locale, Messages> = {
           displayName: "例如 微信公众号主号 / 知乎专栏 / CSDN 博客",
           accountIdentifier: "例如 gh_xxx、zhihu_column_demo、csdn_blog_demo",
           credentialPayload:
-            '{\n  "cookie": "session=demo",\n  "account": "example_blog"\n}',
+            '{\n  "appId": "wx1234567890",\n  "appSecret": "your-secret",\n  "author": "Auto X",\n  "contentSourceUrl": "https://example.com/source"\n}',
         },
       },
     },
@@ -2611,7 +2611,7 @@ const messages: Record<Locale, Messages> = {
         accountIdentifierLabel: "Account identifier",
         credentialPayloadLabel: "Credential JSON",
         credentialPayloadHint:
-          "Provide a JSON object containing cookie, token, AppId, or other platform credentials. The payload is encrypted after save.",
+          "Provide a credential JSON object. For real WeChat publishing, prefer appId + appSecret or a direct accessToken. Cookies and other token fields are still supported and encrypted after save.",
         credentialPayloadOptionalHint:
           "Leave this blank to keep the current credential payload. Paste a new JSON payload only when you want to refresh auth.",
         accountIdentifierEmpty: "No account identifier",
@@ -2634,7 +2634,7 @@ const messages: Record<Locale, Messages> = {
           accountIdentifier:
             "For example gh_xxx, zhihu_column_demo, csdn_blog_demo",
           credentialPayload:
-            '{\n  "cookie": "session=demo",\n  "account": "example_blog"\n}',
+            '{\n  "appId": "wx1234567890",\n  "appSecret": "your-secret",\n  "author": "Auto X",\n  "contentSourceUrl": "https://example.com/source"\n}',
         },
       },
     },

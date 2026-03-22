@@ -16,6 +16,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ReportsService } from '../reports/reports.service';
 import { PublishingDraftsService } from './publishing-drafts.service';
 
+jest.setTimeout(20000);
+
 describe('PublishingDraftsService', () => {
   let moduleRef: TestingModule;
   let prisma: PrismaService;

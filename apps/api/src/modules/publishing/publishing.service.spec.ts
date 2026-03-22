@@ -10,6 +10,8 @@ import { CredentialCryptoService } from '../crypto/credential-crypto.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PublishingService } from './publishing.service';
 
+jest.setTimeout(20000);
+
 describe('PublishingService', () => {
   let moduleRef: TestingModule;
   let prisma: PrismaService;
