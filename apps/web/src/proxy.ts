@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 
-const protectedRoutes = ["/dashboard", "/bindings", "/archives", "/runs"];
+const protectedRoutes = [
+  "/dashboard",
+  "/bindings",
+  "/archives",
+  "/runs",
+  "/publishing",
+];
 
 export default auth((request) => {
   const { nextUrl, auth: session } = request;
@@ -30,5 +36,6 @@ export const config = {
     "/bindings/:path*",
     "/archives/:path*",
     "/runs/:path*",
+    "/publishing/:path*",
   ],
 };

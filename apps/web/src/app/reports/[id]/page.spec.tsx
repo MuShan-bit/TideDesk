@@ -33,15 +33,19 @@ jest.mock("next/navigation", () => ({
 }));
 
 jest.mock("../report-editor", () => ({
-  ReportEditor: ({
-    bodyText,
-  }: {
-    bodyText: string;
-  }) => <div data-testid="report-editor">{bodyText}</div>,
+  ReportEditor: ({ bodyText }: { bodyText: string }) => (
+    <div data-testid="report-editor">{bodyText}</div>
+  ),
+}));
+
+jest.mock("../report-publish-draft-card", () => ({
+  ReportPublishDraftCard: ({ reportId }: { reportId: string }) => (
+    <div data-testid="report-publish-card">{reportId}</div>
+  ),
 }));
 
 describe("ReportDetailPage", () => {
-  it("renders report detail sections and publish placeholder", async () => {
+  it("renders report detail sections and publish draft entry", async () => {
     const apiRequestMock = jest.mocked(apiRequest);
 
     apiRequestMock.mockResolvedValue({
@@ -104,9 +108,7 @@ describe("ReportDetailPage", () => {
 
     expect(article).not.toBeNull();
     expect(article).toHaveTextContent("报告正文。");
-    expect(article).toHaveClass(
-      "dark:bg-[#161b17]",
-    );
+    expect(article).toHaveClass("dark:bg-[#161b17]");
     expect(screen.getByTestId("report-editor")).toHaveTextContent("报告正文。");
     expect(screen.getByText("来源帖子")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "查看来源帖子" })).toHaveAttribute(
@@ -117,6 +119,8 @@ describe("ReportDetailPage", () => {
       "href",
       "/api/reports/report-001/export?format=md",
     );
-    expect(screen.getByRole("button", { name: "发起发布草稿" })).toBeDisabled();
+    expect(screen.getByTestId("report-publish-card")).toHaveTextContent(
+      "report-001",
+    );
   });
 });

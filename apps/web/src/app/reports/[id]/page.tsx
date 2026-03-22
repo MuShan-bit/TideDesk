@@ -5,18 +5,28 @@ import {
   Download,
   ExternalLink,
   FileText,
-  SendHorizonal,
 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ApiRequestError, apiRequest, getApiErrorMessage } from "@/lib/api-client";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ApiRequestError,
+  apiRequest,
+  getApiErrorMessage,
+} from "@/lib/api-client";
 import { sanitizeArchiveHtml } from "@/lib/archive-html";
 import { formatMessage } from "@/lib/i18n";
 import { getRequestMessages } from "@/lib/request-locale";
 import { ReportEditor } from "../report-editor";
+import { ReportPublishDraftCard } from "../report-publish-draft-card";
 import type { ReportDetailRecord } from "../report-types";
 import {
   buildReportTitleBadge,
@@ -84,9 +94,7 @@ export default async function ReportDetailPage({
             ? messages.reportDetail.descriptionReady
             : messages.reportDetail.descriptionLoading
         }
-        badge={
-          report ? buildReportTitleBadge(report, messages) : undefined
-        }
+        badge={report ? buildReportTitleBadge(report, messages) : undefined}
         actions={
           <Link
             href="/reports"
@@ -119,21 +127,28 @@ export default async function ReportDetailPage({
             <Card className="rounded-[2rem] border-border/70 bg-white/95 shadow-[0_24px_80px_-40px_rgba(31,49,40,0.28)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
               <CardHeader className="gap-4">
                 <div className="flex flex-wrap items-center gap-3">
-                  <Badge className={`rounded-full ${getReportStatusClassName(report.status)}`}>
+                  <Badge
+                    className={`rounded-full ${getReportStatusClassName(report.status)}`}
+                  >
                     {messages.enums.reportStatus[report.status]}
                   </Badge>
                   <Badge className="rounded-full bg-[#eef4f0] text-[#2d4d3f] dark:bg-[#223228] dark:text-[#d8e2db]">
                     {messages.enums.reportType[report.reportType]}
                   </Badge>
                   <Badge className="rounded-full bg-[#fcfaf5] text-muted-foreground dark:bg-white/8 dark:text-white/70">
-                    {messages.reportDetail.updatedAtLabel} {formatReportDate(report.updatedAt, locale)}
+                    {messages.reportDetail.updatedAtLabel}{" "}
+                    {formatReportDate(report.updatedAt, locale)}
                   </Badge>
                 </div>
                 <div className="space-y-2">
                   <CardTitle className="text-3xl">{report.title}</CardTitle>
                   <CardDescription className="leading-6">
                     {messages.reportDetail.periodLabel}：
-                    {formatReportPeriod(report.periodStart, report.periodEnd, locale)}
+                    {formatReportPeriod(
+                      report.periodStart,
+                      report.periodEnd,
+                      locale,
+                    )}
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -196,7 +211,10 @@ export default async function ReportDetailPage({
                           @{item.archivedPost.authorUsername}
                         </span>
                         <span className="text-sm text-muted-foreground">
-                          {formatReportDate(item.archivedPost.sourceCreatedAt, locale)}
+                          {formatReportDate(
+                            item.archivedPost.sourceCreatedAt,
+                            locale,
+                          )}
                         </span>
                       </div>
                       <p className="mt-3 text-sm leading-6 text-foreground">
@@ -224,7 +242,9 @@ export default async function ReportDetailPage({
                 ) : (
                   <EmptyState
                     title={messages.reportDetail.emptySourcePostsTitle}
-                    description={messages.reportDetail.emptySourcePostsDescription}
+                    description={
+                      messages.reportDetail.emptySourcePostsDescription
+                    }
                   />
                 )}
               </CardContent>
@@ -247,7 +267,11 @@ export default async function ReportDetailPage({
                     {messages.reportDetail.periodLabel}
                   </p>
                   <p className="mt-2 text-sm font-medium text-foreground">
-                    {formatReportPeriod(report.periodStart, report.periodEnd, locale)}
+                    {formatReportPeriod(
+                      report.periodStart,
+                      report.periodEnd,
+                      locale,
+                    )}
                   </p>
                 </div>
                 <div className="rounded-3xl bg-[#eef4f0] p-5 dark:bg-[#223228]">
@@ -321,34 +345,7 @@ export default async function ReportDetailPage({
               </CardContent>
             </Card>
 
-            <Card className="rounded-[2rem] border-border/70 bg-white/92 shadow-[0_24px_80px_-40px_rgba(87,62,22,0.24)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="flex size-11 items-center justify-center rounded-2xl bg-[#f5efe4] text-[#7f5a26] dark:bg-[#3d3124] dark:text-[#f2c58c]">
-                    <SendHorizonal className="size-5" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-2xl">
-                      {messages.reportDetail.publishTitle}
-                    </CardTitle>
-                    <CardDescription className="leading-6">
-                      {messages.reportDetail.publishDescription}
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-3xl border border-dashed border-border/70 bg-[#fcfaf5] p-5 text-sm leading-6 text-muted-foreground dark:border-white/10 dark:bg-white/8">
-                  {messages.reportDetail.publishPendingHint}
-                </div>
-                <button
-                  disabled
-                  className="inline-flex h-10 cursor-not-allowed items-center justify-center rounded-full bg-muted px-4 text-sm font-medium text-muted-foreground"
-                >
-                  {messages.reportDetail.publishAction}
-                </button>
-              </CardContent>
-            </Card>
+            <ReportPublishDraftCard locale={locale} reportId={report.id} />
           </div>
         </section>
       ) : null}

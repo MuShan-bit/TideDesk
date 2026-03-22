@@ -739,6 +739,40 @@ type Messages = {
     publishDescription: string;
     publishPendingHint: string;
     publishAction: string;
+    publishActionPending: string;
+  };
+  publishDraftDetail: {
+    eyebrow: string;
+    titleFallback: string;
+    descriptionReady: string;
+    descriptionLoading: string;
+    errorTitle: string;
+    errorAction: string;
+    summaryTitle: string;
+    noSummary: string;
+    sourceTitle: string;
+    sourceDescription: string;
+    sourceReportLabel: string;
+    sourceArchiveLabel: string;
+    sourcePostsCount: string;
+    emptySourceTitle: string;
+    emptySourceDescription: string;
+    contextTitle: string;
+    contextDescription: string;
+    sourceTypeLabel: string;
+    sourceCountLabel: string;
+    sourceCountValue: string;
+    createdAtLabel: string;
+    updatedAtLabel: string;
+    jobsTitle: string;
+    jobsDescription: string;
+    emptyJobsTitle: string;
+    emptyJobsDescription: string;
+    noAccountIdentifier: string;
+    viewReport: string;
+    viewArchive: string;
+    openSourcePost: string;
+    openPublishedPost: string;
   };
   runDetail: {
     eyebrow: string;
@@ -828,6 +862,15 @@ type Messages = {
     publishPlatformType: Record<"WECHAT" | "ZHIHU" | "CSDN", string>;
     publishBindingStatus: Record<
       "PENDING" | "ACTIVE" | "INVALID" | "DISABLED",
+      string
+    >;
+    publishDraftSourceType: Record<"ARCHIVE" | "REPORT" | "MIXED", string>;
+    publishDraftStatus: Record<
+      "DRAFT" | "READY" | "PUBLISHED_PARTIAL" | "PUBLISHED_ALL" | "FAILED",
+      string
+    >;
+    publishJobStatus: Record<
+      "QUEUED" | "RUNNING" | "SUCCESS" | "FAILED" | "CANCELLED",
       string
     >;
   };
@@ -934,11 +977,15 @@ type Messages = {
       missingPublishPlatformType: string;
       missingPublishDisplayName: string;
       missingPublishCredentialPayload: string;
+      missingPublishDraftReportId: string;
+      missingPublishDraftArchiveId: string;
       publishChannelValidationFailed: string;
+      publishDraftValidationFailed: string;
       publishChannelCreated: string;
       publishChannelUpdated: string;
       publishChannelRevalidated: string;
       publishChannelDisabled: string;
+      publishDraftCreated: string;
     };
     api: {
       unauthorized: string;
@@ -1806,7 +1853,8 @@ const messages: Record<Locale, Messages> = {
       titleLabel: "报告标题",
       bodyLabel: "报告正文",
       bodyPlaceholder: "在这里补充或修改报告正文。",
-      bodyHint: "当前编辑器使用纯文本输入，保存后会自动转换为平台内的富文本文档。",
+      bodyHint:
+        "当前编辑器使用纯文本输入，保存后会自动转换为平台内的富文本文档。",
       save: "保存修改",
       saving: "保存中...",
       regenerateTitle: "重新生成",
@@ -1822,10 +1870,49 @@ const messages: Record<Locale, Messages> = {
       exportText: "导出纯文本",
       publishTitle: "发布草稿",
       publishDescription:
-        "这里将承接后续的一键发布流程，把报告整理为面向外部平台的发布草稿。",
+        "基于当前报告快速生成一份发布草稿，后续可以继续补充目标渠道、人工编辑和实际发布。",
       publishPendingHint:
-        "当前版本先完成报告查看、编辑和重生成能力。发布草稿与多平台投放将在后续 TODO 中继续实现。",
+        "系统会复制当前报告标题、摘要和正文，生成一份新的发布草稿详情页，方便继续整理成对外内容。",
       publishAction: "发起发布草稿",
+      publishActionPending: "正在生成草稿...",
+    },
+    publishDraftDetail: {
+      eyebrow: "发布草稿",
+      titleFallback: "发布草稿详情",
+      descriptionReady:
+        "这里展示统一的发布草稿正文、来源上下文和后续渠道发布记录，方便继续进入多平台投放流程。",
+      descriptionLoading: "发布草稿详情正在准备中。",
+      errorTitle: "发布草稿详情暂时不可用",
+      errorAction: "返回报告中心",
+      summaryTitle: "草稿摘要",
+      noSummary: "当前草稿还没有摘要，可以在后续编辑阶段补充。",
+      sourceTitle: "草稿来源",
+      sourceDescription:
+        "这里记录本份草稿来自哪份报告、哪些归档帖子，方便回溯内容出处和继续补充素材。",
+      sourceReportLabel: "来源报告",
+      sourceArchiveLabel: "来源帖子",
+      sourcePostsCount: "{count} 条来源帖子",
+      emptySourceTitle: "当前草稿还没有来源记录",
+      emptySourceDescription: "如果来源内容被清理或尚未同步，这里会暂时留空。",
+      contextTitle: "草稿上下文",
+      contextDescription:
+        "这里汇总草稿的来源类型、源内容数量和创建更新时间，便于判断当前草稿的整理状态。",
+      sourceTypeLabel: "来源类型",
+      sourceCountLabel: "来源数量",
+      sourceCountValue: "{count} 个来源",
+      createdAtLabel: "创建于",
+      updatedAtLabel: "更新于",
+      jobsTitle: "发布任务",
+      jobsDescription:
+        "后续会在这里展示每个目标渠道的发布结果、回执链接和失败原因。",
+      emptyJobsTitle: "还没有发布任务",
+      emptyJobsDescription:
+        "当前版本已经完成草稿生成，实际渠道发布会在后续 TODO 中继续接入。",
+      noAccountIdentifier: "未设置账号标识",
+      viewReport: "查看来源报告",
+      viewArchive: "查看来源归档",
+      openSourcePost: "打开原帖",
+      openPublishedPost: "打开已发布内容",
     },
     runDetail: {
       eyebrow: "执行详情",
@@ -1969,6 +2056,25 @@ const messages: Record<Locale, Messages> = {
         INVALID: "校验失败",
         DISABLED: "已停用",
       },
+      publishDraftSourceType: {
+        ARCHIVE: "归档帖子",
+        REPORT: "报告",
+        MIXED: "混合来源",
+      },
+      publishDraftStatus: {
+        DRAFT: "草稿",
+        READY: "待发布",
+        PUBLISHED_PARTIAL: "部分已发布",
+        PUBLISHED_ALL: "全部已发布",
+        FAILED: "发布失败",
+      },
+      publishJobStatus: {
+        QUEUED: "排队中",
+        RUNNING: "发布中",
+        SUCCESS: "发布成功",
+        FAILED: "发布失败",
+        CANCELLED: "已取消",
+      },
     },
     actions: {
       login: {
@@ -2076,11 +2182,15 @@ const messages: Record<Locale, Messages> = {
         missingPublishPlatformType: "请选择发布平台。",
         missingPublishDisplayName: "请填写渠道展示名称。",
         missingPublishCredentialPayload: "请填写渠道凭证 JSON。",
+        missingPublishDraftReportId: "缺少报告 ID。",
+        missingPublishDraftArchiveId: "缺少归档 ID。",
         publishChannelValidationFailed: "发布渠道表单校验失败。",
+        publishDraftValidationFailed: "发布草稿生成失败。",
         publishChannelCreated: "发布渠道已创建。",
         publishChannelUpdated: "发布渠道已更新。",
         publishChannelRevalidated: "发布渠道已重新校验。",
         publishChannelDisabled: "发布渠道已停用。",
+        publishDraftCreated: "发布草稿已生成。",
       },
       api: {
         unauthorized: "未登录或会话已失效。",
@@ -2458,8 +2568,10 @@ const messages: Record<Locale, Messages> = {
         disableAction: "Disable channel",
         disablingAction: "Disabling...",
         placeholders: {
-          displayName: "For example WeChat main account / Zhihu column / CSDN blog",
-          accountIdentifier: "For example gh_xxx, zhihu_column_demo, csdn_blog_demo",
+          displayName:
+            "For example WeChat main account / Zhihu column / CSDN blog",
+          accountIdentifier:
+            "For example gh_xxx, zhihu_column_demo, csdn_blog_demo",
           credentialPayload:
             '{\n  "cookie": "session=demo",\n  "account": "example_blog"\n}',
         },
@@ -2889,7 +3001,8 @@ const messages: Record<Locale, Messages> = {
       filterDescription:
         "Use bindings, crawl modes, categories, and tags to define the report scope, then filter historical reports by period and status.",
       noBindingsHint: "No bound accounts are available for aggregation yet.",
-      noCategoriesHint: "There are no active categories available for filtering.",
+      noCategoriesHint:
+        "There are no active categories available for filtering.",
       noTagsHint: "There are no active tags available for filtering.",
       allReportTypes: "All periods",
       allStatuses: "All statuses",
@@ -2969,10 +3082,51 @@ const messages: Record<Locale, Messages> = {
       exportText: "Export plain text",
       publishTitle: "Publishing draft",
       publishDescription:
-        "This panel is reserved for the next publishing workflow that turns reports into channel-ready drafts.",
+        "Turn the current report into a publishing draft so it can be refined further for external channels.",
       publishPendingHint:
-        "The current version focuses on viewing, editing, and regenerating reports. Publishing drafts and multi-channel delivery will be implemented in later TODO items.",
+        "The system will copy the current report title, summary, and body into a new publishing draft detail page for follow-up editing and delivery.",
       publishAction: "Create publishing draft",
+      publishActionPending: "Creating draft...",
+    },
+    publishDraftDetail: {
+      eyebrow: "Publishing draft",
+      titleFallback: "Publishing draft detail",
+      descriptionReady:
+        "This page shows the unified draft body, its source context, and later publishing records so the content can continue through the outbound workflow.",
+      descriptionLoading: "Publishing draft details are loading.",
+      errorTitle: "Publishing draft detail is temporarily unavailable",
+      errorAction: "Back to reports",
+      summaryTitle: "Draft summary",
+      noSummary:
+        "This draft does not have a summary yet. You can add one during the editing stage.",
+      sourceTitle: "Draft sources",
+      sourceDescription:
+        "This section records which report and archived posts were used to assemble the current publishing draft.",
+      sourceReportLabel: "Source report",
+      sourceArchiveLabel: "Source post",
+      sourcePostsCount: "{count} source posts",
+      emptySourceTitle: "No source records are available",
+      emptySourceDescription:
+        "If source content was cleaned up or has not synced yet, this area stays empty for now.",
+      contextTitle: "Draft context",
+      contextDescription:
+        "Review the source type, source count, and timestamps here to quickly assess the draft's current state.",
+      sourceTypeLabel: "Source type",
+      sourceCountLabel: "Source count",
+      sourceCountValue: "{count} sources",
+      createdAtLabel: "Created",
+      updatedAtLabel: "Updated",
+      jobsTitle: "Publishing jobs",
+      jobsDescription:
+        "Later this section will show one job per channel, together with receipts, links, and failure reasons.",
+      emptyJobsTitle: "No publishing jobs yet",
+      emptyJobsDescription:
+        "Draft generation is ready in the current version. Actual channel delivery will be added in later TODO items.",
+      noAccountIdentifier: "No account identifier",
+      viewReport: "View source report",
+      viewArchive: "View source archive",
+      openSourcePost: "Open source post",
+      openPublishedPost: "Open published content",
     },
     runDetail: {
       eyebrow: "Run detail",
@@ -3116,6 +3270,25 @@ const messages: Record<Locale, Messages> = {
         INVALID: "Invalid",
         DISABLED: "Disabled",
       },
+      publishDraftSourceType: {
+        ARCHIVE: "Archived posts",
+        REPORT: "Report",
+        MIXED: "Mixed",
+      },
+      publishDraftStatus: {
+        DRAFT: "Draft",
+        READY: "Ready to publish",
+        PUBLISHED_PARTIAL: "Partially published",
+        PUBLISHED_ALL: "Published to all",
+        FAILED: "Publish failed",
+      },
+      publishJobStatus: {
+        QUEUED: "Queued",
+        RUNNING: "Running",
+        SUCCESS: "Success",
+        FAILED: "Failed",
+        CANCELLED: "Cancelled",
+      },
     },
     actions: {
       login: {
@@ -3213,7 +3386,8 @@ const messages: Record<Locale, Messages> = {
         missingReportType: "Please choose a report period.",
         missingPeriodStart: "Please choose the report start date.",
         missingPeriodEnd: "Please choose the report end date.",
-        invalidPeriodRange: "The end date cannot be earlier than the start date.",
+        invalidPeriodRange:
+          "The end date cannot be earlier than the start date.",
         missingReportId: "Missing report ID.",
         missingReportTitle: "Please enter the report title.",
         missingBodyText: "Please enter the report body.",
@@ -3230,12 +3404,16 @@ const messages: Record<Locale, Messages> = {
         missingPublishDisplayName: "Please enter the channel display name.",
         missingPublishCredentialPayload:
           "Please provide the channel credential JSON.",
+        missingPublishDraftReportId: "Missing report ID.",
+        missingPublishDraftArchiveId: "Missing archive ID.",
         publishChannelValidationFailed:
           "Publishing channel form validation failed.",
+        publishDraftValidationFailed: "Publishing draft creation failed.",
         publishChannelCreated: "Publishing channel created.",
         publishChannelUpdated: "Publishing channel updated.",
         publishChannelRevalidated: "Publishing channel revalidated.",
         publishChannelDisabled: "Publishing channel disabled.",
+        publishDraftCreated: "Publishing draft created.",
       },
       api: {
         unauthorized: "Not signed in or the session has expired.",
