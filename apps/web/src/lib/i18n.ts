@@ -801,6 +801,73 @@ type Messages = {
     noChannelOptions: string;
     save: string;
     saving: string;
+    rewriteAssistant: {
+      title: string;
+      description: string;
+      warning: string;
+      modelLabel: string;
+      modelHint: string;
+      modelDefaultOption: string;
+      modelLoadError: string;
+      noModelsConfigured: string;
+      presetSectionTitle: string;
+      presetSectionDescription: string;
+      questionSectionTitle: string;
+      questionSectionDescription: string;
+      previewTitle: string;
+      previewDescription: string;
+      platformStyleLabel: string;
+      stylePresetLabel: string;
+      tonePresetLabel: string;
+      structurePresetLabel: string;
+      lengthPresetLabel: string;
+      leadStyleLabel: string;
+      endingStyleLabel: string;
+      audienceLabel: string;
+      audiencePlaceholder: string;
+      coreMessageLabel: string;
+      coreMessagePlaceholder: string;
+      readerTakeawayLabel: string;
+      readerTakeawayPlaceholder: string;
+      avoidPhrasesLabel: string;
+      avoidPhrasesPlaceholder: string;
+      customInstructionsLabel: string;
+      customInstructionsPlaceholder: string;
+      includeSourceLinksLabel: string;
+      includeSourceLinksHint: string;
+      preserveMediaReferencesLabel: string;
+      preserveMediaReferencesHint: string;
+      submit: string;
+      submitting: string;
+      yesOption: string;
+      noOption: string;
+      platformStyles: Record<"GENERAL" | "WECHAT" | "ZHIHU" | "CSDN", string>;
+      stylePresets: Record<
+        | "CURATED_INSIGHT"
+        | "PRACTICAL_GUIDE"
+        | "TREND_COMMENTARY"
+        | "STORYTELLING"
+        | "WEEKLY_SELECTION",
+        string
+      >;
+      tonePresets: Record<
+        "PROFESSIONAL" | "FRIENDLY" | "SHARP" | "CALM" | "ENERGETIC",
+        string
+      >;
+      structurePresets: Record<
+        | "OPENING_BODY_TAKEAWAYS"
+        | "NUMBERED_LIST"
+        | "QUESTION_ANSWER"
+        | "BULLET_DIGEST",
+        string
+      >;
+      lengthPresets: Record<"SHORT" | "MEDIUM" | "LONG", string>;
+      leadStyles: Record<"DIRECT" | "QUESTION" | "SCENARIO" | "HOT_TAKE", string>;
+      endingStyles: Record<
+        "SUMMARY" | "CALL_TO_ACTION" | "QUESTION" | "NEXT_STEP",
+        string
+      >;
+    };
     executionTitle: string;
     executionDescription: string;
     publishAllAction: string;
@@ -1054,6 +1121,8 @@ type Messages = {
       publishDraftUpdated: string;
       publishDraftExecutionFailed: string;
       publishDraftExecuted: string;
+      publishDraftRewriteFailed: string;
+      publishDraftRewritten: string;
     };
     api: {
       unauthorized: string;
@@ -2011,6 +2080,104 @@ const messages: Record<Locale, Messages> = {
       noChannelOptions: "当前还没有可选发布渠道，可以先到绑定页完成渠道绑定。",
       save: "保存草稿修改",
       saving: "保存中...",
+      rewriteAssistant: {
+        title: "AI 分享稿生成",
+        description:
+          "通过预设选项和问答组合出动态 prompt，快速把当前草稿改写成更适合公开传播的分享稿。",
+        warning:
+          "生成会覆盖当前草稿的标题、摘要和正文；标签与目标渠道不会被修改。",
+        modelLabel: "改写模型",
+        modelHint:
+          "可留空以使用默认的“草稿改写”模型，也可以为这次生成单独指定模型。",
+        modelDefaultOption: "使用默认草稿改写模型",
+        modelLoadError:
+          "草稿改写模型列表加载失败，你仍可尝试使用默认模型直接生成。",
+        noModelsConfigured:
+          "当前还没有可用的草稿改写模型，请先前往 AI 设置页启用至少一个 DRAFT_REWRITE 模型。",
+        presetSectionTitle: "快速风格选项",
+        presetSectionDescription:
+          "先选一个发布场景，再决定文风、结构和篇幅。",
+        questionSectionTitle: "补充几个问题",
+        questionSectionDescription:
+          "这些答案会直接进入提示词，帮助模型更贴近你想要的文章表达。",
+        previewTitle: "本次生成指令预览",
+        previewDescription:
+          "下面是即将注入模型的风格偏好，你可以边改边看。",
+        platformStyleLabel: "平台风格",
+        stylePresetLabel: "文章风格",
+        tonePresetLabel: "表达语气",
+        structurePresetLabel: "结构方式",
+        lengthPresetLabel: "篇幅偏好",
+        leadStyleLabel: "开头方式",
+        endingStyleLabel: "结尾方式",
+        audienceLabel: "想写给谁看？",
+        audiencePlaceholder: "例如：关注 AI 产品与效率工具的普通读者",
+        coreMessageLabel: "最想传达什么？",
+        coreMessagePlaceholder:
+          "例如：这组内容真正有价值的不是热度，而是工作流变化",
+        readerTakeawayLabel: "读者看完应该得到什么？",
+        readerTakeawayPlaceholder:
+          "例如：快速理解趋势，并拿走 2-3 个可实践启发",
+        avoidPhrasesLabel: "哪些表达要避免？",
+        avoidPhrasesPlaceholder:
+          "例如：不要像内部周报、不要官话、不要流水账",
+        customInstructionsLabel: "还有什么额外要求？",
+        customInstructionsPlaceholder:
+          "例如：保留口语感、分成 3 段、适当加入小标题和金句",
+        includeSourceLinksLabel: "保留来源链接",
+        includeSourceLinksHint:
+          "启用后，模型会尽量在合适位置保留原帖或来源链接。",
+        preserveMediaReferencesLabel: "保留图片/视频引用",
+        preserveMediaReferencesHint:
+          "启用后，模型会尽量把图片占位或视频链接自然编入正文。",
+        submit: "生成 AI 分享稿",
+        submitting: "正在改写...",
+        yesOption: "是",
+        noOption: "否",
+        platformStyles: {
+          GENERAL: "通用公开文章",
+          WECHAT: "微信公众号长文",
+          ZHIHU: "知乎专栏文章",
+          CSDN: "CSDN 技术博客",
+        },
+        stylePresets: {
+          CURATED_INSIGHT: "洞察型分享",
+          PRACTICAL_GUIDE: "实用指南",
+          TREND_COMMENTARY: "趋势解读",
+          STORYTELLING: "叙事讲述",
+          WEEKLY_SELECTION: "精选分享",
+        },
+        tonePresets: {
+          PROFESSIONAL: "专业清晰",
+          FRIENDLY: "友好自然",
+          SHARP: "观点鲜明",
+          CALM: "冷静克制",
+          ENERGETIC: "有感染力",
+        },
+        structurePresets: {
+          OPENING_BODY_TAKEAWAYS: "导语 + 正文 + 收尾",
+          NUMBERED_LIST: "编号清单",
+          QUESTION_ANSWER: "问答展开",
+          BULLET_DIGEST: "要点速览",
+        },
+        lengthPresets: {
+          SHORT: "短篇",
+          MEDIUM: "中篇",
+          LONG: "长篇",
+        },
+        leadStyles: {
+          DIRECT: "直接切入",
+          QUESTION: "问题开场",
+          SCENARIO: "场景开场",
+          HOT_TAKE: "观点开场",
+        },
+        endingStyles: {
+          SUMMARY: "总结收束",
+          CALL_TO_ACTION: "行动号召",
+          QUESTION: "抛出问题",
+          NEXT_STEP: "给出下一步建议",
+        },
+      },
       executionTitle: "发布执行",
       executionDescription:
         "可直接发布全部待处理渠道，或按单个渠道补发与重试。系统会为每次执行保留记录。",
@@ -2335,6 +2502,8 @@ const messages: Record<Locale, Messages> = {
         publishDraftUpdated: "发布草稿已更新。",
         publishDraftExecutionFailed: "发布任务执行失败。",
         publishDraftExecuted: "已执行 {count} 个发布渠道。",
+        publishDraftRewriteFailed: "AI 分享稿生成失败。",
+        publishDraftRewritten: "AI 已完成草稿改写。",
       },
       api: {
         unauthorized: "未登录或会话已失效。",
@@ -3305,6 +3474,105 @@ const messages: Record<Locale, Messages> = {
         "There are no publishing channels available yet. Create one from the bindings workspace first.",
       save: "Save draft changes",
       saving: "Saving...",
+      rewriteAssistant: {
+        title: "AI article rewrite",
+        description:
+          "Combine preset options and short answers into a dynamic prompt so the current draft can be reshaped into a public-facing article faster.",
+        warning:
+          "This will overwrite the current draft title, summary, and body. Tags and target channels stay unchanged.",
+        modelLabel: "Rewrite model",
+        modelHint:
+          "Leave it empty to use the default draft rewrite model, or pick a model just for this run.",
+        modelDefaultOption: "Use default draft rewrite model",
+        modelLoadError:
+          "The draft rewrite model list failed to load. You can still try generating with the default model.",
+        noModelsConfigured:
+          "No draft rewrite model is available yet. Enable at least one DRAFT_REWRITE model from the AI settings page first.",
+        presetSectionTitle: "Quick style presets",
+        presetSectionDescription:
+          "Start with the publishing destination, then choose tone, structure, and length.",
+        questionSectionTitle: "Answer a few questions",
+        questionSectionDescription:
+          "These answers are inserted directly into the prompt so the article matches the voice you want.",
+        previewTitle: "Prompt preview",
+        previewDescription:
+          "These are the style instructions that will be sent to the model.",
+        platformStyleLabel: "Platform style",
+        stylePresetLabel: "Article style",
+        tonePresetLabel: "Tone",
+        structurePresetLabel: "Structure",
+        lengthPresetLabel: "Length",
+        leadStyleLabel: "Opening style",
+        endingStyleLabel: "Ending style",
+        audienceLabel: "Who is this for?",
+        audiencePlaceholder:
+          "For example: general readers interested in AI products and productivity tools",
+        coreMessageLabel: "What is the core message?",
+        coreMessagePlaceholder:
+          "For example: the real value here is the workflow shift rather than the hype",
+        readerTakeawayLabel: "What should readers walk away with?",
+        readerTakeawayPlaceholder:
+          "For example: a quick understanding of the trend plus 2-3 practical ideas",
+        avoidPhrasesLabel: "What phrasing should be avoided?",
+        avoidPhrasesPlaceholder:
+          "For example: no internal report tone, no boilerplate, no dry chronology",
+        customInstructionsLabel: "Any extra instructions?",
+        customInstructionsPlaceholder:
+          "For example: keep it conversational, use three sections, add punchy subheads",
+        includeSourceLinksLabel: "Keep source links",
+        includeSourceLinksHint:
+          "When enabled, the model will keep source or original post links where they fit naturally.",
+        preserveMediaReferencesLabel: "Keep image or video references",
+        preserveMediaReferencesHint:
+          "When enabled, the model will weave image placeholders or video links into the article when possible.",
+        submit: "Generate AI article",
+        submitting: "Rewriting...",
+        yesOption: "Yes",
+        noOption: "No",
+        platformStyles: {
+          GENERAL: "General public article",
+          WECHAT: "WeChat long-form article",
+          ZHIHU: "Zhihu column article",
+          CSDN: "CSDN technical blog post",
+        },
+        stylePresets: {
+          CURATED_INSIGHT: "Curated insight",
+          PRACTICAL_GUIDE: "Practical guide",
+          TREND_COMMENTARY: "Trend commentary",
+          STORYTELLING: "Narrative storytelling",
+          WEEKLY_SELECTION: "Curated picks",
+        },
+        tonePresets: {
+          PROFESSIONAL: "Professional and clear",
+          FRIENDLY: "Friendly and natural",
+          SHARP: "Sharp and opinionated",
+          CALM: "Calm and restrained",
+          ENERGETIC: "Energetic",
+        },
+        structurePresets: {
+          OPENING_BODY_TAKEAWAYS: "Opening + body + close",
+          NUMBERED_LIST: "Numbered list",
+          QUESTION_ANSWER: "Question and answer",
+          BULLET_DIGEST: "Bullet digest",
+        },
+        lengthPresets: {
+          SHORT: "Short",
+          MEDIUM: "Medium",
+          LONG: "Long",
+        },
+        leadStyles: {
+          DIRECT: "Direct opening",
+          QUESTION: "Question opening",
+          SCENARIO: "Scenario opening",
+          HOT_TAKE: "Opinion opening",
+        },
+        endingStyles: {
+          SUMMARY: "Summarize and land",
+          CALL_TO_ACTION: "Call to action",
+          QUESTION: "End with a question",
+          NEXT_STEP: "Suggest next steps",
+        },
+      },
       executionTitle: "Delivery execution",
       executionDescription:
         "Publish all pending target channels at once, or retry a single channel independently. Every attempt is recorded.",
@@ -3640,6 +3908,8 @@ const messages: Record<Locale, Messages> = {
         publishDraftUpdated: "Publishing draft updated.",
         publishDraftExecutionFailed: "Publishing execution failed.",
         publishDraftExecuted: "{count} publishing channels executed.",
+        publishDraftRewriteFailed: "AI draft rewrite failed.",
+        publishDraftRewritten: "AI draft rewritten successfully.",
       },
       api: {
         unauthorized: "Not signed in or the session has expired.",

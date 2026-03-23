@@ -1,5 +1,6 @@
 import {
   type RichTextDocument,
+  type RichTextListBlock,
   type RichTextRelationBlock,
   type RichTextNode,
 } from './rich-text.converter';
@@ -44,6 +45,18 @@ function renderInlineNode(node: RichTextNode) {
   }
 }
 
+function renderInlineNodes(nodes: RichTextNode[]) {
+  return nodes.map((node) => renderInlineNode(node)).join('');
+}
+
+function renderListBlock(block: RichTextListBlock) {
+  const tagName = block.ordered ? 'ol' : 'ul';
+
+  return `<${tagName}>${block.items
+    .map((item) => `<li>${renderInlineNodes(item)}</li>`)
+    .join('')}</${tagName}>`;
+}
+
 function getRelationSummary(block: RichTextRelationBlock) {
   const relationLabel =
     block.relationType === 'QUOTE'
@@ -72,7 +85,16 @@ export function renderRichTextToHtml(document: RichTextDocument) {
     .map((block) => {
       switch (block.type) {
         case 'paragraph':
-          return `<p>${block.children.map((node) => renderInlineNode(node)).join('')}</p>`;
+          return `<p>${renderInlineNodes(block.children)}</p>`;
+        case 'heading': {
+          const tagName = `h${block.level}`;
+
+          return `<${tagName}>${renderInlineNodes(block.children)}</${tagName}>`;
+        }
+        case 'list':
+          return renderListBlock(block);
+        case 'quote':
+          return `<blockquote><p>${renderInlineNodes(block.children)}</p></blockquote>`;
         case 'relation':
           return renderRelationBlock(block);
         case 'media': {

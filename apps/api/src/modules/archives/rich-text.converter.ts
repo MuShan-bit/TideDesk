@@ -31,6 +31,23 @@ export type RichTextParagraphBlock = {
   type: 'paragraph';
 };
 
+export type RichTextHeadingBlock = {
+  children: RichTextNode[];
+  level: 1 | 2 | 3;
+  type: 'heading';
+};
+
+export type RichTextListBlock = {
+  items: RichTextNode[][];
+  ordered: boolean;
+  type: 'list';
+};
+
+export type RichTextQuoteBlock = {
+  children: RichTextNode[];
+  type: 'quote';
+};
+
 export type RichTextMediaBlock = {
   height?: number;
   mediaType: MediaType;
@@ -50,7 +67,12 @@ export type RichTextRelationBlock = {
 
 export type RichTextDocument = {
   blocks: Array<
-    RichTextParagraphBlock | RichTextRelationBlock | RichTextMediaBlock
+    | RichTextParagraphBlock
+    | RichTextHeadingBlock
+    | RichTextListBlock
+    | RichTextQuoteBlock
+    | RichTextRelationBlock
+    | RichTextMediaBlock
   >;
   version: 1;
 };

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, FileText, SendHorizonal } from "lucide-react";
+import type { AiModelRecord } from "@/app/ai/ai-types";
 import type { PublishChannelBindingRecord } from "@/app/bindings/publish-channel-types";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
@@ -20,10 +21,12 @@ import {
   getApiErrorMessage,
 } from "@/lib/api-client";
 import { formatMessage, getIntlLocale, type Locale } from "@/lib/i18n";
+import { richTextArticleClassName } from "@/lib/rich-text-styles";
 import { getRequestMessages } from "@/lib/request-locale";
 import type { TagRecord } from "@/app/taxonomy/taxonomy-types";
 import { PublishDraftEditor } from "../../publish-draft-editor";
 import { PublishDraftJobConsole } from "../../publish-draft-job-console";
+import { PublishDraftRewritePanel } from "../../publish-draft-rewrite-panel";
 import type { PublishDraftDetailRecord } from "../../publish-draft-types";
 import {
   extractReportBodyText,
@@ -82,36 +85,53 @@ async function getPublishDraftDetail(id: string) {
   }
 }
 
-async function getPublishDraftEditorOptions() {
+async function getPublishDraftWorkspaceOptions() {
   const { messages } = await getRequestMessages();
 
-  try {
-    const [availableTags, availableChannels] = await Promise.all([
-      apiRequest<TagRecord[]>({
-        path: "/taxonomy/tags",
-        method: "GET",
-      }),
-      apiRequest<PublishChannelBindingRecord[]>({
-        path: "/publishing/channels",
-        method: "GET",
-      }),
-    ]);
+  const [tagsResult, channelsResult, modelsResult] = await Promise.allSettled([
+    apiRequest<TagRecord[]>({
+      path: "/taxonomy/tags",
+      method: "GET",
+    }),
+    apiRequest<PublishChannelBindingRecord[]>({
+      path: "/publishing/channels",
+      method: "GET",
+    }),
+    apiRequest<AiModelRecord[]>({
+      path: "/ai/models?taskType=DRAFT_REWRITE",
+      method: "GET",
+    }),
+  ]);
 
-    return {
-      availableChannels,
-      availableTags,
-      error: null,
-    };
-  } catch (error) {
-    return {
-      availableChannels: [] as PublishChannelBindingRecord[],
-      availableTags: [] as TagRecord[],
-      error: getApiErrorMessage(
-        error,
-        messages.publishDraftDetail.editorOptionsLoadError,
-      ),
-    };
-  }
+  const editorLoadFailed =
+    tagsResult.status === "rejected" || channelsResult.status === "rejected";
+  const rewriteLoadFailed = modelsResult.status === "rejected";
+  const editorErrorCause =
+    tagsResult.status === "rejected"
+      ? tagsResult.reason
+      : channelsResult.status === "rejected"
+        ? channelsResult.reason
+        : null;
+
+  return {
+    availableChannels:
+      channelsResult.status === "fulfilled" ? channelsResult.value : [],
+    availableTags: tagsResult.status === "fulfilled" ? tagsResult.value : [],
+    availableRewriteModels:
+      modelsResult.status === "fulfilled" ? modelsResult.value : [],
+    editorError: editorLoadFailed
+      ? getApiErrorMessage(
+          editorErrorCause,
+          messages.publishDraftDetail.editorOptionsLoadError,
+        )
+      : null,
+    rewriteError: rewriteLoadFailed
+      ? getApiErrorMessage(
+          modelsResult.reason,
+          messages.publishDraftDetail.rewriteAssistant.modelLoadError,
+        )
+      : null,
+  };
 }
 
 export default async function PublishDraftDetailPage({
@@ -120,7 +140,7 @@ export default async function PublishDraftDetailPage({
   const { locale, messages } = await getRequestMessages();
   const { id } = await params;
   const { draft, error } = await getPublishDraftDetail(id);
-  const editorOptions = draft ? await getPublishDraftEditorOptions() : null;
+  const workspaceOptions = draft ? await getPublishDraftWorkspaceOptions() : null;
   const sourceHref = draft?.sourceReport
     ? `/reports/${draft.sourceReport.id}`
     : draft?.sourceArchives[0]
@@ -220,7 +240,7 @@ export default async function PublishDraftDetailPage({
                 </div>
 
                 <article
-                  className="rounded-[2rem] bg-[#fcfaf5] p-6 text-sm text-foreground [&_a]:font-medium [&_a]:text-[#2d4d3f] [&_a]:underline-offset-4 hover:[&_a]:underline [&_figure]:overflow-hidden [&_figure]:rounded-3xl [&_figure]:border [&_figure]:border-border/70 [&_figure]:bg-white [&_figure]:p-3 [&_img]:w-full [&_img]:rounded-2xl [&_p]:leading-8 [&_video]:w-full [&_video]:rounded-2xl dark:bg-[#161b17] dark:[&_a]:text-[#d8e2db] dark:[&_figure]:border-white/10 dark:[&_figure]:bg-white/8"
+                  className={richTextArticleClassName}
                   dangerouslySetInnerHTML={{
                     __html: draft.renderedHtml
                       ? sanitizeArchiveHtml(draft.renderedHtml)
@@ -404,12 +424,21 @@ export default async function PublishDraftDetailPage({
               </CardContent>
             </Card>
 
-            {editorOptions ? (
-              <PublishDraftEditor
-                availableChannels={editorOptions.availableChannels}
-                availableTags={editorOptions.availableTags}
+            {workspaceOptions ? (
+              <PublishDraftRewritePanel
+                availableModels={workspaceOptions.availableRewriteModels}
                 draft={draft}
-                editorOptionsError={editorOptions.error}
+                loadError={workspaceOptions.rewriteError}
+                locale={locale}
+              />
+            ) : null}
+
+            {workspaceOptions ? (
+              <PublishDraftEditor
+                availableChannels={workspaceOptions.availableChannels}
+                availableTags={workspaceOptions.availableTags}
+                draft={draft}
+                editorOptionsError={workspaceOptions.editorError}
                 locale={locale}
               />
             ) : null}

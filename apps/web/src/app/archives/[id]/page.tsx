@@ -25,6 +25,7 @@ import {
   getApiErrorMessage,
 } from "@/lib/api-client";
 import { formatMessage, getIntlLocale, type Locale } from "@/lib/i18n";
+import { richTextArticleClassName } from "@/lib/rich-text-styles";
 import { getRequestMessages } from "@/lib/request-locale";
 import {
   ArchiveTaxonomyEditor,
@@ -269,7 +270,7 @@ export default async function ArchiveDetailPage({
               </CardHeader>
               <CardContent className="space-y-6">
                 <article
-                  className="rounded-[2rem] bg-[#fcfaf5] p-6 text-sm text-foreground [&_a]:font-medium [&_a]:text-[#2d4d3f] [&_a]:underline-offset-4 hover:[&_a]:underline [&_figure]:overflow-hidden [&_figure]:rounded-3xl [&_figure]:border [&_figure]:border-border/70 [&_figure]:bg-white [&_figure]:p-3 [&_img]:w-full [&_img]:rounded-2xl [&_p]:leading-8 [&_video]:w-full [&_video]:rounded-2xl dark:bg-[#161b17] dark:[&_a]:text-[#d8e2db] dark:[&_figure]:border-white/10 dark:[&_figure]:bg-white/8"
+                  className={richTextArticleClassName}
                   dangerouslySetInnerHTML={{
                     __html: archive.renderedHtml
                       ? sanitizeArchiveHtml(archive.renderedHtml)

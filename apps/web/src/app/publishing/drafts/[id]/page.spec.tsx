@@ -42,6 +42,16 @@ jest.mock("../../publish-draft-editor", () => ({
   }) => <div data-testid="publish-draft-editor">{draft.id}</div>,
 }));
 
+jest.mock("../../publish-draft-rewrite-panel", () => ({
+  PublishDraftRewritePanel: ({
+    draft,
+  }: {
+    draft: {
+      id: string;
+    };
+  }) => <div data-testid="publish-draft-rewrite-panel">{draft.id}</div>,
+}));
+
 jest.mock("../../publish-draft-job-console", () => ({
   PublishDraftJobConsole: ({
     draft,
@@ -133,6 +143,30 @@ describe("PublishDraftDetailPage", () => {
           createdAt: "2026-03-21T00:00:00.000Z",
           updatedAt: "2026-03-22T00:00:00.000Z",
         },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "model-001",
+          providerConfigId: "provider-001",
+          modelCode: "gpt-5.4",
+          displayName: "GPT 5.4",
+          taskType: "DRAFT_REWRITE",
+          isDefault: true,
+          enabled: true,
+          parametersJson: null,
+          inputTokenPriceUsd: null,
+          outputTokenPriceUsd: null,
+          createdAt: "2026-03-21T00:00:00.000Z",
+          updatedAt: "2026-03-21T00:00:00.000Z",
+          provider: {
+            id: "provider-001",
+            providerType: "OPENAI",
+            name: "OpenAI",
+            baseUrl: null,
+            enabled: true,
+            hasApiKey: true,
+          },
+        },
       ]);
 
     const { container } = render(
@@ -157,6 +191,9 @@ describe("PublishDraftDetailPage", () => {
       "/archives/archive-001",
     );
     expect(screen.getByTestId("publish-draft-editor")).toHaveTextContent(
+      "draft-001",
+    );
+    expect(screen.getByTestId("publish-draft-rewrite-panel")).toHaveTextContent(
       "draft-001",
     );
     expect(screen.getByTestId("publish-draft-job-console")).toHaveTextContent(

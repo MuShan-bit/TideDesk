@@ -2,6 +2,7 @@ import {
   createPublishDraftFromArchiveAction,
   createPublishDraftFromReportAction,
   executePublishDraftAction,
+  rewritePublishDraftAction,
 } from "./actions";
 import { apiRequest } from "@/lib/api-client";
 
@@ -117,6 +118,38 @@ describe("publishing actions", () => {
     expect(apiRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         path: "/publishing/drafts/draft-003/publish",
+        method: "POST",
+      }),
+    );
+  });
+
+  it("rewrites a publish draft with AI and revalidates publishing views", async () => {
+    const formData = new FormData();
+
+    formData.set("draftId", "draft-004");
+    formData.set("stylePreset", "CURATED_INSIGHT");
+    formData.set("tonePreset", "FRIENDLY");
+    formData.set("includeSourceLinks", "on");
+    formData.set("preserveMediaReferences", "on");
+
+    jest.mocked(apiRequest).mockResolvedValueOnce({
+      draft: {
+        id: "draft-004",
+      },
+    });
+
+    const result = await rewritePublishDraftAction({}, formData);
+
+    expect(result.success).toBeDefined();
+    expect(revalidatePathMock).toHaveBeenNthCalledWith(1, "/publishing");
+    expect(revalidatePathMock).toHaveBeenNthCalledWith(
+      2,
+      "/publishing/drafts/draft-004",
+    );
+    expect(revalidatePathMock).toHaveBeenNthCalledWith(3, "/reports");
+    expect(apiRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "/publishing/drafts/draft-004/rewrite",
         method: "POST",
       }),
     );

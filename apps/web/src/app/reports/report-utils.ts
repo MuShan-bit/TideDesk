@@ -111,37 +111,93 @@ export function extractReportBodyText(richTextJson: unknown) {
       ? richTextJson.blocks
       : [];
 
-  const paragraphs = blocks
+  const serializedBlocks = blocks
     .map((block: unknown) => {
-      if (
-        !block ||
-        typeof block !== "object" ||
-        !("type" in block) ||
-        block.type !== "paragraph" ||
-        !("children" in block) ||
-        !Array.isArray(block.children)
-      ) {
+      if (!block || typeof block !== "object" || !("type" in block)) {
         return null;
       }
 
-      return block.children
-        .map((node: unknown) => {
-          if (
-            !node ||
-            typeof node !== "object" ||
-            !("text" in node) ||
-            typeof node.text !== "string"
-          ) {
-            return "";
-          }
+      const extractText = (nodes: unknown) => {
+        if (!Array.isArray(nodes)) {
+          return "";
+        }
 
-          return node.text;
-        })
-        .join("");
+        return nodes
+          .map((node: unknown) => {
+            if (
+              !node ||
+              typeof node !== "object" ||
+              !("text" in node) ||
+              typeof node.text !== "string"
+            ) {
+              return "";
+            }
+
+            if (
+              "type" in node &&
+              node.type === "link" &&
+              "href" in node &&
+              typeof node.href === "string"
+            ) {
+              return `[${node.text}](${node.href})`;
+            }
+
+            return node.text;
+          })
+          .join("");
+      };
+
+      if (block.type === "paragraph" && "children" in block) {
+        return extractText(block.children);
+      }
+
+      if (
+        block.type === "heading" &&
+        "children" in block &&
+        "level" in block &&
+        typeof block.level === "number"
+      ) {
+        return `${"#".repeat(Math.min(Math.max(block.level, 1), 3))} ${extractText(
+          block.children,
+        )}`;
+      }
+
+      if (
+        block.type === "list" &&
+        "items" in block &&
+        Array.isArray(block.items)
+      ) {
+        return block.items
+          .map((item: unknown, index: number) => {
+            const prefix =
+              "ordered" in block && block.ordered ? `${index + 1}. ` : "- ";
+
+            return `${prefix}${extractText(item)}`;
+          })
+          .join("\n");
+      }
+
+      if (block.type === "quote" && "children" in block) {
+        return `> ${extractText(block.children)}`;
+      }
+
+      if (
+        block.type === "media" &&
+        "sourceUrl" in block &&
+        typeof block.sourceUrl === "string" &&
+        "mediaType" in block &&
+        typeof block.mediaType === "string"
+      ) {
+        return block.mediaType === "VIDEO"
+          ? `视频链接：${block.sourceUrl}`
+          : `![image](${block.sourceUrl})`;
+      }
+
+      return null;
     })
-    .filter((value): value is string => value !== null);
+    .filter((value): value is string => value !== null && value.length > 0);
 
-  return paragraphs.join("\n\n");
+  return serializedBlocks.join("\n\n");
 }
 
 export function buildDefaultReportDates(reportType: "WEEKLY" | "MONTHLY") {

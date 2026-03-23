@@ -250,3 +250,114 @@ export async function executePublishDraftAction(
     } satisfies PublishDraftActionState;
   }
 }
+
+export async function rewritePublishDraftAction(
+  _previousState: PublishDraftActionState,
+  formData: FormData,
+): Promise<PublishDraftActionState> {
+  const { messages } = await getRequestMessages();
+  const schema = z.object({
+    draftId: z
+      .string()
+      .trim()
+      .min(1, messages.actions.publishing.missingPublishDraftId),
+    modelConfigId: z.string().trim().optional(),
+    stylePreset: z.string().trim().optional(),
+    tonePreset: z.string().trim().optional(),
+    structurePreset: z.string().trim().optional(),
+    lengthPreset: z.string().trim().optional(),
+    platformStyle: z.string().trim().optional(),
+    leadStyle: z.string().trim().optional(),
+    endingStyle: z.string().trim().optional(),
+    audience: z.string().trim().optional(),
+    coreMessage: z.string().trim().optional(),
+    readerTakeaway: z.string().trim().optional(),
+    avoidPhrases: z.string().trim().optional(),
+    customInstructions: z.string().trim().optional(),
+    includeSourceLinks: z.boolean(),
+    preserveMediaReferences: z.boolean(),
+  });
+  const parsed = schema.safeParse({
+    draftId: getOptionalTextValue(formData, "draftId"),
+    modelConfigId: getOptionalTextValue(formData, "modelConfigId"),
+    stylePreset: getOptionalTextValue(formData, "stylePreset"),
+    tonePreset: getOptionalTextValue(formData, "tonePreset"),
+    structurePreset: getOptionalTextValue(formData, "structurePreset"),
+    lengthPreset: getOptionalTextValue(formData, "lengthPreset"),
+    platformStyle: getOptionalTextValue(formData, "platformStyle"),
+    leadStyle: getOptionalTextValue(formData, "leadStyle"),
+    endingStyle: getOptionalTextValue(formData, "endingStyle"),
+    audience: getOptionalTextValue(formData, "audience"),
+    coreMessage: getOptionalTextValue(formData, "coreMessage"),
+    readerTakeaway: getOptionalTextValue(formData, "readerTakeaway"),
+    avoidPhrases: getOptionalTextValue(formData, "avoidPhrases"),
+    customInstructions: getOptionalTextValue(formData, "customInstructions"),
+    includeSourceLinks: formData.get("includeSourceLinks") === "on",
+    preserveMediaReferences: formData.get("preserveMediaReferences") === "on",
+  });
+
+  if (!parsed.success) {
+    return {
+      error:
+        parsed.error.issues[0]?.message ??
+        messages.actions.publishing.publishDraftRewriteFailed,
+    } satisfies PublishDraftActionState;
+  }
+
+  try {
+    await apiRequest({
+      path: `/publishing/drafts/${parsed.data.draftId}/rewrite`,
+      method: "POST",
+      body: JSON.stringify({
+        ...(parsed.data.modelConfigId
+          ? { modelConfigId: parsed.data.modelConfigId }
+          : {}),
+        ...(parsed.data.stylePreset ? { stylePreset: parsed.data.stylePreset } : {}),
+        ...(parsed.data.tonePreset ? { tonePreset: parsed.data.tonePreset } : {}),
+        ...(parsed.data.structurePreset
+          ? { structurePreset: parsed.data.structurePreset }
+          : {}),
+        ...(parsed.data.lengthPreset
+          ? { lengthPreset: parsed.data.lengthPreset }
+          : {}),
+        ...(parsed.data.platformStyle
+          ? { platformStyle: parsed.data.platformStyle }
+          : {}),
+        ...(parsed.data.leadStyle ? { leadStyle: parsed.data.leadStyle } : {}),
+        ...(parsed.data.endingStyle
+          ? { endingStyle: parsed.data.endingStyle }
+          : {}),
+        ...(parsed.data.audience ? { audience: parsed.data.audience } : {}),
+        ...(parsed.data.coreMessage
+          ? { coreMessage: parsed.data.coreMessage }
+          : {}),
+        ...(parsed.data.readerTakeaway
+          ? { readerTakeaway: parsed.data.readerTakeaway }
+          : {}),
+        ...(parsed.data.avoidPhrases
+          ? { avoidPhrases: parsed.data.avoidPhrases }
+          : {}),
+        ...(parsed.data.customInstructions
+          ? { customInstructions: parsed.data.customInstructions }
+          : {}),
+        includeSourceLinks: parsed.data.includeSourceLinks,
+        preserveMediaReferences: parsed.data.preserveMediaReferences,
+      }),
+    });
+
+    revalidatePath("/publishing");
+    revalidatePath(`/publishing/drafts/${parsed.data.draftId}`);
+    revalidatePath("/reports");
+
+    return {
+      success: messages.actions.publishing.publishDraftRewritten,
+    } satisfies PublishDraftActionState;
+  } catch (error) {
+    return {
+      error: getApiErrorMessage(
+        error,
+        messages.actions.publishing.publishDraftRewriteFailed,
+      ),
+    } satisfies PublishDraftActionState;
+  }
+}

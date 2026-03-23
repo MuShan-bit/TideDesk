@@ -15,7 +15,9 @@ import { serializeForJson } from '../../common/utils/json-serializer';
 import { CreatePublishDraftDto } from './dto/create-publish-draft.dto';
 import { ExecutePublishDraftDto } from './dto/execute-publish-draft.dto';
 import { ListPublishDraftsQueryDto } from './dto/list-publish-drafts-query.dto';
+import { RewritePublishDraftDto } from './dto/rewrite-publish-draft.dto';
 import { UpdatePublishDraftDto } from './dto/update-publish-draft.dto';
+import { PublishingDraftRewriteService } from './publishing-draft-rewrite.service';
 import { PublishingDraftsService } from './publishing-drafts.service';
 import { PublishingJobsService } from './publishing-jobs.service';
 
@@ -25,6 +27,7 @@ export class PublishingDraftsController {
   constructor(
     private readonly publishingDraftsService: PublishingDraftsService,
     private readonly publishingJobsService: PublishingJobsService,
+    private readonly publishingDraftRewriteService: PublishingDraftRewriteService,
   ) {}
 
   @Get()
@@ -76,6 +79,17 @@ export class PublishingDraftsController {
   ) {
     return this.publishingJobsService
       .publishDraft(user.id, draftId, dto)
+      .then((payload) => serializeForJson(payload));
+  }
+
+  @Post(':id/rewrite')
+  rewriteDraft(
+    @CurrentUser() user: RequestUser,
+    @Param('id') draftId: string,
+    @Body() dto: RewritePublishDraftDto,
+  ) {
+    return this.publishingDraftRewriteService
+      .rewriteDraft(user.id, draftId, dto)
       .then((payload) => serializeForJson(payload));
   }
 }
