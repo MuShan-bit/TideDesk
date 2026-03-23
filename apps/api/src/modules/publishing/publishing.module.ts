@@ -7,6 +7,7 @@ import { WechatPublishingChannelAdapter } from './adapters/wechat-publishing-cha
 import { ZhihuPublishingChannelAdapter } from './adapters/zhihu-publishing-channel.adapter';
 import { PublishingDraftsController } from './publishing-drafts.controller';
 import { PublishingDraftsService } from './publishing-drafts.service';
+import { PublishingJobsService } from './publishing-jobs.service';
 import { PUBLISHING_CHANNEL_ADAPTERS } from './publishing-channel-adapter.types';
 import { PublishingController } from './publishing.controller';
 import { PublishingService } from './publishing.service';
@@ -34,11 +35,13 @@ import { PublishingService } from './publishing.service';
     PublishingChannelAdapterRegistry,
     PublishingService,
     PublishingDraftsService,
+    PublishingJobsService,
   ],
   exports: [
     PublishingChannelAdapterRegistry,
     PublishingService,
     PublishingDraftsService,
+    PublishingJobsService,
   ],
 })
 export class PublishingModule {}

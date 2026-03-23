@@ -18,6 +18,7 @@ type Messages = {
       bindings: string;
       strategies: string;
       reports: string;
+      publishing: string;
       ai: string;
       taxonomy: string;
       archives: string;
@@ -741,6 +742,31 @@ type Messages = {
     publishAction: string;
     publishActionPending: string;
   };
+  publishingCenter: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    badge: string;
+    createFromReports: string;
+    filterTitle: string;
+    filterDescription: string;
+    sourceTypeLabel: string;
+    statusLabel: string;
+    allSourceTypes: string;
+    allStatuses: string;
+    applyFilters: string;
+    clearFilters: string;
+    errorTitle: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    emptyAction: string;
+    updatedAtLabel: string;
+    sourceCountLabel: string;
+    targetChannelsLabel: string;
+    jobsCountLabel: string;
+    viewDetail: string;
+    noSummary: string;
+  };
   publishDraftDetail: {
     eyebrow: string;
     titleFallback: string;
@@ -775,6 +801,15 @@ type Messages = {
     noChannelOptions: string;
     save: string;
     saving: string;
+    executionTitle: string;
+    executionDescription: string;
+    publishAllAction: string;
+    publishSingleAction: string;
+    retrySingleAction: string;
+    publishPending: string;
+    notStartedStatus: string;
+    noTargetChannelsTitle: string;
+    noTargetChannelsDescription: string;
     sourceTitle: string;
     sourceDescription: string;
     sourceReportLabel: string;
@@ -793,6 +828,8 @@ type Messages = {
     jobsDescription: string;
     emptyJobsTitle: string;
     emptyJobsDescription: string;
+    historyTitle: string;
+    historyDescription: string;
     noAccountIdentifier: string;
     viewReport: string;
     viewArchive: string;
@@ -1015,6 +1052,8 @@ type Messages = {
       publishChannelDisabled: string;
       publishDraftCreated: string;
       publishDraftUpdated: string;
+      publishDraftExecutionFailed: string;
+      publishDraftExecuted: string;
     };
     api: {
       unauthorized: string;
@@ -1056,6 +1095,7 @@ const messages: Record<Locale, Messages> = {
         bindings: "绑定",
         strategies: "策略",
         reports: "报告",
+        publishing: "发布",
         ai: "AI 模型",
         taxonomy: "分类标签",
         archives: "归档",
@@ -1856,7 +1896,7 @@ const messages: Record<Locale, Messages> = {
         "这里展示 AI 生成的报告正文、来源帖子、上下文信息，以及后续人工编辑入口。",
       descriptionLoading: "报告详情正在准备中。",
       errorTitle: "报告详情暂时不可用",
-      errorAction: "返回报告中心",
+      errorAction: "返回发布中心",
       periodLabel: "统计周期",
       createdAtLabel: "创建时间",
       updatedAtLabel: "最近更新",
@@ -1905,6 +1945,34 @@ const messages: Record<Locale, Messages> = {
       publishAction: "发起发布草稿",
       publishActionPending: "正在生成草稿...",
     },
+    publishingCenter: {
+      eyebrow: "发布中心",
+      title: "发布草稿与记录",
+      description:
+        "集中查看发布草稿、目标渠道准备情况，以及每次外部平台投放的结果记录。",
+      badge: "{count} 份发布草稿",
+      createFromReports: "从报告创建草稿",
+      filterTitle: "筛选发布草稿",
+      filterDescription:
+        "按来源类型与当前发布状态筛选，快速定位待发布、失败或已完成的草稿。",
+      sourceTypeLabel: "来源类型",
+      statusLabel: "发布状态",
+      allSourceTypes: "全部来源类型",
+      allStatuses: "全部发布状态",
+      applyFilters: "应用筛选",
+      clearFilters: "清空筛选",
+      errorTitle: "发布中心暂时不可用",
+      emptyTitle: "还没有发布草稿",
+      emptyDescription:
+        "你可以先在报告详情或归档详情里发起发布草稿，后续再回到这里统一管理与发布。",
+      emptyAction: "前往报告中心",
+      updatedAtLabel: "更新于",
+      sourceCountLabel: "来源数量",
+      targetChannelsLabel: "目标渠道",
+      jobsCountLabel: "任务记录",
+      viewDetail: "查看草稿详情",
+      noSummary: "当前草稿还没有摘要。",
+    },
     publishDraftDetail: {
       eyebrow: "发布草稿",
       titleFallback: "发布草稿详情",
@@ -1943,6 +2011,17 @@ const messages: Record<Locale, Messages> = {
       noChannelOptions: "当前还没有可选发布渠道，可以先到绑定页完成渠道绑定。",
       save: "保存草稿修改",
       saving: "保存中...",
+      executionTitle: "发布执行",
+      executionDescription:
+        "可直接发布全部待处理渠道，或按单个渠道补发与重试。系统会为每次执行保留记录。",
+      publishAllAction: "发布全部待处理渠道",
+      publishSingleAction: "发布到该渠道",
+      retrySingleAction: "重试该渠道",
+      publishPending: "执行中...",
+      notStartedStatus: "未开始",
+      noTargetChannelsTitle: "还没有目标渠道",
+      noTargetChannelsDescription:
+        "先在上方编辑器里选择一个或多个目标发布渠道，保存后就可以从这里发起真实发布。",
       sourceTitle: "草稿来源",
       sourceDescription:
         "这里记录本份草稿来自哪份报告、哪些归档帖子，方便回溯内容出处和继续补充素材。",
@@ -1961,10 +2040,12 @@ const messages: Record<Locale, Messages> = {
       updatedAtLabel: "更新于",
       jobsTitle: "发布任务",
       jobsDescription:
-        "后续会在这里展示每个目标渠道的发布结果、回执链接和失败原因。",
+        "这里会展示每个目标渠道的当前执行状态，并保留历史发布记录、远端文章链接和失败原因。",
       emptyJobsTitle: "还没有发布任务",
-      emptyJobsDescription:
-        "当前版本已经完成草稿生成，实际渠道发布会在后续 TODO 中继续接入。",
+      emptyJobsDescription: "还没有任何发布记录，执行一次发布后会在这里沉淀历史结果。",
+      historyTitle: "发布历史",
+      historyDescription:
+        "每次发布或重试都会保留一条独立记录，便于回看远端 URL、失败信息与执行结果。",
       noAccountIdentifier: "未设置账号标识",
       viewReport: "查看来源报告",
       viewArchive: "查看来源归档",
@@ -2252,6 +2333,8 @@ const messages: Record<Locale, Messages> = {
         publishChannelDisabled: "发布渠道已停用。",
         publishDraftCreated: "发布草稿已生成。",
         publishDraftUpdated: "发布草稿已更新。",
+        publishDraftExecutionFailed: "发布任务执行失败。",
+        publishDraftExecuted: "已执行 {count} 个发布渠道。",
       },
       api: {
         unauthorized: "未登录或会话已失效。",
@@ -2273,6 +2356,7 @@ const messages: Record<Locale, Messages> = {
         bindings: "Bindings",
         strategies: "Strategies",
         reports: "Reports",
+        publishing: "Publishing",
         ai: "AI Models",
         taxonomy: "Taxonomy",
         archives: "Archives",
@@ -3100,7 +3184,7 @@ const messages: Record<Locale, Messages> = {
         "This page shows the AI-generated report body, source posts, context metadata, and manual editing tools.",
       descriptionLoading: "Report details are loading.",
       errorTitle: "Report detail is temporarily unavailable",
-      errorAction: "Back to reports",
+      errorAction: "Back to publishing",
       periodLabel: "Reporting period",
       createdAtLabel: "Created",
       updatedAtLabel: "Updated",
@@ -3149,6 +3233,34 @@ const messages: Record<Locale, Messages> = {
       publishAction: "Create publishing draft",
       publishActionPending: "Creating draft...",
     },
+    publishingCenter: {
+      eyebrow: "Publishing center",
+      title: "Publishing drafts and records",
+      description:
+        "Review publishing drafts, selected outbound channels, and the result history for each external delivery attempt.",
+      badge: "{count} publishing drafts",
+      createFromReports: "Create from reports",
+      filterTitle: "Filter publishing drafts",
+      filterDescription:
+        "Filter by source type and current publishing state to quickly find drafts that are pending, failed, or already delivered.",
+      sourceTypeLabel: "Source type",
+      statusLabel: "Publishing status",
+      allSourceTypes: "All source types",
+      allStatuses: "All publishing statuses",
+      applyFilters: "Apply filters",
+      clearFilters: "Clear filters",
+      errorTitle: "Publishing center is temporarily unavailable",
+      emptyTitle: "No publishing drafts yet",
+      emptyDescription:
+        "Create a publishing draft from a report or an archive first, then come back here to manage and deliver it.",
+      emptyAction: "Open reports",
+      updatedAtLabel: "Updated",
+      sourceCountLabel: "Sources",
+      targetChannelsLabel: "Target channels",
+      jobsCountLabel: "Job records",
+      viewDetail: "View draft detail",
+      noSummary: "This draft does not have a summary yet.",
+    },
     publishDraftDetail: {
       eyebrow: "Publishing draft",
       titleFallback: "Publishing draft detail",
@@ -3193,6 +3305,17 @@ const messages: Record<Locale, Messages> = {
         "There are no publishing channels available yet. Create one from the bindings workspace first.",
       save: "Save draft changes",
       saving: "Saving...",
+      executionTitle: "Delivery execution",
+      executionDescription:
+        "Publish all pending target channels at once, or retry a single channel independently. Every attempt is recorded.",
+      publishAllAction: "Publish all pending channels",
+      publishSingleAction: "Publish this channel",
+      retrySingleAction: "Retry this channel",
+      publishPending: "Executing...",
+      notStartedStatus: "Not started",
+      noTargetChannelsTitle: "No target channels selected yet",
+      noTargetChannelsDescription:
+        "Choose one or more target publishing channels in the editor above, save the draft, and then launch the real delivery flow here.",
       sourceTitle: "Draft sources",
       sourceDescription:
         "This section records which report and archived posts were used to assemble the current publishing draft.",
@@ -3212,10 +3335,13 @@ const messages: Record<Locale, Messages> = {
       updatedAtLabel: "Updated",
       jobsTitle: "Publishing jobs",
       jobsDescription:
-        "Later this section will show one job per channel, together with receipts, links, and failure reasons.",
+        "This section shows the latest execution state per target channel and keeps the history, remote URLs, and failure details for every publishing attempt.",
       emptyJobsTitle: "No publishing jobs yet",
       emptyJobsDescription:
-        "Draft generation is ready in the current version. Actual channel delivery will be added in later TODO items.",
+        "No publishing records exist yet. Execute a publishing run and the result history will appear here.",
+      historyTitle: "Publishing history",
+      historyDescription:
+        "Each publish or retry attempt is stored as an independent record so remote URLs, failures, and outcomes can be reviewed later.",
       noAccountIdentifier: "No account identifier",
       viewReport: "View source report",
       viewArchive: "View source archive",
@@ -3512,6 +3638,8 @@ const messages: Record<Locale, Messages> = {
         publishChannelDisabled: "Publishing channel disabled.",
         publishDraftCreated: "Publishing draft created.",
         publishDraftUpdated: "Publishing draft updated.",
+        publishDraftExecutionFailed: "Publishing execution failed.",
+        publishDraftExecuted: "{count} publishing channels executed.",
       },
       api: {
         unauthorized: "Not signed in or the session has expired.",

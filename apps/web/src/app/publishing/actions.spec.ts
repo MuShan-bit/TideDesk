@@ -1,6 +1,7 @@
 import {
   createPublishDraftFromArchiveAction,
   createPublishDraftFromReportAction,
+  executePublishDraftAction,
 } from "./actions";
 import { apiRequest } from "@/lib/api-client";
 
@@ -91,5 +92,33 @@ describe("publishing actions", () => {
       "/publishing/drafts/draft-002",
     );
     expect(redirectMock).toHaveBeenCalledWith("/publishing/drafts/draft-002");
+  });
+
+  it("executes publish draft delivery and revalidates publishing views", async () => {
+    const formData = new FormData();
+
+    formData.set("draftId", "draft-003");
+    formData.set("channelBindingId", "channel-001");
+
+    jest.mocked(apiRequest).mockResolvedValueOnce({
+      executedChannelCount: 1,
+    });
+
+    const result = await executePublishDraftAction({}, formData);
+
+    expect(result.success).toContain("1");
+    expect(revalidatePathMock).toHaveBeenNthCalledWith(1, "/publishing");
+    expect(revalidatePathMock).toHaveBeenNthCalledWith(
+      2,
+      "/publishing/drafts/draft-003",
+    );
+    expect(revalidatePathMock).toHaveBeenNthCalledWith(3, "/bindings");
+    expect(revalidatePathMock).toHaveBeenNthCalledWith(4, "/reports");
+    expect(apiRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "/publishing/drafts/draft-003/publish",
+        method: "POST",
+      }),
+    );
   });
 });

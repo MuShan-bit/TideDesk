@@ -119,6 +119,7 @@ describe('PublishingDraftsService', () => {
     expect(list.total).toBe(1);
     expect(list.items[0]?.id).toBe(draft.id);
     expect(list.items[0]?.sourceSnapshot.reportIds).toEqual([report.id]);
+    expect(list.items[0]?._count.targetChannels).toBe(0);
   });
 
   it('creates archive-based and mixed publish drafts from archived posts', async () => {
@@ -294,6 +295,7 @@ describe('PublishingDraftsService', () => {
       firstTag.id,
       secondTag.id,
     ]);
+    expect(updatedDraft.status).toBe('READY');
     expect(updatedDraft.targetChannels).toHaveLength(1);
     expect(updatedDraft.targetChannels[0]?.channelBinding.id).toBe(channel.id);
 
@@ -310,6 +312,7 @@ describe('PublishingDraftsService', () => {
     expect(clearedDraft.summary).toBeNull();
     expect(clearedDraft.tagAssignments).toHaveLength(0);
     expect(clearedDraft.targetChannels).toHaveLength(0);
+    expect(clearedDraft.status).toBe('DRAFT');
   });
 
   async function createBinding(userId: string, username: string) {

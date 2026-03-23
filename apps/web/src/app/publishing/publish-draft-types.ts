@@ -32,7 +32,15 @@ export type PublishDraftListItemRecord = {
   };
   _count: {
     publishJobs: number;
+    targetChannels: number;
   };
+};
+
+export type PublishDraftsListResponse = {
+  items: PublishDraftListItemRecord[];
+  page: number;
+  pageSize: number;
+  total: number;
 };
 
 export type PublishDraftDetailRecord = {

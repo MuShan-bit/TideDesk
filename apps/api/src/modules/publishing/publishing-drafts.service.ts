@@ -1,4 +1,8 @@
-import { type Prisma, PublishDraftSourceType } from '@prisma/client';
+import {
+  type Prisma,
+  PublishDraftSourceType,
+  type PublishJobStatus,
+} from '@prisma/client';
 import {
   BadRequestException,
   Injectable,
@@ -11,6 +15,7 @@ import {
 import { renderRichTextToHtml } from '../archives/rich-text.renderer';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildReportRichTextFromPlainText } from '../reports/report-rich-text';
+import { resolvePublishDraftStatus } from './publish-draft-status';
 import { CreatePublishDraftDto } from './dto/create-publish-draft.dto';
 import { ListPublishDraftsQueryDto } from './dto/list-publish-drafts-query.dto';
 import { UpdatePublishDraftDto } from './dto/update-publish-draft.dto';
@@ -23,6 +28,7 @@ const publishDraftListInclude = {
   _count: {
     select: {
       publishJobs: true,
+      targetChannels: true,
     },
   },
 } satisfies Prisma.PublishDraftInclude;
@@ -323,6 +329,12 @@ export class PublishingDraftsService {
         }
       }
 
+      if (normalizedTargetChannelIds !== undefined) {
+        const nextDraftStatus = await this.resolveDraftStatus(tx, draft.id);
+
+        updateData.status = nextDraftStatus;
+      }
+
       if (Object.keys(updateData).length === 0) {
         return tx.publishDraft.findUniqueOrThrow({
           where: {
@@ -381,6 +393,53 @@ export class PublishingDraftsService {
       ...item,
       sourceSnapshot: this.normalizeSourceSnapshot(item.sourceIdsJson),
     };
+  }
+
+  private async resolveDraftStatus(
+    tx: Prisma.TransactionClient,
+    draftId: string,
+  ) {
+    const [targetChannelCount, jobs] = await Promise.all([
+      tx.publishDraftTargetChannel.count({
+        where: {
+          draftId,
+        },
+      }),
+      tx.publishJob.findMany({
+        where: {
+          draftId,
+        },
+        select: {
+          channelBindingId: true,
+          status: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+    ]);
+
+    return resolvePublishDraftStatus({
+      targetChannelCount,
+      latestJobStatuses: this.extractLatestJobStatuses(jobs),
+    });
+  }
+
+  private extractLatestJobStatuses(
+    jobs: Array<{
+      channelBindingId: string;
+      status: PublishJobStatus;
+    }>,
+  ) {
+    const statuses = new Map<string, PublishJobStatus>();
+
+    for (const job of jobs) {
+      if (!statuses.has(job.channelBindingId)) {
+        statuses.set(job.channelBindingId, job.status);
+      }
+    }
+
+    return Array.from(statuses.values());
   }
 
   private mapSourceReport(report: PublishDraftSourceReport) {

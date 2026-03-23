@@ -23,6 +23,7 @@ import { formatMessage, getIntlLocale, type Locale } from "@/lib/i18n";
 import { getRequestMessages } from "@/lib/request-locale";
 import type { TagRecord } from "@/app/taxonomy/taxonomy-types";
 import { PublishDraftEditor } from "../../publish-draft-editor";
+import { PublishDraftJobConsole } from "../../publish-draft-job-console";
 import type { PublishDraftDetailRecord } from "../../publish-draft-types";
 import {
   extractReportBodyText,
@@ -151,7 +152,7 @@ export default async function PublishDraftDetailPage({
         actions={
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/reports"
+              href="/publishing"
               className="inline-flex h-9 items-center justify-center rounded-full border border-border bg-white px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
             >
               <ArrowLeft className="mr-2 size-4" />
@@ -173,7 +174,7 @@ export default async function PublishDraftDetailPage({
           description={error}
           action={
             <Link
-              href="/reports"
+              href="/publishing"
               className="inline-flex h-9 items-center justify-center rounded-full border border-border bg-white px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
             >
               {messages.publishDraftDetail.errorAction}
@@ -413,71 +414,7 @@ export default async function PublishDraftDetailPage({
               />
             ) : null}
 
-            <Card className="rounded-[2rem] border-border/70 bg-white/92 shadow-[0_24px_80px_-40px_rgba(45,77,63,0.24)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
-              <CardHeader>
-                <CardTitle className="text-2xl">
-                  {messages.publishDraftDetail.jobsTitle}
-                </CardTitle>
-                <CardDescription className="leading-6">
-                  {messages.publishDraftDetail.jobsDescription}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {draft.publishJobs.length > 0 ? (
-                  draft.publishJobs.map((job) => (
-                    <div
-                      key={job.id}
-                      className="rounded-3xl border border-border/70 bg-[#fcfaf5] p-5 dark:border-white/10 dark:bg-white/8"
-                    >
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Badge className="rounded-full bg-[#eef4f0] text-[#2d4d3f] dark:bg-[#223228] dark:text-[#d8e2db]">
-                          {
-                            messages.enums.publishPlatformType[
-                              job.channelBinding.platformType
-                            ]
-                          }
-                        </Badge>
-                        <Badge className="rounded-full bg-[#fcfaf5] text-muted-foreground dark:bg-white/10 dark:text-white/70">
-                          {messages.enums.publishJobStatus[job.status]}
-                        </Badge>
-                      </div>
-                      <p className="mt-3 text-sm font-medium text-foreground">
-                        {job.channelBinding.displayName}
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        {job.channelBinding.accountIdentifier ??
-                          messages.publishDraftDetail.noAccountIdentifier}
-                      </p>
-                      {job.errorMessage ? (
-                        <p className="mt-3 text-sm leading-6 text-red-600 dark:text-red-200">
-                          {job.errorMessage}
-                        </p>
-                      ) : null}
-                      {job.remotePostUrl ? (
-                        <div className="mt-4">
-                          <Link
-                            href={job.remotePostUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex h-8 items-center justify-center rounded-full border border-border bg-white px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/14"
-                          >
-                            <ExternalLink className="mr-1.5 size-3.5" />
-                            {messages.publishDraftDetail.openPublishedPost}
-                          </Link>
-                        </div>
-                      ) : null}
-                    </div>
-                  ))
-                ) : (
-                  <EmptyState
-                    title={messages.publishDraftDetail.emptyJobsTitle}
-                    description={
-                      messages.publishDraftDetail.emptyJobsDescription
-                    }
-                  />
-                )}
-              </CardContent>
-            </Card>
+            <PublishDraftJobConsole draft={draft} locale={locale} />
           </div>
         </section>
       ) : null}

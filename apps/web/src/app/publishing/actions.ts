@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { apiRequest, getApiErrorMessage } from "@/lib/api-client";
+import { formatMessage } from "@/lib/i18n";
 import { getRequestMessages } from "@/lib/request-locale";
 import type { PublishDraftDetailRecord } from "./publish-draft-types";
 
@@ -184,6 +185,67 @@ export async function updatePublishDraftAction(
       error: getApiErrorMessage(
         error,
         messages.actions.publishing.publishDraftUpdateFailed,
+      ),
+    } satisfies PublishDraftActionState;
+  }
+}
+
+export async function executePublishDraftAction(
+  _previousState: PublishDraftActionState,
+  formData: FormData,
+): Promise<PublishDraftActionState> {
+  const { messages } = await getRequestMessages();
+  const schema = z.object({
+    draftId: z
+      .string()
+      .trim()
+      .min(1, messages.actions.publishing.missingPublishDraftId),
+    channelBindingId: z.string().trim().optional(),
+  });
+  const parsed = schema.safeParse({
+    draftId: getOptionalTextValue(formData, "draftId"),
+    channelBindingId: getOptionalTextValue(formData, "channelBindingId"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error:
+        parsed.error.issues[0]?.message ??
+        messages.actions.publishing.publishDraftExecutionFailed,
+    } satisfies PublishDraftActionState;
+  }
+
+  try {
+    const result = await apiRequest<{
+      executedChannelCount: number;
+    }>({
+      path: `/publishing/drafts/${parsed.data.draftId}/publish`,
+      method: "POST",
+      body: JSON.stringify({
+        ...(parsed.data.channelBindingId
+          ? { channelBindingId: parsed.data.channelBindingId }
+          : {}),
+      }),
+    });
+
+    revalidatePath("/publishing");
+    revalidatePath(`/publishing/drafts/${parsed.data.draftId}`);
+    revalidatePath("/bindings");
+    revalidatePath("/reports");
+
+    return {
+      success: formatMessage(
+        messages.actions.publishing.publishDraftExecuted,
+        {
+          count: result.executedChannelCount,
+        },
+      ),
+    } satisfies PublishDraftActionState;
+  } catch (error) {
+    return {
+      error: getApiErrorMessage(
+        error,
+        messages.actions.publishing.publishDraftExecutionFailed,
       ),
     } satisfies PublishDraftActionState;
   }

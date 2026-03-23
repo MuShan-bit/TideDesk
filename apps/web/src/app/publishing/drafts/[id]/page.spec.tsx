@@ -42,6 +42,16 @@ jest.mock("../../publish-draft-editor", () => ({
   }) => <div data-testid="publish-draft-editor">{draft.id}</div>,
 }));
 
+jest.mock("../../publish-draft-job-console", () => ({
+  PublishDraftJobConsole: ({
+    draft,
+  }: {
+    draft: {
+      id: string;
+    };
+  }) => <div data-testid="publish-draft-job-console">{draft.id}</div>,
+}));
+
 describe("PublishDraftDetailPage", () => {
   it("renders publish draft detail content and source sections", async () => {
     const apiRequestMock = jest.mocked(apiRequest);
@@ -149,6 +159,8 @@ describe("PublishDraftDetailPage", () => {
     expect(screen.getByTestId("publish-draft-editor")).toHaveTextContent(
       "draft-001",
     );
-    expect(screen.getByText("还没有发布任务")).toBeInTheDocument();
+    expect(screen.getByTestId("publish-draft-job-console")).toHaveTextContent(
+      "draft-001",
+    );
   });
 });
