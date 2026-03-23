@@ -55,15 +55,15 @@ describe('PublishingChannelAdapterRegistry', () => {
   });
 
   it('exposes placeholder publish and sync methods before platform implementations land', async () => {
-    const adapter = registry.getAdapter(PublishPlatformType.ZHIHU);
+    const adapter = registry.getAdapter(PublishPlatformType.CSDN);
 
     await expect(
       adapter.publishDraft({
         binding: {
           id: 'binding-001',
-          platformType: PublishPlatformType.ZHIHU,
-          displayName: '知乎专栏',
-          accountIdentifier: 'zhihu-demo',
+          platformType: PublishPlatformType.CSDN,
+          displayName: 'CSDN 博客',
+          accountIdentifier: 'csdn-demo',
           status: PublishBindingStatus.ACTIVE,
           credentialPayload: {
             cookie: 'cookie=value',
@@ -86,9 +86,9 @@ describe('PublishingChannelAdapterRegistry', () => {
       adapter.syncPublishedMetadata({
         binding: {
           id: 'binding-001',
-          platformType: PublishPlatformType.ZHIHU,
-          displayName: '知乎专栏',
-          accountIdentifier: 'zhihu-demo',
+          platformType: PublishPlatformType.CSDN,
+          displayName: 'CSDN 博客',
+          accountIdentifier: 'csdn-demo',
           status: PublishBindingStatus.ACTIVE,
           credentialPayload: {
             cookie: 'cookie=value',
@@ -96,7 +96,7 @@ describe('PublishingChannelAdapterRegistry', () => {
         },
         publishJobId: 'job-001',
         remotePostId: 'remote-001',
-        remotePostUrl: 'https://zhuanlan.zhihu.com/p/demo',
+        remotePostUrl: 'https://blog.csdn.net/demo/article/details/1',
       }),
     ).rejects.toBeInstanceOf(NotImplementedException);
   });
