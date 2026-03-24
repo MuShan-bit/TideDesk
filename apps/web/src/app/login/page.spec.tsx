@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import LoginPage from "./page";
+import { getMessages } from "@/lib/i18n";
 
 jest.mock("./login-form", () => ({
   LoginForm: () => <div data-testid="login-form">mocked login form</div>,
@@ -18,11 +19,13 @@ jest.mock("@/lib/request-locale", () => {
 
 describe("LoginPage", () => {
   it("renders login guidance, demo credentials and the login form entry", async () => {
+    const messages = getMessages("zh-CN");
+
     render(await LoginPage());
 
     expect(
       screen.getByRole("heading", {
-        name: "登录后才能访问绑定、归档和任务页面",
+        name: messages.login.heroTitle,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/demo@example\.com/)).toBeInTheDocument();

@@ -10,11 +10,11 @@ type ErrorStateProps = {
 
 export function ErrorState({ title, description, action }: ErrorStateProps) {
   return (
-    <Card className="rounded-[2rem] border-red-200/80 bg-white/85 shadow-[0_24px_80px_-40px_rgba(185,92,0,0.22)] dark:border-red-400/25 dark:bg-[#2b1d18] dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
+    <Card className="rounded-[1.75rem] border-red-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,246,240,0.96))] shadow-[0_24px_60px_-40px_rgba(185,92,0,0.24)] dark:border-red-400/25 dark:bg-[linear-gradient(180deg,rgba(52,29,24,0.94),rgba(43,24,24,0.94))] dark:shadow-[0_24px_60px_-40px_rgba(0,0,0,0.55)]">
       <CardHeader className="gap-3">
         <div className="flex items-center gap-3 text-[#b95c00] dark:text-[#ffb366]">
           <AlertTriangle className="size-5" />
-          <CardTitle>{title}</CardTitle>
+          <CardTitle className="text-xl">{title}</CardTitle>
         </div>
         <CardDescription className="max-w-2xl leading-6 text-[#8b4a00] dark:text-[#ffd1a1]">
           {description}

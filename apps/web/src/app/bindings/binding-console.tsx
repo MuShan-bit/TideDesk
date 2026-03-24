@@ -28,7 +28,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   formatMessage,
   getIntlLocale,
@@ -63,6 +78,16 @@ type BindingBrowserSessionRecord = {
   avatarUrl: string | null;
   binding: BindingRecord | null;
 };
+
+type ManualBindingDialogState =
+  | {
+      type: "create";
+    }
+  | {
+      bindingId: string;
+      type: "edit";
+    }
+  | null;
 
 const initialActionState: BindingActionState = {};
 const browserBindingSessionStorageKey =
@@ -100,6 +125,19 @@ function getBrowserSessionBadgeClassName(
     EXPIRED: "bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-white/80",
     CANCELLED:
       "bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-white/80",
+  }[status];
+}
+
+function getBindingStatusBadgeClassName(
+  status: BindingRecord["status"] | "UNBOUND",
+) {
+  return {
+    ACTIVE: "bg-[#2d4d3f] text-white dark:bg-[#d8e2db] dark:text-[#18201b]",
+    INVALID: "bg-[#b95c00] text-white dark:bg-[#5a2e00] dark:text-[#ffd1a1]",
+    DISABLED: "bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-white/80",
+    PENDING: "bg-[#7f5a26] text-white dark:bg-[#4b3a1e] dark:text-[#f2c58c]",
+    UNBOUND:
+      "bg-[#f4ebdb] text-[#7f5a26] dark:bg-[#3d3124] dark:text-[#f2c58c]",
   }[status];
 }
 
@@ -143,24 +181,25 @@ function StatusBadge({
   label: string;
   status: BindingRecord["status"] | "UNBOUND";
 }) {
-  const className = {
-    ACTIVE: "bg-[#2d4d3f] text-white dark:bg-[#d8e2db] dark:text-[#18201b]",
-    INVALID: "bg-[#b95c00] text-white dark:bg-[#5a2e00] dark:text-[#ffd1a1]",
-    DISABLED: "bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-white/80",
-    PENDING: "bg-[#7f5a26] text-white dark:bg-[#4b3a1e] dark:text-[#f2c58c]",
-    UNBOUND:
-      "bg-[#f4ebdb] text-[#7f5a26] dark:bg-[#3d3124] dark:text-[#f2c58c]",
-  }[status];
-
-  return <Badge className={cn("rounded-full", className)}>{label}</Badge>;
+  return (
+    <Badge
+      className={cn("rounded-full", getBindingStatusBadgeClassName(status))}
+    >
+      {label}
+    </Badge>
+  );
 }
 
-function FormFeedback({ state }: { state: BindingActionState }) {
+function ActionFeedback({ state }: { state: BindingActionState }) {
+  if (!state.error && !state.success) {
+    return null;
+  }
+
   const actionLink =
     state.actionHref && state.actionLabel ? (
       <Link
         href={state.actionHref}
-        className="mt-3 inline-flex h-8 items-center justify-center rounded-full bg-white px-3 text-xs font-medium transition-colors hover:bg-slate-100 dark:bg-white/10 dark:text-white dark:hover:bg-white/14"
+        className="mt-3 inline-flex h-8 items-center justify-center rounded-full border border-white/60 bg-white px-3 text-xs font-medium transition-colors hover:bg-slate-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/14"
       >
         {state.actionLabel}
       </Link>
@@ -168,30 +207,19 @@ function FormFeedback({ state }: { state: BindingActionState }) {
 
   if (state.error) {
     return (
-      <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-200">
+      <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-400/25 dark:bg-red-950/30 dark:text-red-200">
         <p>{state.error}</p>
         {actionLink}
       </div>
     );
   }
 
-  if (state.success) {
-    return (
-      <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-100">
-        <p>{state.success}</p>
-        {state.actionHref && state.actionLabel ? (
-          <Link
-            href={state.actionHref}
-            className="mt-3 inline-flex h-8 items-center justify-center rounded-full bg-white px-3 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-white/10 dark:text-emerald-100 dark:hover:bg-white/14"
-          >
-            {state.actionLabel}
-          </Link>
-        ) : null}
-      </div>
-    );
-  }
-
-  return null;
+  return (
+    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-950/30 dark:text-emerald-100">
+      <p>{state.success}</p>
+      {actionLink}
+    </div>
+  );
 }
 
 function FieldLabel({
@@ -208,12 +236,20 @@ function FieldLabel({
   );
 }
 
-export function BindingConsole({
-  browserDesktopUrl,
-  bindings,
+function BindingManualDialog({
+  binding,
   locale,
-}: BindingConsoleProps) {
+  onClose,
+}: {
+  binding: BindingRecord | null;
+  locale: Locale;
+  onClose: () => void;
+}) {
   const messages = getMessages(locale);
+  const [upsertState, upsertAction, isUpserting] = useActionState(
+    upsertBindingAction,
+    initialActionState,
+  );
   const credentialSourceOptions = [
     { value: "WEB_LOGIN", label: messages.enums.credentialSource.WEB_LOGIN },
     {
@@ -222,11 +258,409 @@ export function BindingConsole({
     },
     { value: "EXTENSION", label: messages.enums.credentialSource.EXTENSION },
   ] as const;
-  const router = useRouter();
-  const [upsertState, upsertAction, isUpserting] = useActionState(
-    upsertBindingAction,
-    initialActionState,
+
+  useEffect(() => {
+    if (!upsertState.success) {
+      return;
+    }
+
+    onClose();
+  }, [onClose, upsertState.success]);
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className="max-w-none rounded-[2rem] border-border/70 bg-white p-0 dark:border-white/10 dark:bg-[#111827]"
+        style={{ maxWidth: "68rem", width: "min(96vw, 68rem)" }}
+      >
+        <div className="space-y-6 p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-foreground">
+              {binding
+                ? messages.bindings.manualDialogEditTitle
+                : messages.bindings.manualDialogCreateTitle}
+            </DialogTitle>
+            <DialogDescription className="leading-6">
+              {binding
+                ? messages.bindings.manualDialogEditDescription
+                : messages.bindings.manualDialogCreateDescription}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            key={`binding-manual-${binding?.id ?? "new"}`}
+            action={upsertAction}
+            className="space-y-5"
+          >
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-2">
+                <FieldLabel htmlFor="binding-x-user-id">
+                  {messages.bindings.xUserId}
+                </FieldLabel>
+                <Input
+                  id="binding-x-user-id"
+                  name="xUserId"
+                  defaultValue={binding?.xUserId ?? ""}
+                  placeholder={messages.bindings.placeholders.xUserId}
+                  className="h-11 rounded-2xl border-border/70 bg-[#f5f9fd] px-4 dark:border-white/10 dark:bg-white/8"
+                />
+              </div>
+              <div className="space-y-2">
+                <FieldLabel htmlFor="binding-username">
+                  {messages.bindings.username}
+                </FieldLabel>
+                <Input
+                  id="binding-username"
+                  name="username"
+                  defaultValue={binding?.username ?? ""}
+                  placeholder={messages.bindings.placeholders.username}
+                  className="h-11 rounded-2xl border-border/70 bg-[#f5f9fd] px-4 dark:border-white/10 dark:bg-white/8"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-2">
+                <FieldLabel htmlFor="binding-display-name">
+                  {messages.bindings.displayName}
+                </FieldLabel>
+                <Input
+                  id="binding-display-name"
+                  name="displayName"
+                  defaultValue={binding?.displayName ?? ""}
+                  placeholder={messages.bindings.placeholders.displayName}
+                  className="h-11 rounded-2xl border-border/70 bg-[#f5f9fd] px-4 dark:border-white/10 dark:bg-white/8"
+                />
+              </div>
+              <div className="space-y-2">
+                <FieldLabel htmlFor="binding-avatar-url">
+                  {messages.bindings.avatarUrl}
+                </FieldLabel>
+                <Input
+                  id="binding-avatar-url"
+                  name="avatarUrl"
+                  defaultValue={binding?.avatarUrl ?? ""}
+                  placeholder="https://..."
+                  className="h-11 rounded-2xl border-border/70 bg-[#f5f9fd] px-4 dark:border-white/10 dark:bg-white/8"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+              <div className="space-y-2">
+                <FieldLabel htmlFor="binding-credential-source">
+                  {messages.bindings.credentialSourceLabel}
+                </FieldLabel>
+                <select
+                  id="binding-credential-source"
+                  name="credentialSource"
+                  defaultValue={binding?.credentialSource ?? "WEB_LOGIN"}
+                  className="h-11 w-full rounded-2xl border border-border/70 bg-[#f5f9fd] px-4 text-sm text-foreground outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/40 dark:border-white/10 dark:bg-white/8"
+                >
+                  {credentialSourceOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <FieldLabel htmlFor="binding-crawl-interval">
+                  {messages.bindings.crawlIntervalLabel}
+                </FieldLabel>
+                <Input
+                  id="binding-crawl-interval"
+                  name="crawlIntervalMinutes"
+                  type="number"
+                  min={5}
+                  max={1440}
+                  defaultValue={String(binding?.crawlIntervalMinutes ?? 60)}
+                  className="h-11 rounded-2xl border-border/70 bg-[#f5f9fd] px-4 dark:border-white/10 dark:bg-white/8"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <FieldLabel htmlFor="binding-credential-payload">
+                {messages.bindings.credentialPayload}
+              </FieldLabel>
+              <textarea
+                id="binding-credential-payload"
+                name="credentialPayload"
+                rows={10}
+                placeholder={messages.bindings.placeholders.credentialPayload}
+                className="w-full rounded-[1.5rem] border border-border/70 bg-[#f5f9fd] px-4 py-3 text-sm leading-6 text-foreground outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/40 dark:border-white/10 dark:bg-white/8"
+              />
+              <p className="text-sm leading-6 text-muted-foreground">
+                {messages.bindings.credentialPayloadHint}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between rounded-[1.5rem] border border-border/70 bg-[#f5f9fd] px-4 py-3 dark:border-white/10 dark:bg-white/8">
+              <div>
+                <p className="font-medium text-foreground">
+                  {messages.bindings.enableAutoCrawlAfterSave}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {messages.bindings.enableAutoCrawlAfterSaveHint}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                name="crawlEnabled"
+                defaultChecked={binding?.crawlEnabled ?? true}
+                className="h-4 w-4 rounded border-border text-[#2d4d3f] focus:ring-[#2d4d3f] dark:border-white/20 dark:bg-white/10 dark:text-[#d8e2db] dark:focus:ring-[#d8e2db]"
+              />
+            </div>
+
+            <ActionFeedback state={upsertState} />
+
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full px-5"
+                onClick={onClose}
+              >
+                {messages.common.cancel}
+              </Button>
+              <Button
+                type="submit"
+                className="rounded-full bg-[linear-gradient(135deg,#145375,#0b6b88)] px-5 text-white hover:brightness-105"
+                disabled={isUpserting}
+              >
+                {isUpserting
+                  ? messages.bindings.submitting
+                  : binding
+                    ? messages.bindings.update
+                    : messages.bindings.submit}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
+}
+
+function BindingBrowserDialog({
+  browserDesktopUrl,
+  browserSession,
+  browserSessionError,
+  hasBindings,
+  isBrowserSessionPending,
+  locale,
+  onCancel,
+  onClose,
+  onRefresh,
+  onStart,
+}: {
+  browserDesktopUrl: string | null;
+  browserSession: BindingBrowserSessionRecord | null;
+  browserSessionError: string | null;
+  hasBindings: boolean;
+  isBrowserSessionPending: boolean;
+  locale: Locale;
+  onCancel: () => void;
+  onClose: () => void;
+  onRefresh: () => void;
+  onStart: () => void;
+}) {
+  const messages = getMessages(locale);
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className="max-w-none rounded-[2rem] border-border/70 bg-white p-0 dark:border-white/10 dark:bg-[#111827]"
+        style={{ maxWidth: "56rem", width: "min(96vw, 56rem)" }}
+      >
+        <div className="space-y-6 p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-foreground">
+              {messages.bindings.browserAssistTitle}
+            </DialogTitle>
+            <DialogDescription className="leading-6">
+              {hasBindings
+                ? messages.bindings.browserAssistDescriptionBound
+                : messages.bindings.browserAssistDescription}
+            </DialogDescription>
+          </DialogHeader>
+
+          {browserDesktopUrl ? (
+            <div className="rounded-2xl border border-[#c7ddee] bg-[#edf6fb] px-4 py-3 text-sm text-[#145375] dark:border-white/10 dark:bg-white/8 dark:text-sky-200">
+              {messages.bindings.browserRemoteDesktopNotice}
+            </div>
+          ) : null}
+
+          <div className="rounded-[1.75rem] border border-border/70 bg-[linear-gradient(135deg,#edf6fb,rgba(245,249,253,0.88))] p-5 dark:border-white/10 dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))]">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-[#145375] dark:text-sky-200">
+                  {messages.bindings.browserFlowTitle}
+                </p>
+                <p className="mt-2 text-lg font-semibold text-foreground">
+                  {browserSession
+                    ? messages.enums.browserSessionStatus[browserSession.status]
+                    : messages.bindings.startBrowserBinding}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {messages.bindings.browserFlowDescription}
+                </p>
+              </div>
+              {browserSession ? (
+                <Badge
+                  className={cn(
+                    "rounded-full",
+                    getBrowserSessionBadgeClassName(browserSession.status),
+                  )}
+                >
+                  {messages.enums.browserSessionStatus[browserSession.status]}
+                </Badge>
+              ) : null}
+            </div>
+            <div className="mt-4 grid gap-3 text-sm text-muted-foreground">
+              <p>{messages.bindings.browserStep1}</p>
+              <p>{messages.bindings.browserStep2}</p>
+              <p>{messages.bindings.browserStep3}</p>
+            </div>
+          </div>
+
+          {browserSession ? (
+            <div className="rounded-[1.75rem] border border-border/70 bg-[#f5f9fd] p-5 dark:border-white/10 dark:bg-white/8">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    {messages.bindings.sessionId}
+                  </p>
+                  <p className="mt-2 font-mono text-sm text-foreground">
+                    {browserSession.id}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    {messages.bindings.sessionExpiresAt}
+                  </p>
+                  <p className="mt-2 text-sm text-foreground">
+                    {formatDateTime(
+                      browserSession.expiresAt,
+                      locale,
+                      messages.common.notRecorded,
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {browserSession.username ? (
+                <div className="mt-4 rounded-2xl border border-border/70 bg-white px-4 py-3 text-sm text-foreground dark:border-white/10 dark:bg-white/10">
+                  <p className="font-medium">
+                    @{browserSession.username}
+                    {browserSession.displayName
+                      ? ` · ${browserSession.displayName}`
+                      : ""}
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {browserSession.xUserId ?? messages.bindings.fillingUserId}
+                  </p>
+                </div>
+              ) : null}
+
+              {browserSession.status === "SUCCESS" ? (
+                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-950/30 dark:text-emerald-100">
+                  {messages.bindings.browserSuccess}
+                </div>
+              ) : null}
+
+              {browserSession.errorMessage ? (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-400/25 dark:bg-amber-950/30 dark:text-amber-100">
+                  {browserSession.errorMessage}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {browserSessionError ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-400/25 dark:bg-red-950/30 dark:text-red-200">
+              {browserSessionError}
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full px-5"
+              onClick={onClose}
+            >
+              {messages.common.cancel}
+            </Button>
+            <Button
+              type="button"
+              className="rounded-full bg-[linear-gradient(135deg,#145375,#0b6b88)] px-5 text-white hover:brightness-105"
+              disabled={isBrowserSessionPending && !browserSession}
+              onClick={onStart}
+            >
+              {isBrowserSessionPending && !browserSession
+                ? messages.bindings.startingBrowserBinding
+                : browserSession && isBrowserSessionActive(browserSession.status)
+                  ? messages.bindings.startBrowserBindingAgain
+                  : messages.bindings.startBrowserBinding}
+            </Button>
+            {browserSession &&
+            isBrowserSessionActive(browserSession.status) &&
+            browserDesktopUrl ? (
+              <a
+                href={browserDesktopUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-8 items-center justify-center rounded-full border border-border bg-white px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
+              >
+                {messages.bindings.openBrowserDesktop}
+              </a>
+            ) : null}
+            {browserSession && isBrowserSessionActive(browserSession.status) ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full px-5"
+                disabled={isBrowserSessionPending}
+                onClick={onCancel}
+              >
+                {messages.bindings.cancelBrowserBinding}
+              </Button>
+            ) : null}
+            {browserSession?.status === "SUCCESS" ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full px-5"
+                onClick={onRefresh}
+              >
+                {messages.bindings.refreshBindingState}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function BindingConsole({
+  browserDesktopUrl,
+  bindings,
+  locale,
+}: BindingConsoleProps) {
+  const messages = getMessages(locale);
+  const router = useRouter();
+  const credentialSourceLabels = {
+    WEB_LOGIN: messages.enums.credentialSource.WEB_LOGIN,
+    COOKIE_IMPORT: messages.enums.credentialSource.COOKIE_IMPORT,
+    EXTENSION: messages.enums.credentialSource.EXTENSION,
+  } as const;
+  const [manualDialogState, setManualDialogState] =
+    useState<ManualBindingDialogState>(null);
+  const [browserDialogOpen, setBrowserDialogOpen] = useState(false);
   const [validateState, validateAction, isValidatePending] = useActionState(
     revalidateBindingAction,
     initialActionState,
@@ -250,13 +684,12 @@ export function BindingConsole({
     useTransition();
   const refreshedBrowserSessionIdRef = useRef<string | null>(null);
   const isBrowserSessionPollingRef = useRef(false);
-  const [selectedBindingId, setSelectedBindingId] = useState<string | null>(
-    bindings[0]?.id ?? null,
-  );
-  const currentBinding =
-    bindings.find((binding) => binding.id === selectedBindingId) ??
-    bindings[0] ??
-    null;
+
+  const editingBinding =
+    manualDialogState?.type === "edit"
+      ? bindings.find((binding) => binding.id === manualDialogState.bindingId) ??
+        null
+      : null;
 
   useEffect(() => {
     const storedSessionId = window.sessionStorage.getItem(
@@ -302,7 +735,7 @@ export function BindingConsole({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [messages.bindings.browserSessionRequestFailed, messages.bindings.browserSessionRestoreFailed]);
 
   useEffect(() => {
     if (!browserSession) {
@@ -320,22 +753,6 @@ export function BindingConsole({
 
     window.sessionStorage.removeItem(browserBindingSessionStorageKey);
   }, [browserSession]);
-
-  useEffect(() => {
-    if (!browserSession?.bindingId) {
-      return;
-    }
-
-    const matchedBinding = bindings.find(
-      (binding) => binding.id === browserSession.bindingId,
-    );
-
-    if (!matchedBinding || matchedBinding.id === selectedBindingId) {
-      return;
-    }
-
-    setSelectedBindingId(matchedBinding.id);
-  }, [bindings, browserSession?.bindingId, selectedBindingId]);
 
   useEffect(() => {
     if (!browserSession || !isBrowserSessionActive(browserSession.status)) {
@@ -398,7 +815,24 @@ export function BindingConsole({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [browserSession, router]);
+  }, [
+    browserSession,
+    messages.bindings.browserSessionPollingFailed,
+    messages.bindings.browserSessionRequestFailed,
+    router,
+  ]);
+
+  useEffect(() => {
+    if (manualDialogState?.type !== "edit") {
+      return;
+    }
+
+    if (editingBinding) {
+      return;
+    }
+
+    setManualDialogState(null);
+  }, [editingBinding, manualDialogState]);
 
   function handleStartBrowserBinding() {
     const remoteDesktopWindow = browserDesktopUrl
@@ -470,728 +904,278 @@ export function BindingConsole({
     }
   }
 
+  const feedbackStates = [
+    manualCrawlState,
+    validateState,
+    disableState,
+    unbindState,
+  ].filter((state) => state.error || state.success);
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-      <div className="space-y-6">
-        <Card className="rounded-[2rem] border-border/70 bg-white/90 shadow-[0_24px_80px_-40px_rgba(45,77,63,0.25)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
-          <CardHeader className="gap-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <CardTitle className="text-2xl">
-                  {messages.bindings.accountListTitle}
-                </CardTitle>
-                <CardDescription className="mt-2 leading-6">
-                  {messages.bindings.accountListDescription}
-                </CardDescription>
-              </div>
-              <Badge className="rounded-full bg-[#eef4f0] text-[#2d4d3f] dark:bg-[#223228] dark:text-[#d8e2db]">
+    <div className="space-y-6">
+      <Card className="border-border/70 bg-white/92 dark:border-white/10 dark:bg-white/6">
+        <CardHeader className="gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-2xl">
+                {messages.bindings.accountListTitle}
+              </CardTitle>
+              <CardDescription className="mt-2 max-w-3xl leading-6">
+                {messages.bindings.accountListDescription}
+              </CardDescription>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge className="rounded-full bg-[#edf6fb] text-[#145375] dark:bg-white/8 dark:text-sky-200">
                 {formatMessage(messages.bindings.accountCount, {
                   count: bindings.length,
                 })}
               </Badge>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full px-5"
+                onClick={() => setBrowserDialogOpen(true)}
+              >
+                {messages.bindings.browserAssistTitle}
+              </Button>
+              <Button
+                type="button"
+                className="rounded-full bg-[linear-gradient(135deg,#145375,#0b6b88)] px-5 text-white hover:brightness-105"
+                onClick={() => setManualDialogState({ type: "create" })}
+              >
+                {messages.bindings.advancedTitle}
+              </Button>
             </div>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            {bindings.length > 0 ? (
-              bindings.map((binding) => {
-                const isSelected = binding.id === currentBinding?.id;
+          </div>
+        </CardHeader>
 
-                return (
-                  <button
+        <CardContent className="space-y-4 px-0">
+          {browserSession || browserSessionError ? (
+            <div className="mx-5 rounded-[1.5rem] border border-border/70 bg-[#f5f9fd] px-4 py-4 dark:border-white/10 dark:bg-white/8">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {browserSession
+                      ? messages.enums.browserSessionStatus[browserSession.status]
+                      : messages.bindings.browserSessionRequestFailed}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {browserSessionError
+                      ? browserSessionError
+                      : browserSession?.username
+                        ? `@${browserSession.username}`
+                        : messages.bindings.browserFlowDescription}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full px-5"
+                  onClick={() => setBrowserDialogOpen(true)}
+                >
+                  {messages.common.viewDetails}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {bindings.length > 0 ? (
+            <Table className="min-w-[1120px]">
+              <TableHeader>
+                <TableRow className="border-y border-border/70 bg-[#f5f9fd] hover:bg-[#f5f9fd] dark:border-white/10 dark:bg-white/8">
+                  <TableHead className="px-5">
+                    {messages.common.accountLabel}
+                  </TableHead>
+                  <TableHead>{messages.bindings.displayName}</TableHead>
+                  <TableHead>{messages.common.statusLabel}</TableHead>
+                  <TableHead>{messages.bindings.credentialSource}</TableHead>
+                  <TableHead>{messages.bindings.lastValidatedAt}</TableHead>
+                  <TableHead>{messages.bindings.nextCrawlAt}</TableHead>
+                  <TableHead>{messages.strategies.strategyCountLabel}</TableHead>
+                  <TableHead className="whitespace-normal">
+                    {messages.bindings.latestError}
+                  </TableHead>
+                  <TableHead className="px-5 text-right">
+                    {messages.common.actionsLabel}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bindings.map((binding) => (
+                  <TableRow
                     key={binding.id}
-                    type="button"
-                    onClick={() => setSelectedBindingId(binding.id)}
-                    className={cn(
-                      "rounded-[1.75rem] border px-5 py-4 text-left transition-colors",
-                      isSelected
-                        ? "border-[#2d4d3f]/40 bg-[#eef4f0] shadow-[0_16px_50px_-34px_rgba(45,77,63,0.45)] dark:border-[#d8e2db]/25 dark:bg-[#223228]"
-                        : "border-border/70 bg-[#fcfaf5] hover:border-[#c7b08a]/50 hover:bg-[#f8f3eb] dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12",
-                    )}
+                    className="border-border/70 dark:border-white/10"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-base font-semibold text-foreground">
+                    <TableCell className="px-5 align-top whitespace-normal">
+                      <div className="space-y-1">
+                        <p className="font-medium text-foreground">
                           @{binding.username}
                         </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {binding.displayName ?? messages.common.noDisplayName}
+                        <p className="text-xs text-muted-foreground">
+                          {binding.xUserId}
                         </p>
                       </div>
+                    </TableCell>
+                    <TableCell className="align-top whitespace-normal">
+                      {binding.displayName ?? messages.common.noDisplayName}
+                    </TableCell>
+                    <TableCell className="align-top">
                       <StatusBadge
                         label={messages.enums.bindingStatus[binding.status]}
                         status={binding.status}
                       />
-                    </div>
-                    <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                      <div>
-                        <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                          {messages.bindings.lastValidatedAt}
-                        </dt>
-                        <dd className="mt-1 text-foreground">
-                          {formatDateTime(
-                            binding.lastValidatedAt,
-                            locale,
-                            messages.common.notRecorded,
-                          )}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                          {messages.bindings.nextCrawlAt}
-                        </dt>
-                        <dd className="mt-1 text-foreground">
-                          {formatDateTime(
-                            getNextStrategyRunAt(binding) ??
-                              binding.crawlJob?.nextRunAt ??
-                              binding.nextCrawlAt,
-                            locale,
-                            messages.common.notScheduled,
-                          )}
-                        </dd>
-                      </div>
-                    </dl>
-                  </button>
-                );
-              })
-            ) : (
-              <EmptyState
-                title={messages.bindings.emptyTitle}
-                description={messages.bindings.emptyDescription}
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[2rem] border-border/70 bg-white/90 shadow-[0_24px_80px_-40px_rgba(87,62,22,0.35)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
-          <CardHeader className="gap-3">
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle className="text-2xl">
-                {messages.bindings.statusTitle}
-              </CardTitle>
-              <StatusBadge
-                label={
-                  messages.enums.bindingStatus[
-                    currentBinding?.status ?? "UNBOUND"
-                  ]
-                }
-                status={currentBinding?.status ?? "UNBOUND"}
-              />
-            </div>
-            <CardDescription className="leading-6">
-              {messages.bindings.statusDescription}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            {currentBinding ? (
-              <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-3xl bg-[#f5efe4] p-5 dark:bg-[#3d3124]">
-                    <p className="text-xs uppercase tracking-[0.24em] text-[#7f5a26] dark:text-[#f2c58c]">
-                      {messages.bindings.username}
-                    </p>
-                    <p className="mt-2 text-base font-medium text-foreground">
-                      @{currentBinding.username}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {currentBinding.displayName ??
-                        messages.common.noDisplayName}
-                    </p>
-                  </div>
-                  <div className="rounded-3xl bg-[#eef4f0] p-5 dark:bg-[#223228]">
-                    <p className="text-xs uppercase tracking-[0.24em] text-[#2d4d3f] dark:text-[#d8e2db]">
-                      {messages.bindings.xUserId}
-                    </p>
-                    <p className="mt-2 font-mono text-sm text-foreground">
-                      {currentBinding.xUserId}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {messages.bindings.credentialSource}：
-                      {
-                        credentialSourceOptions.find(
-                          (item) =>
-                            item.value === currentBinding.credentialSource,
-                        )?.label
-                      }
-                    </p>
-                  </div>
-                </div>
-                <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                  <div className="rounded-2xl border border-border/70 bg-[#fcfaf5] px-4 py-3 dark:border-white/10 dark:bg-white/8">
-                    <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      {messages.bindings.lastValidatedAt}
-                    </dt>
-                    <dd className="mt-1 text-foreground">
+                    </TableCell>
+                    <TableCell className="align-top whitespace-normal">
+                      {credentialSourceLabels[binding.credentialSource]}
+                    </TableCell>
+                    <TableCell className="align-top whitespace-normal">
                       {formatDateTime(
-                        currentBinding.lastValidatedAt,
+                        binding.lastValidatedAt,
                         locale,
                         messages.common.notRecorded,
                       )}
-                    </dd>
-                  </div>
-                  <div className="rounded-2xl border border-border/70 bg-[#fcfaf5] px-4 py-3 dark:border-white/10 dark:bg-white/8">
-                    <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      {messages.bindings.nextCrawlAt}
-                    </dt>
-                    <dd className="mt-1 text-foreground">
+                    </TableCell>
+                    <TableCell className="align-top whitespace-normal">
                       {formatDateTime(
-                        getNextStrategyRunAt(currentBinding) ??
-                          currentBinding.crawlJob?.nextRunAt ??
-                          currentBinding.nextCrawlAt,
+                        getNextStrategyRunAt(binding) ??
+                          binding.crawlJob?.nextRunAt ??
+                          binding.nextCrawlAt,
                         locale,
                         messages.common.notScheduled,
                       )}
-                    </dd>
-                  </div>
-                  <div className="rounded-2xl border border-border/70 bg-[#fcfaf5] px-4 py-3 dark:border-white/10 dark:bg-white/8">
-                    <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      {messages.strategies.strategyCountLabel}
-                    </dt>
-                    <dd className="mt-1 text-foreground">
+                    </TableCell>
+                    <TableCell className="align-top whitespace-normal">
                       {formatMessage(messages.strategies.strategyCount, {
-                        count: currentBinding.crawlProfiles.length,
+                        count: binding.crawlProfiles.length,
                       })}
-                    </dd>
-                  </div>
-                  <div className="rounded-2xl border border-border/70 bg-[#fcfaf5] px-4 py-3 dark:border-white/10 dark:bg-white/8">
-                    <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      {messages.strategies.enabledStrategyLabel}
-                    </dt>
-                    <dd className="mt-1 text-foreground">
-                      {formatMessage(messages.strategies.enabledStrategyCount, {
-                        count: currentBinding.crawlProfiles.filter(
-                          (profile) => profile.enabled,
-                        ).length,
-                      })}
-                    </dd>
-                  </div>
-                </dl>
-                {currentBinding.lastErrorMessage ? (
-                  <div className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-400/25 dark:bg-amber-950/30 dark:text-amber-100">
-                    <p className="font-medium">
-                      {messages.bindings.latestError}
-                    </p>
-                    <p className="mt-2 leading-6">
-                      {currentBinding.lastErrorMessage}
-                    </p>
-                  </div>
-                ) : null}
-              </>
-            ) : (
+                    </TableCell>
+                    <TableCell className="max-w-[280px] align-top whitespace-normal">
+                      <span className="text-sm text-muted-foreground">
+                        {binding.lastErrorMessage ?? messages.common.notRecorded}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 align-top">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full px-3"
+                          onClick={() =>
+                            setManualDialogState({
+                              type: "edit",
+                              bindingId: binding.id,
+                            })
+                          }
+                        >
+                          {messages.common.edit}
+                        </Button>
+
+                        <form action={manualCrawlAction}>
+                          <input type="hidden" name="bindingId" value={binding.id} />
+                          <Button
+                            type="submit"
+                            size="sm"
+                            className="rounded-full bg-[#7f5a26] px-3 text-white hover:bg-[#65471f] dark:bg-[#f2c58c] dark:text-[#2c2114] dark:hover:bg-[#e5b775]"
+                            disabled={
+                              isManualCrawlPending || binding.status !== "ACTIVE"
+                            }
+                          >
+                            {messages.bindings.triggerNow}
+                          </Button>
+                        </form>
+
+                        <form action={validateAction}>
+                          <input type="hidden" name="bindingId" value={binding.id} />
+                          <Button
+                            type="submit"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full px-3"
+                            disabled={isValidatePending}
+                          >
+                            {messages.bindings.revalidate}
+                          </Button>
+                        </form>
+
+                        <form action={disableAction}>
+                          <input type="hidden" name="bindingId" value={binding.id} />
+                          <Button
+                            type="submit"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full px-3"
+                            disabled={
+                              isDisablePending || binding.status === "DISABLED"
+                            }
+                          >
+                            {messages.bindings.disable}
+                          </Button>
+                        </form>
+
+                        <form action={unbindAction} onSubmit={handleUnbindSubmit}>
+                          <input type="hidden" name="bindingId" value={binding.id} />
+                          <Button
+                            type="submit"
+                            variant="destructive"
+                            size="sm"
+                            className="rounded-full px-3"
+                            disabled={isUnbindPending}
+                          >
+                            {messages.bindings.unbind}
+                          </Button>
+                        </form>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="px-5 pb-5">
               <EmptyState
                 title={messages.bindings.emptyTitle}
                 description={messages.bindings.emptyDescription}
               />
-            )}
-          </CardContent>
-        </Card>
-
-        {currentBinding ? (
-          <>
-            <Card className="rounded-[2rem] border-border/70 bg-white/90 shadow-[0_24px_80px_-40px_rgba(45,77,63,0.22)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
-              <CardHeader>
-                <CardTitle className="text-xl">
-                  {messages.strategies.title}
-                </CardTitle>
-                <CardDescription>
-                  {messages.strategies.description}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="rounded-[1.75rem] border border-dashed border-border/70 bg-[#f8faf8] p-5 dark:border-white/10 dark:bg-white/8">
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {messages.strategies.workspaceTitle}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {messages.strategies.workspaceDescription}
-                  </p>
-                  <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
-                    <div className="rounded-2xl border border-border/70 bg-white px-4 py-3 dark:border-white/10 dark:bg-white/10">
-                      <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                        {messages.strategies.strategyCountLabel}
-                      </dt>
-                      <dd className="mt-1 text-foreground">
-                        {formatMessage(messages.strategies.strategyCount, {
-                          count: currentBinding.crawlProfiles.length,
-                        })}
-                      </dd>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-white px-4 py-3 dark:border-white/10 dark:bg-white/10">
-                      <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                        {messages.strategies.enabledStrategyLabel}
-                      </dt>
-                      <dd className="mt-1 text-foreground">
-                        {formatMessage(
-                          messages.strategies.enabledStrategyCount,
-                          {
-                            count: currentBinding.crawlProfiles.filter(
-                              (profile) => profile.enabled,
-                            ).length,
-                          },
-                        )}
-                      </dd>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-white px-4 py-3 dark:border-white/10 dark:bg-white/10">
-                      <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                        {messages.strategies.nextRunLabel}
-                      </dt>
-                      <dd className="mt-1 text-foreground">
-                        {formatDateTime(
-                          getNextStrategyRunAt(currentBinding),
-                          locale,
-                          messages.common.notScheduled,
-                        )}
-                      </dd>
-                    </div>
-                  </dl>
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <Link
-                      href="/strategies"
-                      className="inline-flex h-10 items-center justify-center rounded-full bg-[#2d4d3f] px-5 text-sm font-medium text-white transition-colors hover:bg-[#20372d] dark:bg-[#d8e2db] dark:text-[#18201b] dark:hover:bg-[#c8d3cb]"
-                    >
-                      {messages.strategies.createStrategy}
-                    </Link>
-                    <Link
-                      href="/strategies"
-                      className="inline-flex h-10 items-center justify-center rounded-full border border-border/70 bg-white px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/14"
-                    >
-                      {messages.strategies.viewBindingWorkspace}
-                    </Link>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[2rem] border-border/70 bg-white/90 shadow-[0_24px_80px_-40px_rgba(87,62,22,0.2)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
-              <CardHeader>
-                <CardTitle className="text-xl">
-                  {messages.bindings.operationsTitle}
-                </CardTitle>
-                <CardDescription>
-                  {messages.bindings.operationsDescription}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <form
-                  key={`manual-${currentBinding.id}`}
-                  action={manualCrawlAction}
-                  className="space-y-3"
-                >
-                  <input
-                    type="hidden"
-                    name="bindingId"
-                    value={currentBinding.id}
-                  />
-                  <Button
-                    type="submit"
-                    className="rounded-full bg-[#7f5a26] px-5 hover:bg-[#65471f] dark:bg-[#f2c58c] dark:text-[#2c2114] dark:hover:bg-[#e5b775]"
-                    disabled={
-                      isManualCrawlPending || currentBinding.status !== "ACTIVE"
-                    }
-                  >
-                    {isManualCrawlPending
-                      ? messages.bindings.triggeringNow
-                      : messages.bindings.triggerNow}
-                  </Button>
-                  <FormFeedback state={manualCrawlState} />
-                </form>
-                <form
-                  key={`validate-${currentBinding.id}`}
-                  action={validateAction}
-                  className="space-y-3"
-                >
-                  <input
-                    type="hidden"
-                    name="bindingId"
-                    value={currentBinding.id}
-                  />
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    className="rounded-full px-5"
-                    disabled={isValidatePending}
-                  >
-                    {isValidatePending
-                      ? messages.bindings.revalidating
-                      : messages.bindings.revalidate}
-                  </Button>
-                  <FormFeedback state={validateState} />
-                </form>
-                <form
-                  key={`disable-${currentBinding.id}`}
-                  action={disableAction}
-                  className="space-y-3"
-                >
-                  <input
-                    type="hidden"
-                    name="bindingId"
-                    value={currentBinding.id}
-                  />
-                  <Button
-                    type="submit"
-                    variant="destructive"
-                    className="rounded-full px-5"
-                    disabled={
-                      isDisablePending || currentBinding.status === "DISABLED"
-                    }
-                  >
-                    {isDisablePending
-                      ? messages.bindings.disabling
-                      : messages.bindings.disable}
-                  </Button>
-                  <FormFeedback state={disableState} />
-                </form>
-                <form
-                  key={`unbind-${currentBinding.id}`}
-                  action={unbindAction}
-                  className="space-y-3"
-                  onSubmit={handleUnbindSubmit}
-                >
-                  <input
-                    type="hidden"
-                    name="bindingId"
-                    value={currentBinding.id}
-                  />
-                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-950/30 dark:text-red-200">
-                    {messages.bindings.unbindWarning}
-                  </div>
-                  <Button
-                    type="submit"
-                    variant="destructive"
-                    className="rounded-full px-5"
-                    disabled={isUnbindPending}
-                  >
-                    {isUnbindPending
-                      ? messages.bindings.unbinding
-                      : messages.bindings.unbind}
-                  </Button>
-                  <FormFeedback state={unbindState} />
-                </form>
-              </CardContent>
-            </Card>
-          </>
-        ) : null}
-      </div>
-
-      <div className="space-y-6">
-        <Card className="rounded-[2rem] border-border/70 bg-white/95 shadow-[0_24px_80px_-40px_rgba(31,49,40,0.3)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
-          <CardHeader>
-            <CardTitle className="text-2xl">
-              {messages.bindings.browserAssistTitle}
-            </CardTitle>
-            <CardDescription className="leading-6">
-              {currentBinding
-                ? messages.bindings.browserAssistDescriptionBound
-                : messages.bindings.browserAssistDescription}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {browserDesktopUrl ? (
-              <div className="rounded-2xl border border-[#c7b08a]/40 bg-[#f5efe4] px-4 py-3 text-sm text-[#6c4c1f] dark:border-[#f2c58c]/20 dark:bg-[#3d3124] dark:text-[#f8ddb5]">
-                {messages.bindings.browserRemoteDesktopNotice}
-              </div>
-            ) : null}
-            <div className="rounded-[1.75rem] border border-border/70 bg-[linear-gradient(135deg,#f5efe4,rgba(238,244,240,0.88))] p-5 dark:border-white/10 dark:bg-[linear-gradient(135deg,rgba(61,49,36,0.96),rgba(34,50,40,0.92))]">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-[#7f5a26] dark:text-[#f2c58c]">
-                    {messages.bindings.browserFlowTitle}
-                  </p>
-                  <p className="mt-2 text-lg font-semibold text-foreground">
-                    {browserSession
-                      ? messages.enums.browserSessionStatus[
-                          browserSession.status
-                        ]
-                      : messages.bindings.startBrowserBinding}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {messages.bindings.browserFlowDescription}
-                  </p>
-                </div>
-                {browserSession ? (
-                  <Badge
-                    className={cn(
-                      "rounded-full",
-                      getBrowserSessionBadgeClassName(browserSession.status),
-                    )}
-                  >
-                    {messages.enums.browserSessionStatus[browserSession.status]}
-                  </Badge>
-                ) : null}
-              </div>
-              <div className="mt-4 grid gap-3 text-sm text-muted-foreground">
-                <p>{messages.bindings.browserStep1}</p>
-                <p>{messages.bindings.browserStep2}</p>
-                <p>{messages.bindings.browserStep3}</p>
-              </div>
             </div>
+          )}
+        </CardContent>
+      </Card>
 
-            {browserSession ? (
-              <div className="rounded-[1.75rem] border border-border/70 bg-[#fcfaf5] p-5 dark:border-white/10 dark:bg-white/8">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      {messages.bindings.sessionId}
-                    </p>
-                    <p className="mt-2 font-mono text-sm text-foreground">
-                      {browserSession.id}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      {messages.bindings.sessionExpiresAt}
-                    </p>
-                    <p className="mt-2 text-sm text-foreground">
-                      {formatDateTime(
-                        browserSession.expiresAt,
-                        locale,
-                        messages.common.notRecorded,
-                      )}
-                    </p>
-                  </div>
-                </div>
+      {feedbackStates.length > 0 ? (
+        <div className="space-y-3">
+          {feedbackStates.map((state, index) => (
+            <ActionFeedback
+              key={`${state.success ?? state.error ?? "binding-feedback"}-${index}`}
+              state={state}
+            />
+          ))}
+        </div>
+      ) : null}
 
-                {browserSession.username ? (
-                  <div className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm text-foreground dark:bg-white/10">
-                    <p className="font-medium">
-                      @{browserSession.username}
-                      {browserSession.displayName
-                        ? ` · ${browserSession.displayName}`
-                        : ""}
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      {browserSession.xUserId ??
-                        messages.bindings.fillingUserId}
-                    </p>
-                  </div>
-                ) : null}
+      {manualDialogState ? (
+        <BindingManualDialog
+          binding={editingBinding}
+          locale={locale}
+          onClose={() => setManualDialogState(null)}
+        />
+      ) : null}
 
-                {browserSession.status === "SUCCESS" ? (
-                  <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-100">
-                    {messages.bindings.browserSuccess}
-                  </div>
-                ) : null}
-
-                {browserSession.errorMessage ? (
-                  <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
-                    {browserSession.errorMessage}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            {browserSessionError ? (
-              <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-200">
-                {browserSessionError}
-              </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-3">
-              <Button
-                type="button"
-                className="rounded-full bg-[#2d4d3f] px-5 hover:bg-[#20372d] dark:bg-[#d8e2db] dark:text-[#18201b] dark:hover:bg-[#c8d3cb]"
-                disabled={isBrowserSessionPending && !browserSession}
-                onClick={handleStartBrowserBinding}
-              >
-                {isBrowserSessionPending && !browserSession
-                  ? messages.bindings.startingBrowserBinding
-                  : browserSession &&
-                      isBrowserSessionActive(browserSession.status)
-                    ? messages.bindings.startBrowserBindingAgain
-                    : messages.bindings.startBrowserBinding}
-              </Button>
-              {browserSession &&
-              isBrowserSessionActive(browserSession.status) ? (
-                browserDesktopUrl ? (
-                  <a
-                    href={browserDesktopUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-white px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
-                  >
-                    {messages.bindings.openBrowserDesktop}
-                  </a>
-                ) : null
-              ) : null}
-              {browserSession &&
-              isBrowserSessionActive(browserSession.status) ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-full px-5"
-                  disabled={isBrowserSessionPending}
-                  onClick={handleCancelBrowserBinding}
-                >
-                  {messages.bindings.cancelBrowserBinding}
-                </Button>
-              ) : null}
-              {browserSession?.status === "SUCCESS" ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-full px-5"
-                  onClick={() => router.refresh()}
-                >
-                  {messages.bindings.refreshBindingState}
-                </Button>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[2rem] border-border/70 bg-white/95 shadow-[0_24px_80px_-40px_rgba(31,49,40,0.22)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.5)]">
-          <CardHeader>
-            <CardTitle className="text-2xl">
-              {messages.bindings.advancedTitle}
-            </CardTitle>
-            <CardDescription className="leading-6">
-              {messages.bindings.advancedDescription}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form
-              key={`upsert-${currentBinding?.id ?? "new"}`}
-              action={upsertAction}
-              className="space-y-5"
-            >
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <FieldLabel htmlFor="xUserId">
-                    {messages.bindings.xUserId}
-                  </FieldLabel>
-                  <Input
-                    id="xUserId"
-                    name="xUserId"
-                    defaultValue={currentBinding?.xUserId ?? ""}
-                    placeholder={messages.bindings.placeholders.xUserId}
-                    className="h-11 rounded-2xl border-border/70 bg-[#fcfaf5] px-4 dark:border-white/10 dark:bg-white/8"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <FieldLabel htmlFor="username">
-                    {messages.bindings.username}
-                  </FieldLabel>
-                  <Input
-                    id="username"
-                    name="username"
-                    defaultValue={currentBinding?.username ?? ""}
-                    placeholder={messages.bindings.placeholders.username}
-                    className="h-11 rounded-2xl border-border/70 bg-[#fcfaf5] px-4 dark:border-white/10 dark:bg-white/8"
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <FieldLabel htmlFor="displayName">
-                    {messages.bindings.displayName}
-                  </FieldLabel>
-                  <Input
-                    id="displayName"
-                    name="displayName"
-                    defaultValue={currentBinding?.displayName ?? ""}
-                    placeholder={messages.bindings.placeholders.displayName}
-                    className="h-11 rounded-2xl border-border/70 bg-[#fcfaf5] px-4 dark:border-white/10 dark:bg-white/8"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <FieldLabel htmlFor="avatarUrl">
-                    {messages.bindings.avatarUrl}
-                  </FieldLabel>
-                  <Input
-                    id="avatarUrl"
-                    name="avatarUrl"
-                    defaultValue={currentBinding?.avatarUrl ?? ""}
-                    placeholder="https://..."
-                    className="h-11 rounded-2xl border-border/70 bg-[#fcfaf5] px-4 dark:border-white/10 dark:bg-white/8"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <FieldLabel htmlFor="credentialSource">
-                  {messages.bindings.credentialSourceLabel}
-                </FieldLabel>
-                <select
-                  id="credentialSource"
-                  name="credentialSource"
-                  defaultValue={currentBinding?.credentialSource ?? "WEB_LOGIN"}
-                  className="h-11 w-full rounded-2xl border border-border/70 bg-[#fcfaf5] px-4 text-sm text-foreground outline-none ring-0 transition focus:border-ring focus:ring-3 focus:ring-ring/40 dark:border-white/10 dark:bg-white/8"
-                >
-                  {credentialSourceOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <FieldLabel htmlFor="credentialPayload">
-                  {messages.bindings.credentialPayload}
-                </FieldLabel>
-                <textarea
-                  id="credentialPayload"
-                  name="credentialPayload"
-                  rows={8}
-                  placeholder={messages.bindings.placeholders.credentialPayload}
-                  className="w-full rounded-[1.5rem] border border-border/70 bg-[#fcfaf5] px-4 py-3 text-sm leading-6 text-foreground outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/40 dark:border-white/10 dark:bg-white/8"
-                />
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {messages.bindings.credentialPayloadHint}
-                </p>
-              </div>
-
-              <div className="grid gap-5 sm:grid-cols-[1fr_220px]">
-                <div className="flex items-center justify-between rounded-[1.5rem] border border-border/70 bg-[#f8faf8] px-4 py-3 dark:border-white/10 dark:bg-white/8">
-                  <div>
-                    <p className="font-medium text-foreground">
-                      {messages.bindings.enableAutoCrawlAfterSave}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {messages.bindings.enableAutoCrawlAfterSaveHint}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    name="crawlEnabled"
-                    defaultChecked={currentBinding?.crawlEnabled ?? true}
-                    className="h-4 w-4 rounded border-border text-[#2d4d3f] focus:ring-[#2d4d3f] dark:border-white/20 dark:bg-white/10 dark:text-[#d8e2db] dark:focus:ring-[#d8e2db]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <FieldLabel htmlFor="bindingCrawlIntervalMinutes">
-                    {messages.bindings.crawlIntervalLabel}
-                  </FieldLabel>
-                  <Input
-                    id="bindingCrawlIntervalMinutes"
-                    name="crawlIntervalMinutes"
-                    type="number"
-                    min={5}
-                    max={1440}
-                    defaultValue={String(
-                      currentBinding?.crawlIntervalMinutes ?? 60,
-                    )}
-                    className="h-11 rounded-2xl border-border/70 bg-[#fcfaf5] px-4 dark:border-white/10 dark:bg-white/8"
-                  />
-                </div>
-              </div>
-
-              <FormFeedback state={upsertState} />
-              <Button
-                type="submit"
-                className="rounded-full bg-[#2d4d3f] px-5 hover:bg-[#20372d] dark:bg-[#d8e2db] dark:text-[#18201b] dark:hover:bg-[#c8d3cb]"
-                disabled={isUpserting}
-              >
-                {isUpserting
-                  ? messages.bindings.submitting
-                  : currentBinding
-                    ? messages.bindings.update
-                    : messages.bindings.submit}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+      {browserDialogOpen ? (
+        <BindingBrowserDialog
+          browserDesktopUrl={browserDesktopUrl}
+          browserSession={browserSession}
+          browserSessionError={browserSessionError}
+          hasBindings={bindings.length > 0}
+          isBrowserSessionPending={isBrowserSessionPending}
+          locale={locale}
+          onCancel={handleCancelBrowserBinding}
+          onClose={() => setBrowserDialogOpen(false)}
+          onRefresh={() => router.refresh()}
+          onStart={handleStartBrowserBinding}
+        />
+      ) : null}
     </div>
   );
 }

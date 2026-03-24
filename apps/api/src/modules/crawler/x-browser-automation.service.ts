@@ -409,9 +409,10 @@ export class XBrowserAutomationService implements XBrowserAutomationPort {
         'about:blank',
       ],
       {
-        stdio: 'ignore',
+        stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
+    const chromeProcessOutput = this.captureChildProcessOutput(chromeProcess);
 
     chromeProcess.unref();
 
@@ -419,6 +420,7 @@ export class XBrowserAutomationService implements XBrowserAutomationPort {
       const browser = await this.connectToSystemChrome(
         debugPort,
         chromeProcess,
+        chromeProcessOutput.read,
       );
       const context = await this.waitForBrowserContext(browser);
       const page = await this.waitForContextPage(context);
@@ -528,8 +530,13 @@ export class XBrowserAutomationService implements XBrowserAutomationPort {
   private async connectToSystemChrome(
     debugPort: number,
     chromeProcess: ChildProcess,
+    readProcessOutput?: () => string,
   ) {
-    const cdpEndpoint = await this.waitForCdpEndpoint(debugPort, chromeProcess);
+    const cdpEndpoint = await this.waitForCdpEndpoint(
+      debugPort,
+      chromeProcess,
+      readProcessOutput,
+    );
 
     return chromium.connectOverCDP(cdpEndpoint);
   }
@@ -537,14 +544,18 @@ export class XBrowserAutomationService implements XBrowserAutomationPort {
   private async waitForCdpEndpoint(
     debugPort: number,
     chromeProcess: ChildProcess,
+    readProcessOutput?: () => string,
   ) {
     const startedAt = Date.now();
     const endpoint = `http://127.0.0.1:${debugPort}`;
 
     while (Date.now() - startedAt < CDP_CONNECT_TIMEOUT_MS) {
       if (chromeProcess.exitCode !== null) {
+        const processOutput = readProcessOutput?.();
         throw new Error(
-          `System Chrome exited before CDP became available (exit code: ${chromeProcess.exitCode})`,
+          processOutput
+            ? `System Chrome exited before CDP became available (exit code: ${chromeProcess.exitCode}). Output: ${processOutput}`
+            : `System Chrome exited before CDP became available (exit code: ${chromeProcess.exitCode})`,
         );
       }
 
@@ -562,6 +573,23 @@ export class XBrowserAutomationService implements XBrowserAutomationPort {
     }
 
     throw new Error('Timed out while waiting for system Chrome CDP endpoint');
+  }
+
+  private captureChildProcessOutput(chromeProcess: ChildProcess) {
+    let output = '';
+
+    const appendChunk = (chunk: string | Buffer) => {
+      output = `${output}${chunk.toString()}`.slice(-4000);
+    };
+
+    chromeProcess.stdout?.setEncoding('utf8');
+    chromeProcess.stderr?.setEncoding('utf8');
+    chromeProcess.stdout?.on('data', appendChunk);
+    chromeProcess.stderr?.on('data', appendChunk);
+
+    return {
+      read: () => output.replace(/\s+/g, ' ').trim(),
+    };
   }
 
   private async waitForBrowserContext(browser: Browser) {

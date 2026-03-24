@@ -49,7 +49,7 @@ export function PaginationNav({
   const hasNextPage = page < totalPages;
 
   return (
-    <Card className="rounded-[2rem] border-border/70 bg-white/82 shadow-[0_20px_60px_-40px_rgba(87,62,22,0.25)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_20px_60px_-40px_rgba(0,0,0,0.45)]">
+    <Card className="rounded-[1.75rem] border-border/70 bg-white/90 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_20px_60px_-40px_rgba(0,0,0,0.45)]">
       <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium text-foreground">
@@ -63,24 +63,24 @@ export function PaginationNav({
           {hasPreviousPage ? (
             <Link
               href={buildPageHref(basePath, page - 1, pageSize, query)}
-              className="inline-flex h-9 items-center justify-center rounded-full border border-border bg-white px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
+              className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-white px-4 text-sm font-medium text-foreground transition-colors hover:bg-sky-50 dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
             >
               {messages.pagination.previous}
             </Link>
           ) : (
-            <span className="inline-flex h-9 items-center justify-center rounded-full border border-border/70 bg-muted/40 px-4 text-sm font-medium text-muted-foreground dark:border-white/10 dark:bg-white/8">
+            <span className="inline-flex h-10 items-center justify-center rounded-full border border-border/70 bg-muted/40 px-4 text-sm font-medium text-muted-foreground dark:border-white/10 dark:bg-white/8">
               {messages.pagination.previous}
             </span>
           )}
           {hasNextPage ? (
             <Link
               href={buildPageHref(basePath, page + 1, pageSize, query)}
-              className="inline-flex h-9 items-center justify-center rounded-full bg-[#2d4d3f] px-4 text-sm font-medium text-white transition-colors hover:bg-[#20372d] dark:bg-[#d8e2db] dark:text-[#18201b] dark:hover:bg-[#c8d3cb]"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#145375,#0b6b88)] px-4 text-sm font-medium text-white transition hover:brightness-105"
             >
               {messages.pagination.next}
             </Link>
           ) : (
-            <span className="inline-flex h-9 items-center justify-center rounded-full bg-[#eef4f0] px-4 text-sm font-medium text-[#2d4d3f] dark:bg-white/8 dark:text-[#d8e2db]">
+            <span className="inline-flex h-10 items-center justify-center rounded-full bg-[#edf6fb] px-4 text-sm font-medium text-[#145375] dark:bg-white/8 dark:text-sky-200">
               {messages.pagination.reachedEnd}
             </span>
           )}

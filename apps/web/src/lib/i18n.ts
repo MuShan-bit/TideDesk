@@ -12,7 +12,24 @@ type Messages = {
   shell: {
     subtitle: string;
     badge: string;
+    controlCenter: string;
+    workspaceLabel: string;
+    fallbackUserName: string;
+    signedInLabel: string;
+    defaultRole: string;
     nav: {
+      overview: string;
+      dashboard: string;
+      bindings: string;
+      strategies: string;
+      reports: string;
+      publishing: string;
+      ai: string;
+      taxonomy: string;
+      archives: string;
+      runs: string;
+    };
+    navDescriptions: {
       overview: string;
       dashboard: string;
       bindings: string;
@@ -38,6 +55,13 @@ type Messages = {
     notScheduled: string;
     noDisplayName: string;
     noMedia: string;
+    cancel: string;
+    edit: string;
+    statusLabel: string;
+    actionsLabel: string;
+    updatedAtLabel: string;
+    accountLabel: string;
+    resultLabel: string;
     startDate: string;
     untilNow: string;
     openOriginal: string;
@@ -73,6 +97,11 @@ type Messages = {
       dashboard: string;
       bindings: string;
     };
+    metrics: Array<{
+      value: string;
+      label: string;
+      description: string;
+    }>;
     setupCards: Array<{
       title: string;
       description: string;
@@ -259,6 +288,10 @@ type Messages = {
     browserSessionCancelFailed: string;
     browserSessionRequestFailed: string;
     unbindConfirm: string;
+    manualDialogCreateTitle: string;
+    manualDialogEditTitle: string;
+    manualDialogCreateDescription: string;
+    manualDialogEditDescription: string;
     placeholders: {
       xUserId: string;
       username: string;
@@ -1158,6 +1191,11 @@ const messages: Record<Locale, Messages> = {
     shell: {
       subtitle: "真实 X 绑定、推荐流抓取与富文本归档",
       badge: "Browser Binding",
+      controlCenter: "控制中心",
+      workspaceLabel: "工作区",
+      fallbackUserName: "当前成员",
+      signedInLabel: "已登录",
+      defaultRole: "成员",
       nav: {
         overview: "概览",
         dashboard: "仪表盘",
@@ -1169,6 +1207,18 @@ const messages: Record<Locale, Messages> = {
         taxonomy: "分类标签",
         archives: "归档",
         runs: "运行记录",
+      },
+      navDescriptions: {
+        overview: "产品能力总览",
+        dashboard: "工作区实时总览",
+        bindings: "已绑定账号与凭证",
+        strategies: "抓取策略与调度",
+        reports: "周报月报与总结",
+        publishing: "发布渠道与草稿",
+        ai: "模型提供商与参数",
+        taxonomy: "分类标签体系",
+        archives: "已归档帖子内容",
+        runs: "执行日志与错误",
       },
       localeLabel: "语言",
       localeOptions: {
@@ -1184,6 +1234,13 @@ const messages: Record<Locale, Messages> = {
       notScheduled: "未安排",
       noDisplayName: "未填写显示名",
       noMedia: "无媒体",
+      cancel: "取消",
+      edit: "编辑",
+      statusLabel: "状态",
+      actionsLabel: "操作",
+      updatedAtLabel: "最近更新",
+      accountLabel: "账号",
+      resultLabel: "结果",
       startDate: "起始",
       untilNow: "至今",
       openOriginal: "打开原帖",
@@ -1220,6 +1277,28 @@ const messages: Record<Locale, Messages> = {
         dashboard: "查看仪表盘",
         bindings: "开始绑定账号",
       },
+      metrics: [
+        {
+          value: "真实登录态",
+          label: "X 账号绑定",
+          description: "通过浏览器辅助模式自动识别账号信息与 Cookie。",
+        },
+        {
+          value: "去重归档",
+          label: "抓取与沉淀",
+          description: "按账号与帖子 ID 去重，稳定保存富文本帖子内容。",
+        },
+        {
+          value: "策略调度",
+          label: "自动执行",
+          description: "支持多账号、多策略和可视化周期配置。",
+        },
+        {
+          value: "发布协同",
+          label: "内容工作流",
+          description: "为报告、草稿与多平台发布保留统一流程入口。",
+        },
+      ],
       setupCards: [
         {
           title: "真实账号绑定",
@@ -1256,14 +1335,14 @@ const messages: Record<Locale, Messages> = {
       },
     },
     login: {
-      heroBadge: "开发环境认证",
-      heroTitle: "登录后才能访问绑定、归档和任务页面",
+      heroBadge: "安全登录",
+      heroTitle: "登录后进入内容工作台",
       heroDescription:
-        "当前开发阶段使用平台账号密码登录，并通过 NextAuth + Prisma Adapter 将用户会话持久化到 PostgreSQL。后续再扩展邮箱验证码或 OAuth 登录时，不需要推翻现有受保护路由结构。",
-      accountTitle: "开发环境测试账号",
-      accountEmail: "邮箱：`demo@example.com`",
-      accountPassword: "密码：`demo123456`",
-      accountHint: "当前账号由数据库种子脚本自动创建。",
+        "登录后即可访问绑定、策略、归档、报告与发布模块。当前版本使用账号密码登录，并通过 NextAuth + Prisma Adapter 将会话持久化到 PostgreSQL。",
+      accountTitle: "演示账号",
+      accountEmail: "邮箱：demo@example.com",
+      accountPassword: "密码：demo123456",
+      accountHint: "该账号会在数据库初始化时自动创建，可用于本地演示和功能测试。",
       loadingTitle: "正在准备登录表单",
       loadingDescription: "正在读取登录回跳地址并初始化会话表单。",
       formTitle: "登录平台",
@@ -1452,6 +1531,12 @@ const messages: Record<Locale, Messages> = {
       browserSessionRequestFailed: "浏览器绑定请求失败，请稍后重试。",
       unbindConfirm:
         "解除绑定会删除当前账号下的归档帖子和抓取记录，且不可恢复。确定继续吗？",
+      manualDialogCreateTitle: "新建 X 绑定",
+      manualDialogEditTitle: "编辑 X 绑定",
+      manualDialogCreateDescription:
+        "用于调试、导入历史凭证或处理非标准场景。若提交的账号已存在，则会更新原绑定；若为新账号，则会创建新的 X 绑定记录。",
+      manualDialogEditDescription:
+        "更新当前 X 账号的基础资料、凭证来源和抓取基础配置。",
       placeholders: {
         xUserId: "例如 44196397",
         username: "例如 openai",
@@ -2519,6 +2604,11 @@ const messages: Record<Locale, Messages> = {
       subtitle:
         "Real X binding, recommendation capture, and rich-text archiving",
       badge: "Browser Binding",
+      controlCenter: "Control center",
+      workspaceLabel: "Workspace",
+      fallbackUserName: "Workspace user",
+      signedInLabel: "Signed in",
+      defaultRole: "Member",
       nav: {
         overview: "Overview",
         dashboard: "Dashboard",
@@ -2530,6 +2620,18 @@ const messages: Record<Locale, Messages> = {
         taxonomy: "Taxonomy",
         archives: "Archives",
         runs: "Runs",
+      },
+      navDescriptions: {
+        overview: "Product capabilities overview",
+        dashboard: "Live workspace summary",
+        bindings: "Connected accounts and credentials",
+        strategies: "Capture strategies and schedules",
+        reports: "Weekly and monthly digests",
+        publishing: "Channels and outbound drafts",
+        ai: "Providers, models, and tuning",
+        taxonomy: "Categories and tag system",
+        archives: "Archived source posts",
+        runs: "Execution logs and failures",
       },
       localeLabel: "Language",
       localeOptions: {
@@ -2545,6 +2647,13 @@ const messages: Record<Locale, Messages> = {
       notScheduled: "Not scheduled",
       noDisplayName: "No display name",
       noMedia: "No media",
+      cancel: "Cancel",
+      edit: "Edit",
+      statusLabel: "Status",
+      actionsLabel: "Actions",
+      updatedAtLabel: "Updated",
+      accountLabel: "Account",
+      resultLabel: "Result",
       startDate: "Start",
       untilNow: "Now",
       openOriginal: "Open original post",
@@ -2581,6 +2690,32 @@ const messages: Record<Locale, Messages> = {
         dashboard: "Open dashboard",
         bindings: "Start binding",
       },
+      metrics: [
+        {
+          value: "Real Session",
+          label: "X account binding",
+          description:
+            "Capture account identity and cookies through a browser-assisted sign-in flow.",
+        },
+        {
+          value: "Deduplicated",
+          label: "Capture and archive",
+          description:
+            "Store rich-text posts reliably and deduplicate by account plus post ID.",
+        },
+        {
+          value: "Automated",
+          label: "Strategy scheduling",
+          description:
+            "Configure multiple accounts, strategies, and visual schedules from one workspace.",
+        },
+        {
+          value: "Connected",
+          label: "Content workflow",
+          description:
+            "Keep reports, drafts, and outbound publishing in one operational flow.",
+        },
+      ],
       setupCards: [
         {
           title: "Real account binding",
@@ -2618,15 +2753,15 @@ const messages: Record<Locale, Messages> = {
       },
     },
     login: {
-      heroBadge: "Development Auth",
-      heroTitle: "Sign in before accessing bindings, archives, and task pages",
+      heroBadge: "Secure Access",
+      heroTitle: "Sign in to enter the content workspace",
       heroDescription:
-        "At this stage the platform uses account-and-password login, and persists sessions to PostgreSQL through NextAuth + Prisma Adapter. Later we can add email codes or OAuth without rebuilding the protected route structure.",
-      accountTitle: "Development test account",
-      accountEmail: "Email: `demo@example.com`",
-      accountPassword: "Password: `demo123456`",
+        "Signing in unlocks the bindings, strategies, archives, reports, and publishing modules. The current version uses account-and-password authentication and persists sessions to PostgreSQL through NextAuth + Prisma Adapter.",
+      accountTitle: "Demo account",
+      accountEmail: "Email: demo@example.com",
+      accountPassword: "Password: demo123456",
       accountHint:
-        "This account is created automatically by the database seed script.",
+        "This account is created automatically during database initialization for local demos and testing.",
       loadingTitle: "Preparing login form",
       loadingDescription:
         "Reading callback parameters and initializing the session form.",
@@ -2825,6 +2960,12 @@ const messages: Record<Locale, Messages> = {
         "Browser binding request failed. Please try again later.",
       unbindConfirm:
         "Unbinding will delete archived posts and crawl run records under the current account, and it cannot be undone. Continue?",
+      manualDialogCreateTitle: "Create X binding",
+      manualDialogEditTitle: "Edit X binding",
+      manualDialogCreateDescription:
+        "Use this for debugging, importing historical credentials, or non-standard scenarios. Matching an existing X account updates that binding, while a different account creates a new binding record.",
+      manualDialogEditDescription:
+        "Update the current X account profile, credential source, and baseline crawl configuration.",
       placeholders: {
         xUserId: "For example 44196397",
         username: "For example openai",

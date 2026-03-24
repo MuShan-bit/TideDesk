@@ -33,7 +33,7 @@ export function ThemeToggle({ locale, theme }: ThemeToggleProps) {
     <Button
       type="button"
       variant="outline"
-      className="h-10 rounded-full border-border/70 bg-white/80 px-3 text-foreground shadow-sm hover:bg-white dark:border-white/10 dark:bg-white/6 dark:hover:bg-white/12"
+      className="h-10 rounded-full border-border/70 bg-white/78 px-3 text-foreground shadow-[0_10px_24px_-18px_rgba(15,23,42,0.22)] hover:bg-sky-50 dark:border-white/10 dark:bg-white/6 dark:hover:bg-white/12"
       aria-label={`${messages.shell.themeLabel}：${label}`}
       onClick={() => {
         setCurrentTheme(nextTheme);
