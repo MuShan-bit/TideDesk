@@ -3,7 +3,7 @@ export const supportedLocales = ["zh-CN", "en"] as const;
 export type Locale = (typeof supportedLocales)[number];
 
 export const defaultLocale: Locale = "zh-CN";
-export const localeCookieName = "auto-x-to-wechat.locale";
+export const localeCookieName = "tidedesk.locale";
 
 type Messages = {
   metadata: {
@@ -1190,7 +1190,7 @@ const messages: Record<Locale, Messages> = {
     },
     shell: {
       subtitle: "真实 X 绑定、推荐流抓取与富文本归档",
-      badge: "Browser Binding",
+      badge: "TideDesk",
       controlCenter: "控制中心",
       workspaceLabel: "工作区",
       fallbackUserName: "当前成员",
@@ -1272,7 +1272,7 @@ const messages: Record<Locale, Messages> = {
       title: "连接 X 登录态，把推荐内容沉淀为可检索归档",
       description:
         "通过浏览器辅助绑定真实 X 账号，定时抓取首页推荐流，自动去重并以富文本卡片形式沉淀内容，方便后续检索、回查与整理。",
-      badge: "Real X Workflow",
+      badge: "TideDesk",
       actions: {
         dashboard: "查看仪表盘",
         bindings: "开始绑定账号",
@@ -2603,7 +2603,7 @@ const messages: Record<Locale, Messages> = {
     shell: {
       subtitle:
         "Real X binding, recommendation capture, and rich-text archiving",
-      badge: "Browser Binding",
+      badge: "TideDesk",
       controlCenter: "Control center",
       workspaceLabel: "Workspace",
       fallbackUserName: "Workspace user",
@@ -2685,7 +2685,7 @@ const messages: Record<Locale, Messages> = {
       title: "Turn the X home timeline into searchable archives",
       description:
         "Bind a real X account through a browser-assisted flow, capture recommended posts on schedule, deduplicate them, and preserve the content as rich-text cards for later review.",
-      badge: "Real X Workflow",
+      badge: "TideDesk",
       actions: {
         dashboard: "Open dashboard",
         bindings: "Start binding",

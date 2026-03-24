@@ -1,4 +1,4 @@
-# auto-x-to-wechat
+# TideDesk
 
 一个围绕“真实 X 登录态绑定 -> 推荐流抓取 -> 去重归档 -> AI 整理 -> 报告与发布”打造的内容工作台。
 
@@ -280,4 +280,3 @@ DATABASE_URL='postgresql://postgres:postgres@localhost:55432/auto_x_to_wechat?sc
 - [开发 TODO 文档](docs/开发TODO文档.md)
 - [部署上线说明](docs/部署上线说明.md)
 - [上线检查清单](docs/上线检查清单.md)
-

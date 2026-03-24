@@ -91,7 +91,7 @@ type ManualBindingDialogState =
 
 const initialActionState: BindingActionState = {};
 const browserBindingSessionStorageKey =
-  "auto-x-to-wechat.binding-browser-session-id";
+  "tidedesk.binding-browser-session-id";
 
 function formatDateTime(
   value: string | null | undefined,

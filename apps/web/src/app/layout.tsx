@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { messages } = await getRequestMessages();
 
   return {
-    title: "auto-x-to-wechat",
+    title: "TideDesk",
     description: messages.metadata.description,
   };
 }

@@ -388,7 +388,7 @@ export class XBrowserAutomationService implements XBrowserAutomationPort {
   ) {
     const debugPort = await this.reserveDebugPort();
     const userDataDir = await mkdtemp(
-      join(tmpdir(), 'auto-x-to-wechat-login-'),
+      join(tmpdir(), 'tidedesk-login-'),
     );
     const chromeProcess = spawn(
       executablePath,

@@ -23,33 +23,33 @@ describe("app-url", () => {
   });
 
   it("normalizes hostnames into https urls", () => {
-    expect(normalizeAppUrl("preview.auto-x-to-wechat.vercel.app/")).toBe(
-      "https://preview.auto-x-to-wechat.vercel.app",
+    expect(normalizeAppUrl("preview.tidedesk.vercel.app/")).toBe(
+      "https://preview.tidedesk.vercel.app",
     );
   });
 
   it("prefers NEXTAUTH_URL when provided", () => {
     process.env.NEXTAUTH_URL = "https://example.com/";
     process.env.VERCEL_ENV = "preview";
-    process.env.VERCEL_BRANCH_URL = "preview.auto-x-to-wechat.vercel.app";
+    process.env.VERCEL_BRANCH_URL = "preview.tidedesk.vercel.app";
 
     expect(getAppBaseUrl()).toBe("https://example.com");
   });
 
   it("uses preview branch url on vercel preview deployments", () => {
     process.env.VERCEL_ENV = "preview";
-    process.env.VERCEL_BRANCH_URL = "preview.auto-x-to-wechat.vercel.app";
+    process.env.VERCEL_BRANCH_URL = "preview.tidedesk.vercel.app";
 
     expect(getAppBaseUrl()).toBe(
-      "https://preview.auto-x-to-wechat.vercel.app",
+      "https://preview.tidedesk.vercel.app",
     );
   });
 
   it("uses production project url on vercel production deployments", () => {
     process.env.VERCEL_ENV = "production";
-    process.env.VERCEL_PROJECT_PRODUCTION_URL = "auto-x-to-wechat.vercel.app";
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "tidedesk.vercel.app";
 
-    expect(getAppBaseUrl()).toBe("https://auto-x-to-wechat.vercel.app");
+    expect(getAppBaseUrl()).toBe("https://tidedesk.vercel.app");
   });
 
   it("does not force secure cookies for local http deployments", () => {
@@ -60,7 +60,7 @@ describe("app-url", () => {
   });
 
   it("uses secure cookies for https deployments", () => {
-    process.env.NEXTAUTH_URL = "https://auto-x-to-wechat.vercel.app";
+    process.env.NEXTAUTH_URL = "https://tidedesk.vercel.app";
 
     expect(shouldUseSecureSessionCookie()).toBe(true);
   });

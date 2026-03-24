@@ -135,7 +135,7 @@ export default async function Home() {
                 {messages.home.progress.badge}
               </Badge>
               <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                auto-x-to-wechat
+                TideDesk
               </span>
             </div>
             <div className="space-y-3">

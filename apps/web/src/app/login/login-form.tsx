@@ -20,7 +20,7 @@ export function LoginForm({ locale }: { locale: Locale }) {
     <Card className="rounded-[2rem] border-white/70 bg-white/92 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.24)] dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_80px_-40px_rgba(0,0,0,0.55)]">
       <CardHeader className="gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#145375] dark:text-sky-200">
-          auto-x-to-wechat
+          TideDesk
         </p>
         <CardTitle className="text-2xl font-semibold">
           {messages.login.formTitle}

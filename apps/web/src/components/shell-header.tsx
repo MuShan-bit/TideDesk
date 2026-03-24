@@ -47,7 +47,7 @@ function getDisplayInitial(value: string | null | undefined) {
   const normalized = value?.trim();
 
   if (!normalized) {
-    return "AX";
+    return "TD";
   }
 
   return normalized.slice(0, 2).toUpperCase();
@@ -143,14 +143,14 @@ export function ShellHeader({
           <header className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-[1.75rem] border border-white/60 bg-white/82 px-5 py-4 shadow-[0_24px_60px_-38px_rgba(15,23,42,0.25)] backdrop-blur dark:border-white/10 dark:bg-white/6 dark:shadow-[0_24px_60px_-38px_rgba(0,0,0,0.55)]">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#145375,#0b6b88)] text-sm font-semibold tracking-[0.26em] text-white shadow-[0_18px_32px_-20px_rgba(20,83,117,0.9)]">
-                AX
+                TD
               </div>
               <div className="min-w-0">
                 <Link
                   href="/"
                   className="block truncate text-lg font-semibold tracking-tight text-foreground"
                 >
-                  auto-x-to-wechat
+                  TideDesk
                 </Link>
                 <p className="truncate text-sm text-muted-foreground">
                   {messages.shell.subtitle}
@@ -192,14 +192,14 @@ export function ShellHeader({
           <div className="sticky top-4 flex h-[calc(100vh-2rem)] flex-col rounded-[2rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,251,255,0.92))] p-4 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.22)] backdrop-blur dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(10,17,32,0.96),rgba(13,23,38,0.94))] dark:shadow-[0_28px_80px_-42px_rgba(0,0,0,0.55)]">
             <div className="flex items-center gap-3 rounded-[1.5rem] border border-border/70 bg-white/70 px-4 py-4 dark:border-white/10 dark:bg-white/6">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#145375,#0b6b88)] text-sm font-semibold tracking-[0.26em] text-white shadow-[0_18px_32px_-20px_rgba(20,83,117,0.9)]">
-                AX
+                TD
               </div>
               <div className="min-w-0">
                 <Link
                   href="/dashboard"
                   className="block truncate text-base font-semibold tracking-tight text-foreground"
                 >
-                  auto-x-to-wechat
+                  TideDesk
                 </Link>
                 <p className="mt-1 truncate text-sm text-muted-foreground">
                   {messages.shell.controlCenter}

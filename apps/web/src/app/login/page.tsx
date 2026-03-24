@@ -95,7 +95,7 @@ export default async function LoginPage() {
                   <LockKeyhole className="size-5" />
                 </div>
                 <Badge className="rounded-full bg-[#edf6fb] text-[#145375] dark:bg-white/8 dark:text-sky-200">
-                  auto-x-to-wechat
+                  TideDesk
                 </Badge>
               </div>
               <div className="space-y-2">
